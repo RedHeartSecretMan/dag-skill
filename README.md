@@ -26,26 +26,42 @@ flowchart LR
     E -->|"充分"| G["主 Agent 裁决"]
     E -->|"不足、过期、矛盾或高风险"| F["派发 fresh code-review"]
     F --> G
-    G --> H["接受并解锁后继"]
+    G --> H["集成到权威基线并复验最终字节"]
+    H --> K["接受并解锁后继"]
     G --> I["一次正式返工"]
     G --> J["拆票、修图、延后或阻塞"]
 ```
 
 `implement` 内部触发的 `code-review` 是执行侧预审。主 Agent 会检查原始 Standards/Spec 结果、Reviewer 独立性、真实模型元数据以及被审查的最终产物；证据充分时直接用于裁决，只有不足或风险较高时才再次派发独立评审。
 
-主 Agent始终拥有 Ticket 接受、返工、拆票、重排和最终验收权。实现 Agent、Reviewer 或绿测声明都不能单独证明完成。
+所有已派发 Reviewer 都必须终止或被明确替代，且迟到结果已经处理；超时只表示缺少证据，不表示没有问题。
+
+主 Agent 始终拥有 Ticket 接受、返工、拆票、重排和最终验收权。实现 Agent、Reviewer 或绿测声明都不能单独证明完成；Agent 失败时应按预算重新派发或阻塞，不能由主 Agent 接管实现或代替独立评审。
 
 ## 调度与有界失败
 
 - Frontier 同时依据依赖、blocker、认领和验收记录权限、Agent 能力以及 workspace 写入安全计算，不能只读取 `ready` 状态。
 - 同一 workspace 默认只有一个写入 Agent；只有目标项目提供明确隔离和集成边界时才并行实现。
-- 每次实现尝试最多有一次操作性重试；每张 Ticket 最多一次正式返工。
+- `active`、已认领或正在探索只证明任务存在；主 Agent 直接分派的每个 Agent 都设置并记录适合其角色、Ticket 与宿主的有界进展检查点，子 Agent 则负责同样有界地监控它进一步派发的 Agent。检查点必须有可核查的 milestone，例如有效 RED、ticket-scoped diff、候选产物、评审报告、明确 blocker 或终态 handoff。已经授权且可用的宿主持久 Goal 可用于维持运行，但它是可选机制，不能代替 tracker 和 Git 事实。
+- 每个 Ticket attempt 在实施、评审和集成阶段共享一次操作性重试；每张 Ticket 最多一次正式返工。
 - 同一原始 Ticket lineage 最多自动执行一次保持语义的 DAG Revision；再次修图需要用户明确授权。
+- 测试失败必须区分本票回归、带 owner 和关闭条件的既有异常、环境或工具问题以及未验证项；必需门禁的非绿色或未验证结果默认阻塞，不能描述为全绿。
+- Ticket 出现第二个独立目标或验收 seam、或者当前 diff 已无法进行有界评审时，立即停止扩张并拆票或修图。未验收的历史 WIP 只作为证据使用。
 - 恢复所需证据记录在目标项目既有 tracker 或仓库证据中，不新增 dag-skill 私有状态文件。
+
+跨任务交接只有在接收方重新读取 live 项目并恢复 fixed point、attempt、预算、产物、blocker 和 frontier 后才成立；发送消息或看到任务 active 不足以证明交接成功。
+
+## 集成与失效
+
+通过评审的候选必须先进入目标项目的权威集成基线，并在集成后的最终字节和真实交付边界上复验，随后才能接受 Ticket 并解锁后继。外部关闭状态只在其独立条件与授权同时满足时同步。若集成改变了被评审的字节或评审相关 identity/history，必须重新进行评审充分性判断。原 Ticket 范围内的集成冲突由 Execution Agent 处理并消耗尚未使用的 Formal Rework；返工预算已耗尽或冲突暴露 scope drift 时，才进入 DAG Revision。
+
+外部 `resolved` 状态如果承诺产物已可从指定集成或远端 ref 获取，写入前必须证明可达性；缺少任何必需的远端 tracker 写入或发布授权时，只保留本地验收证据，不改变外部状态。
+
+迟到的有效 finding 或 Whole-DAG 验收失败会使原票及所有消费其输出的已接受后继失效，并暂停受影响子图。主 Agent 应按目标项目契约重新打开原票，或调用 authoring Skill 追加 remediation lineage，而不是直接补丁绕过 DAG。
 
 ## Skill 复用与回退
 
-优先显式使用当前安装的 `implement` 和 `code-review`。当 Skill 缺失或其 Git、Spec、tracker 等前置条件在目标项目中不适用时，主 Agent 会公开说明并使用 DAG 内建流程；不会静默跳过测试、独立 Standards/Spec 评审或最终字节核验。
+优先显式使用当前安装的 `implement` 和 `code-review`。当 Skill 缺失或其 Git、Spec、tracker 等前置条件在目标项目中不适用时，主 Agent 会公开说明并使用 DAG 内建流程；不会静默跳过测试、独立 Standards/Spec 评审、真实交付边界或最终字节核验。
 
 需要新增或修改 Ticket 时必须调用目标项目的 authoring Skill；`dag-skill` 不提供 Ticket authoring fallback。
 
@@ -57,7 +73,7 @@ flowchart LR
 
 ## 终态
 
-- `Complete`：有效图中的所有 Tickets 均已接受，并通过 Spec 覆盖、依赖集成、最终产物、项目门禁和 tracker 一致性的整图验收。
+- `Complete`：有效图中的所有 Tickets 均已集成并接受，并通过 Spec 覆盖、依赖集成、最终产物、项目门禁和 tracker 一致性的整图验收。
 - `Stalled`：仍有未完成 Tickets，但没有运行中的 Agent，也没有满足真实调度条件的 Runnable Frontier；每条停止路径都有可核查原因。
 
 `Complete` 只表示本地验收完成，不包含发布授权。

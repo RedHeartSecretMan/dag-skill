@@ -33,8 +33,12 @@ An executable, acceptance-scoped unit of delivery work within an Approved DAG.
 _Avoid_: task, step, prompt
 
 **Accepted Ticket**:
-A Ticket whose Final Artifact Identity, verification, Finding Dispositions, and tracker evidence have been validated and persisted by the Coordinator.
+A Ticket whose reviewed candidate is present on the Authoritative Integration Baseline and whose integrated Final Artifact Identity, verification, Finding Dispositions, and tracker evidence have been validated and persisted by the Coordinator.
 _Avoid_: implemented ticket, reviewed ticket, worker-complete ticket
+
+**Authoritative Integration Baseline**:
+The Target Project state into which a reviewed Ticket candidate is incorporated and reverified before acceptance and downstream consumption.
+_Avoid_: worker workspace, unintegrated candidate, publication target
 
 **Node Contract**:
 The minimum live semantics required to schedule a Ticket without guessing: identity, scope, dependency inputs, observable outputs, acceptance, state, ownership, and blockers.
@@ -53,7 +57,7 @@ The set of unaccepted Tickets whose hard dependencies are accepted, blockers are
 _Avoid_: ready status, graph-ready set, pending queue
 
 **Continuous Scheduling**:
-The Coordinator's repeated live reconciliation, frontier calculation, dispatch, adjudication, and successor unlocking under a DAG Run Authorization until the graph completes or genuinely stalls.
+The Coordinator's repeated live reconciliation, frontier calculation, dispatch, adjudication, integration, acceptance, and successor unlocking under a DAG Run Authorization until the graph completes or genuinely stalls.
 _Avoid_: background daemon, per-Ticket confirmation, chat-driven progress
 
 **Safe Parallelism**:
@@ -65,7 +69,7 @@ The rule that only one Execution Agent may write in a workspace at a time unless
 _Avoid_: shared-worktree parallelism, concurrent commits, inferred isolation
 
 **Finish-First Scheduling**:
-The capacity rule that completes formal review and acceptance of work already in progress before opening additional implementation work.
+The capacity rule that completes formal review, integration, and acceptance of work already in progress before opening additional implementation work.
 _Avoid_: maximum work in progress, implementation-first scheduling
 
 **Complete**:
@@ -77,7 +81,7 @@ The terminal outcome reached when unfinished Tickets remain but no Agent is runn
 _Avoid_: waiting, agent capacity limit, partial completion
 
 **Whole-DAG Acceptance Gate**:
-The Coordinator's final graph-wide verification of Spec coverage, integrated dependency outputs, current Ticket evidence, project gates, and tracker consistency.
+The Coordinator's final graph-wide verification of Spec coverage, every accepted candidate on the Authoritative Integration Baseline, integrated dependency outputs, current Ticket evidence, project gates, and tracker consistency.
 _Avoid_: last Ticket acceptance, full test alone, completion summary
 
 **Ticket Gate**:
@@ -85,7 +89,7 @@ An evidence-backed condition that a Ticket must satisfy before it can advance wi
 _Avoid_: checklist item, status label
 
 **Formal Rework**:
-The single Coordinator-authorized return of a Ticket to its Execution Agent after valid formal-review findings are accepted within the Ticket's original scope.
+The single Coordinator-authorized return of a Ticket to its Execution Agent after a valid Formal Review or integration finding is accepted within the Ticket's original scope.
 _Avoid_: retry, self-correction, new implementation attempt
 
 **Rework Budget**:
@@ -119,7 +123,7 @@ _Avoid_: routine DAG operation, local step
 ## Roles and Evidence
 
 **Coordinator**:
-The primary agent accountable for live-state reconciliation, DAG scheduling, evidence adjudication, replanning decisions, and final acceptance.
+The primary agent accountable for live-state reconciliation, DAG scheduling, evidence adjudication, byte-preserving integration, replanning decisions, and final acceptance.
 _Avoid_: worker, reviewer, agent manager
 
 **Execution Profile**:
@@ -127,15 +131,15 @@ The required model and reasoning-effort pair for a DAG role, verified from actua
 _Avoid_: preferred model, requested configuration, silent fallback
 
 **DAG State Ownership**:
-The Coordinator's exclusive authority to claim Tickets, change tracker state, record acceptance evidence, and unlock successors.
+The Coordinator's exclusive authority to claim Tickets, advance reviewed candidates through integration, change tracker state, record acceptance evidence, and unlock successors.
 _Avoid_: worker completion, reviewer transition, shared ownership
 
 **Operational Retry**:
-The single corrected redispatch allowed after an Agent or tool failure prevents a valid handoff, separate from a Ticket's Rework Budget.
+The single corrected redispatch or retry allowed when an Agent, tool, or integration failure prevents valid implementation, review, or integration evidence, separate from a Ticket's Rework Budget.
 _Avoid_: Formal Rework, automatic retry loop, repeated dispatch
 
 **Implement Skill**:
-The currently installed Matt Skill exposed through the exact name `implement` and used for both initial Ticket implementation and Formal Rework, including its implementation-side Code Review before the Implementation Handoff.
+The preferred installed Matt Skill exposed through the exact name `implement` and used for initial Ticket implementation and Formal Rework when applicable, including its implementation-side Code Review before the Implementation Handoff.
 _Avoid_: Target Implementation Skill, copied implementation rules, fuzzy Skill discovery
 
 **Authoring Skill**:
@@ -143,7 +147,7 @@ The Target Project's current capability for creating or revising Spec and Ticket
 _Avoid_: DAG Skill authoring, DAG-Native Fallback, silent Ticket rewrite
 
 **Execution Agent**:
-An agent assigned through the Implement Skill to implement exactly one Ticket against fresh Target Project context and return its implementation and raw review evidence.
+An agent assigned to implement exactly one Ticket against fresh Target Project context and return its implementation and raw review evidence, using the Implement Skill when applicable or the disclosed DAG-Native Fallback otherwise.
 _Avoid_: Coordinator, reviewer, general worker
 
 **Implementation-Side Review**:
@@ -155,7 +159,7 @@ The boundary where an Execution Agent returns its implementation, verification, 
 _Avoid_: Ticket acceptance, review result, worker completion claim
 
 **Code Review Skill**:
-The currently installed Matt Skill exposed through the exact name `code-review` and used for independent two-axis review either inside the Implement Skill or through a fresh Coordinator dispatch.
+The preferred installed Matt Skill exposed through the exact name `code-review` and used when applicable for independent two-axis review either inside the Implement Skill or through a fresh Coordinator dispatch.
 _Avoid_: implementer opinion, Coordinator acceptance, aggregate pass/fail
 
 **Review Sufficiency Gate**:
@@ -171,7 +175,7 @@ The immutable pre-implementation baseline that bounds the change attributable to
 _Avoid_: current branch name, approximate start, mutable reference
 
 **Final Artifact Identity**:
-The immutable commit or verifiable content snapshot examined by both review axes and by the Coordinator before Ticket acceptance.
+The immutable commit or verifiable content snapshot to which both review axes are bound, directly or through verified equivalence, and which the Coordinator verifies on the Authoritative Integration Baseline before Ticket acceptance.
 _Avoid_: latest files, worker-reported version, stale review target
 
 **Finding Disposition**:
@@ -199,5 +203,5 @@ A live tracker, repository, test, or formal-review artifact that substantiates w
 _Avoid_: chat state, plan text, agent claim
 
 **Recovery Evidence**:
-State Evidence sufficient to reconstruct a Ticket's Review Fixed Point, Final Artifact Identity, consumed Operational Retry, Formal Rework and DAG Revision budgets, findings, acceptance, and Ticket Lineage after start or resume.
+State Evidence sufficient to reconstruct every directly dispatched Agent's bounded progress checkpoint and observed state for a Ticket, the Review Fixed Point, Final Artifact Identity, known failing gates and their classifications, integration and acceptance state, consumed Operational Retry, Formal Rework and DAG Revision budgets, findings, and Ticket Lineage after start, resume, or handoff.
 _Avoid_: chat memory, Coordinator recollection, separate scheduler state

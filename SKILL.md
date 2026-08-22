@@ -19,6 +19,8 @@ Act as the Coordinator for an approved directed acyclic graph of delivery Ticket
    - Review Agent, Standards Reviewer, and Spec Reviewer: `gpt-5.6-sol`, `high`.
 6. Report a mismatched or unverifiable profile and pause the affected work until the correct profile is available or the user explicitly authorizes a substitute. Never silently substitute a model or reasoning effort.
 
+Optionally use an already-authorized durable host goal or continuation mechanism when available; when used, read back its live state after continuation, resume, or task handoff. Treat it only as run liveness; never treat it as Target Project state, forward progress, or completion evidence.
+
 Treat a contradiction among user scope, project instructions, Tracker Contract, Approved Spec, or approved Tickets as a blocked design input when it affects scope, semantics, acceptance, or delivery behavior. Pause the affected node and propose a Ticket repair, split, or graph revision through the Target Project's authoring capability.
 
 ## Respect authorization
@@ -33,7 +35,7 @@ Treat the DAG Run Authorization as permission for continuous, locally auditable 
 
 Obtain separate user authorization before any external-system mutation, including remote tracker writes, deployments, external API or database writes, and state-changing remote CI triggers. Also obtain separate authorization before push, pull request creation, tag, release, destructive Git, approved product-semantic or acceptance changes, or gate weakening.
 
-Preserve unrelated work. Use the existing repository as found; never initialize Git, reset or clean away state, or manufacture a baseline.
+Preserve unrelated work. Use the existing repository as found; never initialize Git, reset or clean away state, or manufacture a baseline. Classify inherited changes as the current Ticket candidate, protected unrelated work, or unaccepted historical work. Treat unaccepted historical work as evidence only unless a live approved Ticket explicitly adopts it.
 
 ## Reconstruct the live graph
 
@@ -52,13 +54,17 @@ On every start or continuation:
 Keep recovery data in the Target Project's existing tracker or repository evidence under its contract. For every started Ticket, reconstruct:
 
 - current attempt, ownership, and blockers;
+- for every Agent dispatched directly by the Coordinator, its current bounded progress checkpoint, bound, observed state, and last evidence-bearing milestone;
 - Review Fixed Point and Final Artifact Identity when available;
 - consumed Operational Retry and Formal Rework;
 - raw review findings and Coordinator dispositions;
 - acceptance evidence;
+- known failing gates, including the exact command and context, actual result, classification, owning Ticket or blocker, and closing condition;
 - Ticket Lineage and consumed automatic DAG Revision.
 
 Treat a Ticket as non-runnable when required recovery evidence cannot be reconstructed or legally persisted. Do not create a DAG Skill scheduler file.
+
+For a cross-task handoff, persist this recovery evidence first. Count the handoff as established only after the receiving Coordinator rereads the live Target Project and recovers the attempt, ownership, budgets, artifacts, blockers, and frontier; sending a message or observing an active task is insufficient.
 
 ## Compute and schedule the frontier
 
@@ -75,6 +81,8 @@ Treat a ready-like status string as insufficient by itself.
 Finish evidence checks, review, and acceptance for work already in progress before opening more implementation work. Recompute the frontier after every claim, handoff, acceptance, block, or graph revision. Select work by tracker priority, then clear downstream-unlock or critical-path value, then stable Ticket identity.
 
 Run graph-independent Tickets concurrently only when the Target Project supplies isolated workspaces and an explicit integration boundary. Keep one write-capable Execution Agent per workspace. Serialize uncertain write interactions; allow independent read-only reviews to run concurrently.
+
+For every Agent that the Coordinator dispatches directly, set and persist a bounded progress checkpoint appropriate to its role, Ticket, and host. Make a dispatching Agent responsible for equivalent bounded monitoring of any nested Agents it creates and for reporting their terminal states. At each checkpoint, require an evidence-bearing milestone, an evidenced blocker, or a terminal result; otherwise interrupt the still-live Agent and record an Operational Failure.
 
 ## Advance one Ticket
 
@@ -98,6 +106,8 @@ When `implement` is unavailable or inapplicable, disclose DAG-Native Fallback an
 - create a ticket-scoped commit only when the repository and authorization permit it;
 - return a complete Implementation Handoff.
 
+Across both paths, count a RED only when its input conforms to the live Ticket contract, it exercises the live Ticket's agreed public contract seam and real delivered seam when applicable, and it fails because of the target behavior rather than an environment, tool, or probe error. Claiming, reading, and exploration are neither RED nor candidate evidence.
+
 Represent fallback honestly; never claim that an unavailable or inapplicable Skill ran.
 
 ### 3. Validate the handoff
@@ -106,15 +116,21 @@ Require the Execution Agent to return:
 
 - Ticket identity and delivered scope;
 - changed files and commit when applicable;
-- exact verification commands and outcomes, including failures and checks not run;
+- exact verification commands, execution contexts, and outcomes, including failures and checks not run; classify each failure as an introduced regression, an evidenced baseline exception with an owning Ticket or blocker and closing condition, an environment/tool/probe failure, or unverified;
 - raw Standards and Spec review artifacts when available;
 - actual reviewer runtime metadata and the artifact identity each reviewer examined;
 - every change made after the Implementation-Side Review;
 - deviations, unresolved risks, and blockers.
 
-Inspect the live diff, commit, repository state, scope, verification results, raw review artifacts, reviewer independence, and artifact identities yourself. Reject a completion claim or second-hand review summary as an invalid handoff.
+Inspect the live diff, commit, repository state, scope, verification results, raw review artifacts, reviewer independence, and artifact identities yourself. Inspect the delivered public seam when it differs from source or test fixtures, and reject unexplained generated, formatted, or dependency-lock churn. Reject a completion claim or second-hand review summary as an invalid handoff.
 
-Allow one total corrected Operational Retry per Ticket attempt when an Agent crash, tool failure, profile mismatch, or invalid handoff prevents a valid result. Persist the consumed retry before redispatch. After that budget is consumed, treat any further operational failure as a blocker rather than another retry.
+Reproduce a claimed environment, tool, or probe failure with the same relevant check in a suitable authorized environment; otherwise keep it unverified. Never represent a non-green gate as green or project an exception from one artifact identity onto another.
+
+Treat a required gate that remains non-green or unverified as blocking unless the Target Project contract explicitly permits that exact exception and its recovery evidence identifies an owner or blocker and a closing condition.
+
+Allow one total corrected Operational Retry per Ticket attempt across implementation, review, and integration when an Agent crash, tool failure, profile mismatch, invalid handoff or report, or integration tool failure prevents a valid result. Persist the consumed retry before redispatch. After that budget is consumed, treat any further operational failure as a blocker rather than another retry.
+
+Keep role separation after failure: redispatch the appropriate Agent within the retry budget or block the Ticket. The Coordinator does not take over Ticket implementation or replace independent review.
 
 ### 4. Apply the Review Sufficiency Gate
 
@@ -137,7 +153,9 @@ When `code-review` is installed and applicable, explicitly require the fresh Rev
 
 When `code-review` is unavailable or inapplicable, disclose DAG-Native Fallback and dispatch fresh, independent Standards and Spec Reviewers against the same Final Artifact Identity. Preserve both axes and the required profiles.
 
-Treat any later implementation change, amend, or rebase as invalidating both review axes. Establish the new Final Artifact Identity and apply the Review Sufficiency Gate again.
+Treat a review timeout or missing report as missing evidence, never as a clean result. Use the remaining Operational Retry for a replacement when the missing evidence is an operational failure; block after that retry is consumed. Before adjudication, require every dispatched reviewer for the attempt to reach an observed terminal state or be explicitly superseded, then reconcile every queued or late report even when a replacement review has already been dispatched.
+
+Treat any later change to reviewed bytes or review-relevant identity or history as invalidating both review axes. Establish the new Final Artifact Identity and apply the Review Sufficiency Gate again. Retain existing evidence across a topology-only integration only when equivalence is verifiable and the changed identity or history lies outside both review scopes.
 
 ### 5. Adjudicate
 
@@ -149,13 +167,23 @@ Inspect the implementation evidence and raw review results. Give every finding o
 - false positive, with evidence;
 - unresolved.
 
-Keep mandatory Target Project, Spec, and Ticket violations blocking. Keep unresolved findings blocking. Do not weaken a gate or change approved semantics to obtain acceptance.
+Keep mandatory Target Project, Spec, and Ticket violations blocking. Keep unresolved findings blocking. Treat every graph-changing finding as preventing integration until the Target Project's authoring capability produces an approved, valid revision. Do not weaken a gate or change approved semantics to obtain acceptance.
 
-Accept the Ticket only when the Final Artifact Identity, verification, review evidence, finding dispositions, scope, and tracker evidence agree. Persist the Target Project's acceptance state and evidence, reread it, and only then unlock successors. Never use green tests, an Execution Agent claim, or a Reviewer verdict alone as completion proof.
+### 6. Integrate and accept
+
+After adjudication leaves no blocking, graph-changing, or unresolved finding, integrate the exact reviewed candidate into the Target Project's Authoritative Integration Baseline under its contract and the current authorization. Verify that the reviewed artifact is represented by or reachable from that baseline, then run the required affected and integration gates on the integrated bytes, including the delivered public seam when applicable.
+
+Apply the same invalidation rule when integration, conflict resolution, rebase, generated output, or any other integration action changes the reviewed artifact.
+
+Keep integration byte-preserving. When a conflict requires reviewed-byte changes within the original Ticket scope, preserve the reviewed candidate and consume the Ticket's remaining Formal Rework to redispatch the appropriate Execution Agent. Require the new artifact to pass handoff, review, adjudication, and integration again. Revise the graph when Formal Rework is exhausted or the conflict exposes scope drift; the Coordinator does not implement the resolution.
+
+Accept the Ticket only when the integrated Final Artifact Identity, verification, review evidence, finding dispositions, scope, Authoritative Integration Baseline, and tracker evidence agree. When an external resolved state promises artifact availability from a designated integration or remote reference, prove that reachability before writing the state; without every required remote tracker-write and publication authorization, retain local acceptance evidence and leave the external state unchanged. Persist the Target Project's acceptance state and evidence, reread it, and only then unlock successors. Never use green tests, an Execution Agent claim, or a Reviewer verdict alone as completion proof.
 
 ## Bound rework and revise the graph
 
-Authorize one Formal Rework per Ticket when the Coordinator accepts a blocking Formal Review finding within the original scope. Persist the consumed rework before redispatch. Reuse the original Execution Agent when it remains available with the required profile; otherwise dispatch a fresh `implement` Agent with the complete accepted findings.
+Stop in-place implementation as soon as the Ticket acquires another independent delivery objective or acceptance seam, or its fixed diff no longer supports a bounded review. Use the Target Project's authoring capability to repair or split the graph instead of allowing scope to accumulate inside the node.
+
+Authorize one Formal Rework per Ticket when the Coordinator accepts a blocking Formal Review or integration finding within the original scope. Persist the consumed rework before redispatch. Reuse the original Execution Agent when it remains available with the required profile; otherwise dispatch a fresh Execution Agent with the complete accepted findings. Reapply the initial dispatch's Skill applicability gate against the live environment: explicitly use `implement` when applicable, or disclose and use DAG-Native Fallback.
 
 Treat self-correction before handoff, duplicate findings, false positives, and Operational Retry as outside the Formal Rework budget. Make the reworked artifact pass implementation, handoff, review sufficiency, and adjudication again.
 
@@ -165,16 +193,18 @@ Use the Target Project's current authoring Skill to create or revise Ticket cont
 
 Allow at most one automatic semantics-preserving DAG Revision per original Ticket Lineage. Persist its rationale, provenance, and consumed budget before scheduling the replacement subgraph. Require explicit user authorization for another revision in the same lineage; otherwise leave that path evidenced and unfinished. Revalidate the whole graph after every revision.
 
+When a valid late review finding or Whole-DAG failure contradicts an accepted Ticket, immediately treat its acceptance evidence and the acceptance of every consuming descendant as invalid, and pause the affected subgraph. Persist that invalidation under the Tracker Contract when authorized; block the path when it cannot be legally persisted. Reopen the Ticket when its remaining Formal Rework can address the original scope; otherwise use the authoring capability to append a remediation lineage. Recompute and revalidate the graph before resuming affected work.
+
 ## Reach a terminal outcome
 
-Continue independent runnable branches when one branch blocks. Count an Agent as running only while its liveness is observable; convert a lost Agent into an Operational Failure.
+Continue independent runnable branches when one branch blocks. Count an Agent as running only while its liveness is observable and its bounded progress checkpoint has not failed; convert a lost or non-progressing Agent into an Operational Failure. Report forward progress only from evidence-bearing milestones such as a valid RED, a ticket-scoped change, a candidate artifact, or a valid handoff; an active goal or chat output alone is not progress.
 
 Report **Stalled** only when unfinished effective Tickets remain, no Agent is running, and the Runnable Frontier is empty. Give every stopped path a live evidenced cause, such as missing authorization, invalid graph, unavailable capability, external blocker, repeated Operational Failure, exhausted Formal Rework, or exhausted automatic DAG Revision.
 
 Report **Complete** only after every effective Ticket is accepted and a Whole-DAG Acceptance Gate verifies:
 
 - complete Approved Spec coverage;
-- integration of accepted predecessor outputs into dependents;
+- integration of every accepted candidate into the Authoritative Integration Baseline and of accepted predecessor outputs into dependents;
 - current Final Artifact Identities matching Ticket and review evidence;
 - all Target Project graph-wide verification gates;
 - no unresolved findings, blockers, or unexplained in-scope changes;

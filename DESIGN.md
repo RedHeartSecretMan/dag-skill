@@ -29,7 +29,7 @@ Before acting, the Coordinator must receive or uniquely discover the Target Proj
 
 ## Authority and Evidence
 
-A DAG Run Authorization is an explicit user request to execute, advance, or continue an Approved DAG. It authorizes continuous locally auditable work without per-Ticket confirmation:
+A DAG Run Authorization is an explicit user request to execute, advance, continue, or resume an Approved DAG. It authorizes continuous locally auditable work without per-Ticket confirmation:
 
 - claiming and updates in a local tracker carrier;
 - Agent dispatch;
@@ -48,7 +48,7 @@ Normative Authority comes from the current user scope, applicable project instru
 
 ## Graph Contract
 
-Each executable node is one Ticket. Ticket implementation, Implementation-Side Review, review sufficiency, Formal Review, acceptance, and bounded rework are gates inside the node, not additional dependency nodes.
+Each executable node is one Ticket. Ticket implementation, Implementation-Side Review, review sufficiency, Formal Review, integration, acceptance, and bounded rework are gates inside the node, not additional dependency nodes.
 
 A schedulable Ticket must have live, unambiguous semantics for:
 
@@ -70,7 +70,7 @@ The Runnable Frontier contains only unaccepted Tickets whose hard predecessors a
 
 | Role | Responsibility | Required profile |
 | --- | --- | --- |
-| Coordinator | Live reconciliation, graph validation, scheduling, tracker state, evidence adjudication, rework or revision decisions, and final acceptance | `gpt-5.6-sol`, `max` |
+| Coordinator | Live reconciliation, graph validation, scheduling, tracker state, evidence adjudication, integration, rework or revision decisions, and final acceptance | `gpt-5.6-sol`, `max` |
 | Execution Agent | One Ticket's implementation through Implementation Handoff | `gpt-5.6-sol`, `high` |
 | Review Agent | Runs a fresh Code Review Skill when the Coordinator determines that existing review evidence is insufficient | `gpt-5.6-sol`, `high` |
 | DAG-native Standards or Spec Reviewer | Supplies the corresponding independent review when the Code Review Skill is unavailable or inapplicable | `gpt-5.6-sol`, `high` |
@@ -91,18 +91,22 @@ The Skill has no command modes. On every authorized start or continuation, the C
 
 The Skill never initializes Git. It preserves unrelated dirty work and does not manufacture a clean baseline with reset or clean.
 
-Recovery Evidence must remain in the Target Project's existing tracker or repository evidence under its Tracker Contract, not in a DAG Skill scheduler file. For every started Ticket, it must reconstruct the current attempt and ownership, Review Fixed Point, Final Artifact Identity when available, consumed Operational Retry and Formal Rework, accepted findings and dispositions, acceptance evidence, and Ticket Lineage with any consumed automatic DAG Revision. If required evidence cannot be reconstructed or legally persisted, the Ticket is not Runnable and the Coordinator fails closed on that path.
+Inherited changes are classified as the current Ticket candidate, protected unrelated work, or unaccepted historical work. Unaccepted historical work remains evidence-only unless a live approved Ticket explicitly adopts it.
+
+Recovery Evidence must remain in the Target Project's existing tracker or repository evidence under its Tracker Contract, not in a DAG Skill scheduler file. For every started Ticket, it must reconstruct the current attempt and ownership; every directly dispatched Agent's bounded progress checkpoint, observed state, and last milestone; Review Fixed Point; Final Artifact Identity when available; consumed Operational Retry and Formal Rework; findings and dispositions; known failing gates with their context, classification, owner and closing condition; integration and acceptance evidence; and Ticket Lineage with any consumed automatic DAG Revision. If required evidence cannot be reconstructed or legally persisted, the Ticket is not Runnable and the Coordinator fails closed on that path.
+
+An optional, already-authorized host goal may preserve run liveness but never Target Project or recovery state. A cross-task handoff becomes valid only after the receiving Coordinator rereads the live project and reconstructs the attempt from Recovery Evidence.
 
 ## Continuous Scheduling
 
 After authorization, the Coordinator continues without asking for confirmation after each Ticket:
 
-1. finish formal review and acceptance work already in progress before opening more implementation work;
+1. finish formal review, integration, and acceptance work already in progress before opening more implementation work;
 2. recompute the Runnable Frontier from live state;
 3. choose the largest safe subset within available Agent capacity;
 4. use tracker priority first, then obvious downstream-unlock or critical-path value, then stable Ticket identity when capacity requires a tie-break;
 5. recheck and claim each selected Ticket immediately before dispatch;
-6. advance each returned Ticket through evidence validation, Formal Review, and adjudication;
+6. advance each returned Ticket through evidence validation, Formal Review, adjudication, integration, and integrated-byte verification;
 7. persist and reread acceptance evidence before unlocking successors;
 8. repeat until Complete or genuinely Stalled.
 
@@ -114,6 +118,8 @@ Graph independence is necessary but not sufficient for parallel writes. A worksp
 
 The Coordinator captures an immutable Review Fixed Point before implementation, then dispatches one fresh Execution Agent for exactly one Ticket.
 
+Each Agent dispatched directly by the Coordinator receives a persisted bounded progress checkpoint appropriate to its role, Ticket, and host. A dispatching Agent is responsible for equivalent bounded monitoring of any nested Agents it creates and for reporting their terminal states. A live Agent that reaches its checkpoint without an evidence-bearing milestone, evidenced blocker, or terminal result incurs an Operational Failure rather than holding the run open.
+
 When the installed `implement` Skill is available and applicable, the dispatch explicitly tells the Agent to use it as installed, including its required `code-review` step. That nested review is an Implementation-Side Review: its raw Standards and Spec artifacts are candidate evidence for the Coordinator, but neither the Execution Agent nor its reviewers may accept the Ticket or unlock successors.
 
 The Coordinator supplies the Review Fixed Point, approved Spec and Ticket, applicable standards, and exact scope needed by the nested review. A nested Skill may not install prerequisites or mutate project configuration under DAG Run Authorization. If the required review context cannot be supplied safely, `implement` is inapplicable rather than partially followed.
@@ -122,20 +128,22 @@ If the Target Project is not a safe Git commit context, the installed `implement
 
 If `implement` is unavailable or inapplicable, the Coordinator discloses DAG-Native Fallback and dispatches a fresh Execution Agent directly under the Target Project's live instructions, Spec, Ticket, and verification contracts. The fallback need not manufacture an Implementation-Side Review; missing reusable review evidence will cause the Review Sufficiency Gate to dispatch a fresh review. No fallback is represented as successful Skill use.
 
+A RED is evidence only when it uses the live Ticket contract through its agreed public and real delivered seam where applicable, and fails because of target behavior rather than environment, tooling, or probe error. Claiming, reading, and exploration are not RED or candidate evidence.
+
 ### 2. Implementation Handoff
 
 The Execution Agent returns at least:
 
 - Ticket identity and delivered scope;
 - the actual changed files and commit when applicable;
-- exact verification commands and outcomes, including failures and checks not run;
+- exact verification commands, contexts, and outcomes, including failures and checks not run, with each failure classified as an introduced regression, an evidenced baseline exception with an owner and closing condition, an environment/tool/probe failure, or unverified;
 - raw Standards and Spec review artifacts, actual reviewer metadata, and the artifact identity examined by the Implementation-Side Review when available;
 - any implementation change made after that review;
 - deviations, unresolved risks, and blockers.
 
-The Coordinator independently checks the live diff, commit, verification results, scope, repository state, review artifacts, reviewer independence, and artifact identities. A Worker completion claim or review summary is not an Implementation Handoff.
+The Coordinator independently checks the live diff, commit, verification results, scope, repository state, review artifacts, reviewer independence, artifact identities, delivered public seam, and unexplained generated or dependency-lock churn. A Worker completion claim or review summary is not an Implementation Handoff. A required non-green or unverified gate blocks acceptance unless the Target Project explicitly permits the exact evidenced exception.
 
-An Agent crash, tool failure, execution-profile mismatch, or invalid handoff permits one total corrected Operational Retry per Ticket attempt and does not consume the Rework Budget. Persist the consumed retry before redispatch. After that budget is consumed, any further operational failure blocks the Ticket; it does not create an automatic loop.
+An Agent crash, tool failure, execution-profile mismatch, invalid handoff or report, or integration tool failure permits one total corrected Operational Retry per Ticket attempt across implementation, review, and integration and does not consume the Rework Budget. Persist the consumed retry before redispatch. After that budget is consumed, any further operational failure blocks the Ticket; it does not create an automatic loop or transfer implementation or review work to the Coordinator.
 
 ### 3. Review Sufficiency and Formal Review
 
@@ -157,7 +165,9 @@ A reused Skill may not install prerequisites, mutate project configuration, or a
 
 If `code-review` is unavailable or inapplicable, the Coordinator discloses DAG-Native Fallback and directly dispatches fresh, independent Standards and Spec Reviewers against the same Final Artifact Identity.
 
-Any implementation change, amend, or rebase after an adopted or fresh review invalidates both review axes. The changed Final Artifact Identity must pass the Review Sufficiency Gate again.
+A review timeout or missing report is missing evidence. A replacement caused by operational failure consumes the remaining Operational Retry; before adjudication, every dispatched reviewer is terminal or explicitly superseded and every queued or late report is reconciled.
+
+Any change to reviewed bytes or review-relevant identity or history invalidates both review axes. The changed Final Artifact Identity must pass the Review Sufficiency Gate again. A topology-only integration may retain evidence only when equivalence is verifiable and its changed identity or history lies outside both review scopes.
 
 ### 4. Coordinator Adjudication
 
@@ -169,13 +179,21 @@ The Coordinator combines live implementation evidence with the separate review r
 - false positive, with evidence;
 - unresolved.
 
-An unresolved or valid blocking finding prevents acceptance. If no blocking issue remains, the Coordinator persists the Target Project's required acceptance state and evidence, rereads it, and only then allows successors into the Runnable Frontier.
+An unresolved, valid blocking, or graph-changing finding prevents integration. A graph-changing finding returns to the DAG Revision path.
+
+### 5. Integration and Acceptance
+
+Only after adjudication is clear does the Coordinator incorporate the exact reviewed candidate into the Target Project's Authoritative Integration Baseline, verify reachability or representation, and run affected, integration, and delivered-public-seam gates on the integrated bytes. Integration remains byte-preserving. A conflict requiring reviewed-byte changes within the original Ticket scope consumes its remaining Formal Rework and returns to an Execution Agent; exhausted rework or scope drift enters DAG Revision rather than Coordinator implementation.
+
+A change to reviewed bytes or review-relevant identity or history reapplies the Review Sufficiency Gate. The Coordinator accepts the Ticket, persists and rereads its evidence, and unlocks successors only when integrated artifact, verification, review, dispositions, scope, baseline, and tracker evidence agree. An external resolved state that promises availability also requires the designated reference to contain the artifact and every required remote-write or publication authorization.
 
 ## Rework and DAG Revision
 
-Each Ticket has one Formal Rework. It begins only when the Coordinator accepts a blocking finding from adopted or freshly dispatched Formal Review evidence and returns the Ticket for implementation within the original scope. Persist the consumed rework before redispatch. Self-correction before handoff, duplicate findings, false positives, and Operational Retry do not consume it.
+Each Ticket has one Formal Rework. It begins only when the Coordinator accepts a blocking Formal Review or integration finding and returns the Ticket for implementation within the original scope. Persist the consumed rework before redispatch. Self-correction before handoff, duplicate findings, false positives, and Operational Retry do not consume it.
 
-Formal Rework returns to the original Execution Agent when that Agent remains available with the required profile; otherwise a fresh `implement` Agent receives the complete accepted findings. Rework keeps the DAG topology unchanged. The resulting implementation receives a new Final Artifact Identity, new Implementation-Side Review evidence when `implement` applies, and another Review Sufficiency Gate before adjudication.
+Formal Rework returns to the original Execution Agent when that Agent remains available with the required profile; otherwise a fresh Execution Agent receives the complete accepted findings. The Coordinator reapplies the initial Skill applicability gate, using `implement` when applicable and the disclosed DAG-Native Fallback otherwise. Rework keeps the DAG topology unchanged. The resulting implementation receives a new Final Artifact Identity, new Implementation-Side Review evidence when `implement` applies, and another Review Sufficiency Gate before adjudication.
+
+Implementation stops for DAG Revision as soon as a Ticket gains another independent objective or acceptance seam, or its fixed diff no longer permits bounded review. It does not wait for the Formal Rework budget to be consumed.
 
 If valid blocking problems remain after Formal Rework, the Coordinator does not retry again or add a back edge. It determines whether to split the Ticket, add a prerequisite, reorder work, reject or defer scope, or record an external blocker.
 
@@ -183,22 +201,24 @@ When new or revised Ticket content is required, a current Target Project authori
 
 Only one automatic semantics-preserving DAG Revision may be consumed by an original Ticket Lineage. Persist that consumption before scheduling the replacement subgraph. A further revision in the same lineage requires explicit user authorization; without it, leave the lineage unfinished with evidence and allow the run to become Stalled after independent branches finish.
 
+A valid late finding or Whole-DAG failure invalidates the contradicted Ticket and every accepted descendant that consumes its output, pausing the affected subgraph. The Coordinator persists that invalidation when authorized and blocks when it cannot; remaining Formal Rework may reopen the original scope, otherwise the authoring capability appends a remediation lineage.
+
 ## Terminal Outcomes
 
 A blocked branch does not stop independent runnable branches.
 
-An Agent counts as running only while its liveness remains observable; a lost Agent becomes an Operational Failure rather than holding the run open indefinitely. Complete and Stalled are mutually exclusive.
+An Agent counts as running only while its liveness remains observable and its bounded progress checkpoint has not failed; a lost or non-progressing Agent becomes an Operational Failure rather than holding the run open indefinitely. Complete and Stalled are mutually exclusive.
 
 The run is **Stalled** only when unfinished Tickets remain, no Agent is running, and no Runnable Frontier exists. Every stopped path must have a live evidenced cause such as an external blocker, missing authorization, invalid graph, unavailable required capability, repeated operational failure, exhausted rework, or an exhausted automatic DAG Revision awaiting authoring or approval.
 
 The effective graph excludes Superseded Tickets from execution while retaining their provenance and includes every approved replacement Ticket. The run is **Complete** only after every Ticket in that effective graph is accepted and the Coordinator passes a Whole-DAG Acceptance Gate covering:
 
 - Approved Spec coverage;
-- integration of predecessor outputs into dependents;
+- integration of every accepted candidate into the Authoritative Integration Baseline and of predecessor outputs into dependents;
 - current Final Artifact Identities and matching Ticket evidence;
 - Target Project graph-wide verification gates;
 - absence of unresolved findings, blockers, and unexplained in-scope changes;
-- tracker, commit, and acceptance-evidence consistency.
+- tracker, commit, Ticket Lineage, and acceptance-evidence consistency.
 
 Complete does not imply or authorize remote publication.
 
@@ -212,6 +232,6 @@ The implementation is acceptable when:
 - it defines the disclosed DAG-native fallbacks without silently claiming unavailable Skill use;
 - it keeps Ticket dependencies acyclic and bounds both Operational Retry and Formal Rework;
 - it derives scheduling from live project evidence and the Target Project's Tracker Contract;
-- it preserves Coordinator authority, same-final-bytes review, atomic acceptance-before-unlock, Safe Parallelism, and Whole-DAG final acceptance;
+- it preserves Coordinator authority, same-final-bytes review, integration-before-acceptance, atomic acceptance-before-unlock, Safe Parallelism, and Whole-DAG final acceptance;
 - it contains no project-specific tracker, authoring implementation, persistent state, CLI, or extra-file dependency;
 - it does not broaden local authorization into remote or high-impact actions.
