@@ -33,6 +33,7 @@ A DAG Run Authorization is an explicit user request to execute, advance, continu
 
 - claiming and updates in a local tracker carrier;
 - Agent dispatch;
+- creation and use of non-destructive, ticket-scoped local candidate branches or worktrees when the Target Project permits them;
 - ticket-scoped code changes, verification, and commits when Git and the Target Project permit them;
 - local acceptance evidence and successor unlocking.
 
@@ -64,7 +65,7 @@ An edge is oriented `prerequisite -> dependent` and exists only when the depende
 
 Before start or resume, the Coordinator fails closed unless the DAG Projection has unique and resolvable nodes, no self-edge or directed cycle, approved and contract-complete Tickets, defensible dependency edges, no known missing hard dependency, and live state consistent with acceptance evidence. Multiple roots, sinks, and independent components are allowed.
 
-The Runnable Frontier contains only unaccepted Tickets whose hard predecessors are Accepted Tickets, blockers are cleared, claim and acceptance evidence can be persisted under current authorization, suitable resolved Execution Profiles and capabilities are verified, and a safe write boundary is available without ownership conflict. A status string such as `ready-for-agent` or dependency readiness alone is insufficient.
+The Runnable Frontier contains only unaccepted Tickets whose hard predecessors are Accepted Tickets, blockers are cleared, claim and acceptance evidence can be persisted under current authorization, suitable resolved Execution Profiles and capabilities are verified, and a safe write boundary is available without ownership conflict or premature advancement of the Authoritative Integration Baseline. A status string such as `ready-for-agent` or dependency readiness alone is insufficient.
 
 ## Roles and Execution Profiles
 
@@ -97,9 +98,9 @@ The Skill never initializes Git. It preserves unrelated dirty work and does not 
 
 Inherited changes are classified as the current Ticket candidate, protected unrelated work, or unaccepted historical work. Unaccepted historical work remains evidence-only unless a live approved Ticket explicitly adopts it.
 
-Recovery Evidence must remain in the Target Project's existing tracker or repository evidence under its Tracker Contract, not in a DAG Skill scheduler file. For every started Ticket, it must reconstruct the current attempt and ownership; the active Coordinator's and every dispatched Agent's resolved and observed Execution Profile, including unavailable metadata fields, mismatches, and changes; every directly dispatched Agent's bounded progress checkpoint, observed state, and last milestone; Review Fixed Point; Final Artifact Identity when available; consumed Operational Retry and Formal Rework; findings and dispositions; known failing gates with their context, classification, owner and closing condition; integration and acceptance evidence; and Ticket Lineage with any consumed automatic DAG Revision. If required evidence cannot be reconstructed or legally persisted, the Ticket is not Runnable and the Coordinator fails closed on that path.
+Recovery Evidence must remain in the Target Project's existing tracker or repository evidence under its Tracker Contract, not in a DAG Skill scheduler file. For every started Ticket, it must reconstruct the current attempt and ownership; the active Coordinator's and every dispatched Agent's resolved and observed Execution Profile, including unavailable metadata fields, mismatches, and changes; every directly dispatched Agent's bounded progress checkpoint, observed state, and last milestone; Review Fixed Point; Final Artifact Identity when available; integration state, Authoritative Integration Baseline identity, candidate representation or reachability, and integrated-gate commands, contexts, outcomes, and bound artifact identities when available; consumed Operational Retry and Formal Rework; findings and dispositions; known failing gates with their context, classification, owner and closing condition; acceptance evidence; and Ticket Lineage with any consumed automatic DAG Revision. If required evidence cannot be reconstructed or legally persisted, the Ticket is not Runnable and the Coordinator fails closed on that path.
 
-An optional, already-authorized host goal may preserve run liveness but never Target Project or recovery state. A cross-task handoff becomes valid only after the receiving Coordinator rereads the live project and reconstructs the attempt from Recovery Evidence.
+An optional, already-authorized host goal may preserve run liveness but never Target Project or recovery state. A cross-task handoff becomes valid only after the receiving Coordinator rereads the live project, reconstructs all required Recovery Evidence, and recomputes the frontier.
 
 ## Continuous Scheduling
 
@@ -107,20 +108,20 @@ After authorization, the Coordinator continues without asking for confirmation a
 
 1. finish formal review, integration, and acceptance work already in progress before opening more implementation work;
 2. recompute the Runnable Frontier from live state;
-3. choose the largest safe subset within available Agent capacity;
+3. choose the largest safe subset whose peak direct and nested Agent demand fits available capacity, serializing when that demand is unknown;
 4. use tracker priority first, then obvious downstream-unlock or critical-path value, then stable Ticket identity when capacity requires a tie-break;
 5. recheck and claim each selected Ticket immediately before dispatch;
 6. advance each returned Ticket through evidence validation, Formal Review, adjudication, integration, and integrated-byte verification;
 7. persist and reread acceptance evidence before unlocking successors;
 8. repeat until Complete or genuinely Stalled.
 
-Graph independence is necessary but not sufficient for parallel writes. A workspace has one write-capable Execution Agent at a time. Parallel implementations require Target Project-provided or explicitly authorized isolation and an integration boundary. If safety is uncertain, serialize. Read-only reviews may still run concurrently.
+Graph independence is necessary but not sufficient for parallel writes. A workspace has one write-capable Execution Agent at a time. Parallel implementations require Target Project-permitted isolation and an integration boundary; the Coordinator may create and use ticket-scoped local candidate branches or worktrees under DAG Run Authorization and the Target Project's contract. If safety is uncertain, serialize. Read-only reviews may still run concurrently.
 
 ## Per-Ticket Flow
 
 ### 1. Dispatch
 
-The Coordinator captures an immutable Review Fixed Point before implementation, then dispatches one fresh Execution Agent for exactly one Ticket.
+The Coordinator captures an immutable Review Fixed Point before implementation, then dispatches one fresh Execution Agent for exactly one Ticket in a write boundary that cannot advance the Authoritative Integration Baseline before adjudication.
 
 Each Agent dispatched directly by the Coordinator receives a persisted bounded progress checkpoint appropriate to its role, Ticket, and host. A dispatching Agent is responsible for equivalent bounded monitoring of any nested Agents it creates and for reporting their resolved and observed Execution Profiles, unavailable metadata fields, changes, and terminal states. A live Agent that reaches its checkpoint without an evidence-bearing milestone, evidenced blocker, or terminal result incurs an Operational Failure rather than holding the run open.
 
@@ -128,7 +129,7 @@ When the installed `implement` Skill is available and applicable, the dispatch e
 
 The Coordinator supplies the Review Fixed Point, approved Spec and Ticket, applicable standards, and exact scope needed by the nested review. A nested Skill may not install prerequisites or mutate project configuration under DAG Run Authorization. If the required review context cannot be supplied safely, `implement` is inapplicable rather than partially followed.
 
-If the Target Project is not a safe Git commit context, the installed `implement` Skill's commit contract is inapplicable rather than silently ignored.
+If the Target Project cannot provide a safe Git candidate-commit context that leaves the Authoritative Integration Baseline unchanged, the installed `implement` Skill's commit contract is inapplicable rather than silently ignored.
 
 If `implement` is unavailable or inapplicable, the Coordinator discloses DAG-Native Fallback and dispatches a fresh Execution Agent directly under the Target Project's live instructions, Spec, Ticket, and verification contracts. The fallback need not manufacture an Implementation-Side Review; missing reusable review evidence will cause the Review Sufficiency Gate to dispatch a fresh review. No fallback is represented as successful Skill use.
 

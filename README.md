@@ -42,12 +42,12 @@ flowchart LR
 
 所有已派发 Reviewer 都必须终止或被明确替代，且迟到结果已经处理；超时只表示缺少证据，不表示没有问题。
 
-主 Agent 始终拥有 Ticket 接受、返工、拆票、重排和最终验收权。实现 Agent、Reviewer 或绿测声明都不能单独证明完成；Agent 失败时应按预算重新派发或阻塞，不能由主 Agent 接管实现或代替独立评审。
+主 Agent 独占 Ticket 认领、tracker/DAG 状态、候选集成、接受、返工、拆票、重排和最终验收权。实现 Agent 只能修改获准的 Ticket workspace，Reviewer 保持只读；两者及其子 Agent 只返回产物和证据，不能接受 Ticket、修改 tracker/DAG 状态或解锁后继。Agent 失败时应按预算重新派发或阻塞，不能由主 Agent 接管实现或代替独立评审。
 
 ## 调度与有界失败
 
-- Frontier 同时依据依赖、blocker、认领和验收记录权限、Agent 能力以及 workspace 写入安全计算，不能只读取 `ready` 状态。
-- 同一 workspace 默认只有一个写入 Agent；只有目标项目提供明确隔离和集成边界时才并行实现。
+- Frontier 只包含尚未接受的 Ticket，并同时依据依赖、blocker、认领和验收记录权限、Agent 能力以及 workspace 写入安全计算，不能只读取 `ready` 状态；主 Agent 只选择直接及嵌套 Agent 峰值需求不超过当前容量的最大安全子集，需求不明确时串行推进。
+- 同一 workspace 默认只有一个写入 Agent；Execution Agent 的候选 commit 不得在裁决前推进权威集成基线，只有目标项目提供明确隔离和集成边界时才并行实现。
 - `active`、已认领或正在探索只证明任务存在；主 Agent 直接分派的每个 Agent 都设置并记录适合其角色、Ticket 与宿主的有界进展检查点，子 Agent 则负责同样有界地监控它进一步派发的 Agent。检查点必须有可核查的 milestone，例如有效 RED、ticket-scoped diff、候选产物、评审报告、明确 blocker 或终态 handoff。已经授权且可用的宿主持久 Goal 可用于维持运行，但它是可选机制，不能代替 tracker 和 Git 事实。
 - 每个 Ticket attempt 在实施、评审和集成阶段共享一次操作性重试；每张 Ticket 最多一次正式返工。
 - 同一原始 Ticket lineage 最多自动执行一次保持语义的 DAG Revision；再次修图需要用户明确授权。
@@ -55,7 +55,7 @@ flowchart LR
 - Ticket 出现第二个独立目标或验收 seam、或者当前 diff 已无法进行有界评审时，立即停止扩张并拆票或修图。未验收的历史 WIP 只作为证据使用。
 - 恢复所需证据记录在目标项目既有 tracker 或仓库证据中，不新增 dag-skill 私有状态文件。
 
-跨任务交接只有在接收方重新读取 live 项目并恢复 fixed point、attempt、预算、产物、blocker 和 frontier 后才成立；发送消息或看到任务 active 不足以证明交接成功。
+跨任务交接只有在接收方重新读取 live 项目、恢复完整 Recovery Evidence（包括 fixed point、attempt、预算、产物、权威集成基线、候选可达性，以及绑定产物身份的集成门禁命令、环境和结果）并重新计算 frontier 后才成立；发送消息或看到任务 active 不足以证明交接成功。
 
 ## 集成与失效
 
@@ -73,7 +73,7 @@ flowchart LR
 
 ## 授权边界
 
-启动整个 DAG 后，可连续执行本地认领、Agent 分派、代码修改、测试、合适场景下的 ticket-scoped commit、本地票据记录和后继解锁。
+启动整个 DAG 后，可在目标项目允许时连续执行本地认领、Agent 分派、创建和使用非破坏性的 ticket-scoped 本地 candidate branch/worktree、代码修改、测试、合适场景下的 ticket-scoped commit、本地票据记录和后继解锁。
 
 远端 tracker 写入、push、PR、tag、release、部署、外部 API/数据库写入、状态型远端 CI、破坏性 Git、产品语义或验收变化以及降低门禁，均需单独授权。
 

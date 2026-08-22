@@ -7,6 +7,8 @@ description: Coordinate an already approved Spec-and-Ticket dependency DAG throu
 
 Act as the Coordinator for an approved directed acyclic graph of delivery Tickets. Advance the graph from live Target Project evidence; treat worker reports and chat history as leads to verify, not state to trust.
 
+Keep DAG and tracker state under the Coordinator's exclusive control. Execution Agents may change only their authorized Ticket workspace; Review Agents remain read-only. Execution, Review, and nested Agents return artifacts and evidence but do not claim or accept Tickets, mutate tracker or graph state, integrate candidates, or unlock successors.
+
 ## Establish the run
 
 1. Resolve the Target Project, Approved Spec, in-scope Tickets and dependency carrier, and the user's explicit request to execute, advance, continue, or resume the DAG.
@@ -31,6 +33,7 @@ Treat the DAG Run Authorization as permission for continuous, locally auditable 
 
 - update a local tracker carrier and claim local Tickets;
 - dispatch Agents;
+- create and use non-destructive, ticket-scoped local candidate branches or worktrees;
 - make ticket-scoped local changes and run verification;
 - create a ticket-scoped commit in a safe Git context;
 - persist local acceptance evidence and unlock successors.
@@ -59,6 +62,7 @@ Keep recovery data in the Target Project's existing tracker or repository eviden
 - resolved and observed Execution Profiles for the active Coordinator and every dispatched Agent, including unavailable metadata fields, mismatches, and changes;
 - for every Agent dispatched directly by the Coordinator, its current bounded progress checkpoint, bound, observed state, and last evidence-bearing milestone;
 - Review Fixed Point and Final Artifact Identity when available;
+- integration state, Authoritative Integration Baseline identity, candidate representation or reachability, and integrated-gate commands, contexts, outcomes, and bound artifact identities when available;
 - consumed Operational Retry and Formal Rework;
 - raw review findings and Coordinator dispositions;
 - acceptance evidence;
@@ -67,23 +71,24 @@ Keep recovery data in the Target Project's existing tracker or repository eviden
 
 Treat a Ticket as non-runnable when required recovery evidence cannot be reconstructed or legally persisted. Do not create a DAG Skill scheduler file.
 
-For a cross-task handoff, persist this recovery evidence first. Count the handoff as established only after the receiving Coordinator rereads the live Target Project and recovers the attempt, ownership, budgets, artifacts, blockers, and frontier; sending a message or observing an active task is insufficient.
+For a cross-task handoff, persist this recovery evidence first. Count the handoff as established only after the receiving Coordinator rereads the live Target Project, reconstructs all required Recovery Evidence, and recomputes the frontier; sending a message or observing an active task is insufficient.
 
 ## Compute and schedule the frontier
 
 Include a Ticket in the Runnable Frontier only when:
 
+- the Ticket is not already accepted;
 - every hard predecessor is accepted;
 - blockers are cleared;
 - current authorization permits both claiming and acceptance evidence persistence;
 - a suitable resolved Execution Profile and required capability are available;
-- a safe write boundary exists without an ownership conflict.
+- a safe write boundary exists without an ownership conflict and cannot advance the Authoritative Integration Baseline before adjudication.
 
 Treat a ready-like status string as insufficient by itself.
 
-Finish evidence checks, review, and acceptance for work already in progress before opening more implementation work. Recompute the frontier after every claim, handoff, acceptance, block, or graph revision. Select work by tracker priority, then clear downstream-unlock or critical-path value, then stable Ticket identity.
+Finish evidence checks, review, and acceptance for work already in progress before opening more implementation work. Recompute the frontier after every claim, handoff, acceptance, block, or graph revision. Within currently available Agent capacity, select the largest safe subset whose peak direct and nested Agent demand fits; serialize when that demand is unknown. Break capacity ties by tracker priority, then clear downstream-unlock or critical-path value, then stable Ticket identity.
 
-Run graph-independent Tickets concurrently only when the Target Project supplies isolated workspaces and an explicit integration boundary. Keep one write-capable Execution Agent per workspace. Serialize uncertain write interactions; allow independent read-only reviews to run concurrently.
+Run graph-independent Tickets concurrently only when the Target Project permits isolated workspaces and defines an explicit integration boundary. Under the Target Project's contract, the Coordinator may create and use ticket-scoped local candidate branches or worktrees for those boundaries. Keep one write-capable Execution Agent per workspace. Serialize uncertain write interactions; allow independent read-only reviews to run concurrently.
 
 For every Agent that the Coordinator dispatches directly, set and persist a bounded progress checkpoint appropriate to its role, Ticket, and host. Make a dispatching Agent responsible for equivalent bounded monitoring of any nested Agents it creates and for reporting their resolved and observed Execution Profiles, unavailable metadata fields, changes, and terminal states. At each checkpoint, require an evidence-bearing milestone, an evidenced blocker, or a terminal result; otherwise interrupt the still-live Agent and record an Operational Failure.
 
@@ -97,16 +102,16 @@ Reread the Ticket, dependencies, blockers, repository, and tracker immediately b
 
 Dispatch one fresh Execution Agent for exactly one Ticket with its resolved Execution Profile. Supply the Target Project instructions, Approved Spec, Ticket, dependency outputs, Review Fixed Point, acceptance criteria, allowed workspace, and authorization boundary.
 
-When `implement` is installed and applicable, explicitly require the Execution Agent to use it as installed. Let its required `code-review` run as an Implementation-Side Review. Treat the raw Standards and Spec results as candidate evidence; neither the Execution Agent nor its nested reviewers may accept the Ticket, mutate DAG state, or unlock successors.
+When `implement` is installed and applicable, explicitly require the Execution Agent to use it as installed. Let its required `code-review` run as an Implementation-Side Review. Treat the raw Standards and Spec results as candidate evidence.
 
-Use `implement` only when its Git commit and nested review contracts can be satisfied safely. Supply the fixed point, Spec, Ticket, standards, and tracker context before dispatch. Treat it as inapplicable if following it would require installing prerequisites, mutating project configuration, skipping a required step, or committing in an unsafe or non-Git context.
+Use `implement` only when its Git commit and nested review contracts can be satisfied safely and its commit remains a candidate without advancing the Authoritative Integration Baseline. Supply the fixed point, Spec, Ticket, standards, and tracker context before dispatch. Treat it as inapplicable if following it would require installing prerequisites, mutating project configuration, skipping a required step, or committing in an unsafe, non-Git, or baseline-advancing context.
 
 When `implement` is unavailable or inapplicable, disclose DAG-Native Fallback and dispatch a fresh Execution Agent directly. Require it to:
 
 - implement only the Ticket's approved scope;
 - use public-interface TDD at an agreed seam when feasible;
 - run focused checks during implementation and the Target Project's complete applicable gates at the end;
-- create a ticket-scoped commit only when the repository and authorization permit it;
+- create a ticket-scoped candidate commit only when the repository and authorization permit it without advancing the Authoritative Integration Baseline;
 - return a complete Implementation Handoff.
 
 Across both paths, count a RED only when its input conforms to the live Ticket contract, it exercises the live Ticket's agreed public contract seam and real delivered seam when applicable, and it fails because of the target behavior rather than an environment, tool, or probe error. Claiming, reading, and exploration are neither RED nor candidate evidence.
