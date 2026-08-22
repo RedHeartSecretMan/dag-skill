@@ -12,12 +12,14 @@ Act as the Coordinator for an approved directed acyclic graph of delivery Ticket
 1. Resolve the Target Project, Approved Spec, in-scope Tickets and dependency carrier, and the user's explicit request to execute, advance, continue, or resume the DAG.
 2. Ask for one precise pointer when any required input is missing or ambiguous. Keep the run paused rather than guessing scope, dependencies, or approval.
 3. Read the Target Project's current `AGENTS.md` files, domain and engineering documents, Tracker Contract, Approved Spec, Tickets, repository state, tests, and existing review evidence.
-4. Discover the exact installed `implement`, `code-review`, and Target Project authoring Skills from the live environment. Treat current availability and applicability as evidence, not as an assumption from chat.
-5. Use these required profiles and verify actual visible runtime metadata:
-   - Coordinator: `gpt-5.6-sol`, `max`;
-   - Execution Agent: `gpt-5.6-sol`, `high`;
-   - Review Agent, Standards Reviewer, and Spec Reviewer: `gpt-5.6-sol`, `high`.
-6. Report a mismatched or unverifiable profile and pause the affected work until the correct profile is available or the user explicitly authorizes a substitute. Never silently substitute a model or reasoning effort.
+4. Discover the exact installed `implement`, `code-review`, and Target Project authoring Skills, plus the Agent models, reasoning controls, tools, and runtime metadata actually available in the live environment. Treat availability and applicability as evidence, not as an assumption from chat.
+5. Resolve a run-scoped Execution Profile for each role:
+   - Treat an exact model, Agent, or reasoning-effort requirement from the user or Target Project as a hard constraint.
+   - Otherwise use a suitable active primary Agent as Coordinator, favoring the strongest available graph-wide reasoning and context capacity.
+   - Choose Execution Agents for the Ticket's repository, coding, tool, context, and risk needs. Choose Review Agents for the review surface and an independent context; model diversity is optional unless a governing contract requires it.
+   - Use the highest useful supported reasoning effort for coordination and high-risk work, and proportional effort for bounded lower-risk work.
+6. When the user names a model or asks which model to use, evaluate the live available choices against the requested role and work. Recommend concrete role assignments and relevant trade-offs. Honor a suitable available choice; when an exact request is unavailable, incapable, or conflicts with a governing contract, explain why and obtain user authorization before substituting it.
+7. Inspect and record all runtime metadata the host exposes for the active Coordinator and every dispatched Agent, including unavailable fields, the resolved profile, and any run-time change. Never infer a missing model or reasoning effort. If an exact requirement cannot be verified, leave that role unavailable. Without an exact constraint, an Agent may run when its required identity and capabilities are substantiated even if the host omits a model or effort field; disclose the omission. Before dispatch, selecting another suitable substantiated profile is ordinary scheduling, not a reason to stop the whole DAG; after dispatch, handle an observed profile mismatch as an Operational Failure. Never silently substitute or claim a model, Agent, or reasoning effort that the evidence does not show.
 
 Optionally use an already-authorized durable host goal or continuation mechanism when available; when used, read back its live state after continuation, resume, or task handoff. Treat it only as run liveness; never treat it as Target Project state, forward progress, or completion evidence.
 
@@ -54,6 +56,7 @@ On every start or continuation:
 Keep recovery data in the Target Project's existing tracker or repository evidence under its contract. For every started Ticket, reconstruct:
 
 - current attempt, ownership, and blockers;
+- resolved and observed Execution Profiles for the active Coordinator and every dispatched Agent, including unavailable metadata fields, mismatches, and changes;
 - for every Agent dispatched directly by the Coordinator, its current bounded progress checkpoint, bound, observed state, and last evidence-bearing milestone;
 - Review Fixed Point and Final Artifact Identity when available;
 - consumed Operational Retry and Formal Rework;
@@ -73,7 +76,7 @@ Include a Ticket in the Runnable Frontier only when:
 - every hard predecessor is accepted;
 - blockers are cleared;
 - current authorization permits both claiming and acceptance evidence persistence;
-- the required Agent profile and capability are available;
+- a suitable resolved Execution Profile and required capability are available;
 - a safe write boundary exists without an ownership conflict.
 
 Treat a ready-like status string as insufficient by itself.
@@ -82,7 +85,7 @@ Finish evidence checks, review, and acceptance for work already in progress befo
 
 Run graph-independent Tickets concurrently only when the Target Project supplies isolated workspaces and an explicit integration boundary. Keep one write-capable Execution Agent per workspace. Serialize uncertain write interactions; allow independent read-only reviews to run concurrently.
 
-For every Agent that the Coordinator dispatches directly, set and persist a bounded progress checkpoint appropriate to its role, Ticket, and host. Make a dispatching Agent responsible for equivalent bounded monitoring of any nested Agents it creates and for reporting their terminal states. At each checkpoint, require an evidence-bearing milestone, an evidenced blocker, or a terminal result; otherwise interrupt the still-live Agent and record an Operational Failure.
+For every Agent that the Coordinator dispatches directly, set and persist a bounded progress checkpoint appropriate to its role, Ticket, and host. Make a dispatching Agent responsible for equivalent bounded monitoring of any nested Agents it creates and for reporting their resolved and observed Execution Profiles, unavailable metadata fields, changes, and terminal states. At each checkpoint, require an evidence-bearing milestone, an evidenced blocker, or a terminal result; otherwise interrupt the still-live Agent and record an Operational Failure.
 
 ## Advance one Ticket
 
@@ -92,7 +95,7 @@ Reread the Ticket, dependencies, blockers, repository, and tracker immediately b
 
 ### 2. Dispatch implementation
 
-Dispatch one fresh Execution Agent for exactly one Ticket with the required profile. Supply the Target Project instructions, Approved Spec, Ticket, dependency outputs, Review Fixed Point, acceptance criteria, allowed workspace, and authorization boundary.
+Dispatch one fresh Execution Agent for exactly one Ticket with its resolved Execution Profile. Supply the Target Project instructions, Approved Spec, Ticket, dependency outputs, Review Fixed Point, acceptance criteria, allowed workspace, and authorization boundary.
 
 When `implement` is installed and applicable, explicitly require the Execution Agent to use it as installed. Let its required `code-review` run as an Implementation-Side Review. Treat the raw Standards and Spec results as candidate evidence; neither the Execution Agent nor its nested reviewers may accept the Ticket, mutate DAG state, or unlock successors.
 
@@ -118,7 +121,7 @@ Require the Execution Agent to return:
 - changed files and commit when applicable;
 - exact verification commands, execution contexts, and outcomes, including failures and checks not run; classify each failure as an introduced regression, an evidenced baseline exception with an owning Ticket or blocker and closing condition, an environment/tool/probe failure, or unverified;
 - raw Standards and Spec review artifacts when available;
-- actual reviewer runtime metadata and the artifact identity each reviewer examined;
+- actual Execution Agent and reviewer runtime metadata, and the artifact identity each reviewer examined;
 - every change made after the Implementation-Side Review;
 - deviations, unresolved risks, and blockers.
 
@@ -151,7 +154,9 @@ Dispatch a fresh Review Agent when evidence is missing, stale, incomplete, contr
 
 When `code-review` is installed and applicable, explicitly require the fresh Review Agent to use it with the Review Fixed Point, Final Artifact Identity, Approved Spec and Ticket, standards sources, commit list, and exact scope. Require independent Standards and Spec results side by side; the Spec axis is mandatory for this workflow.
 
-When `code-review` is unavailable or inapplicable, disclose DAG-Native Fallback and dispatch fresh, independent Standards and Spec Reviewers against the same Final Artifact Identity. Preserve both axes and the required profiles.
+When `code-review` is unavailable or inapplicable, disclose DAG-Native Fallback and dispatch fresh, independent Standards and Spec Reviewers against the same Final Artifact Identity. Preserve both axes and their resolved Execution Profiles.
+
+Require every Review Agent report to include its own and any nested Reviewers' resolved and observed Execution Profiles, unavailable metadata fields, run-time changes, artifact identities, and raw findings. Do not adopt review evidence when required profile evidence is missing or violates an exact constraint.
 
 Treat a review timeout or missing report as missing evidence, never as a clean result. Use the remaining Operational Retry for a replacement when the missing evidence is an operational failure; block after that retry is consumed. Before adjudication, require every dispatched reviewer for the attempt to reach an observed terminal state or be explicitly superseded, then reconcile every queued or late report even when a replacement review has already been dispatched.
 
@@ -183,7 +188,7 @@ Accept the Ticket only when the integrated Final Artifact Identity, verification
 
 Stop in-place implementation as soon as the Ticket acquires another independent delivery objective or acceptance seam, or its fixed diff no longer supports a bounded review. Use the Target Project's authoring capability to repair or split the graph instead of allowing scope to accumulate inside the node.
 
-Authorize one Formal Rework per Ticket when the Coordinator accepts a blocking Formal Review or integration finding within the original scope. Persist the consumed rework before redispatch. Reuse the original Execution Agent when it remains available with the required profile; otherwise dispatch a fresh Execution Agent with the complete accepted findings. Reapply the initial dispatch's Skill applicability gate against the live environment: explicitly use `implement` when applicable, or disclose and use DAG-Native Fallback.
+Authorize one Formal Rework per Ticket when the Coordinator accepts a blocking Formal Review or integration finding within the original scope. Persist the consumed rework before redispatch. Reuse the original Execution Agent when it remains available with a suitable resolved Execution Profile; otherwise dispatch a fresh Execution Agent with the complete accepted findings. Reapply the initial dispatch's Skill applicability gate against the live environment: explicitly use `implement` when applicable, or disclose and use DAG-Native Fallback.
 
 Treat self-correction before handoff, duplicate findings, false positives, and Operational Retry as outside the Formal Rework budget. Make the reworked artifact pass implementation, handoff, review sufficiency, and adjudication again.
 

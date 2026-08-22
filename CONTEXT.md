@@ -127,8 +127,8 @@ The primary agent accountable for live-state reconciliation, DAG scheduling, evi
 _Avoid_: worker, reviewer, agent manager
 
 **Execution Profile**:
-The required model and reasoning-effort pair for a DAG role, verified from actual runtime metadata rather than inferred from a request.
-_Avoid_: preferred model, requested configuration, silent fallback
+The run-scoped assignment of an available Agent to a DAG role, including its observable model, reasoning effort, tools, capabilities, and explicitly unavailable metadata fields, resolved from exact constraints or work-specific needs.
+_Avoid_: fixed global model, unverified request, silent fallback
 
 **DAG State Ownership**:
 The Coordinator's exclusive authority to claim Tickets, advance reviewed candidates through integration, change tracker state, record acceptance evidence, and unlock successors.
@@ -203,5 +203,5 @@ A live tracker, repository, test, or formal-review artifact that substantiates w
 _Avoid_: chat state, plan text, agent claim
 
 **Recovery Evidence**:
-State Evidence sufficient to reconstruct every directly dispatched Agent's bounded progress checkpoint and observed state for a Ticket, the Review Fixed Point, Final Artifact Identity, known failing gates and their classifications, integration and acceptance state, consumed Operational Retry, Formal Rework and DAG Revision budgets, findings, and Ticket Lineage after start, resume, or handoff.
+State Evidence sufficient to reconstruct the active Coordinator's and every dispatched Agent's resolved and observed Execution Profile, including unavailable metadata fields and changes; every directly dispatched Agent's bounded progress checkpoint and observed state for a Ticket; the Review Fixed Point; Final Artifact Identity; known failing gates and their classifications; integration and acceptance state; consumed Operational Retry, Formal Rework and DAG Revision budgets; findings; and Ticket Lineage after start, resume, or handoff.
 _Avoid_: chat memory, Coordinator recollection, separate scheduler state
