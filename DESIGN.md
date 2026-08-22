@@ -4,7 +4,7 @@ This document specifies a minimal, project-independent Agent Skill for continuou
 
 ## Deliverable Boundary
 
-The Agent-facing runtime artifact is one English `SKILL.md`. It is the sole normative runtime source and must not depend on `README.md`, this document, or `CONTEXT.md` at runtime.
+The Agent-facing runtime artifact is one English `skill/dag/SKILL.md`. The complete copyable Skill artifact is `skill/dag/`; its `SKILL.md` is the sole normative runtime source and must not depend on `README.md`, this document, or `CONTEXT.md` at runtime.
 
 The final deliverable also includes one Chinese, human-facing `README.md` that explains the Skill's purpose, prerequisites, invocation boundary, core DAG flow, fallbacks, authorization boundary, and terminal outcomes without restating the complete state machine or becoming runtime instructions.
 
@@ -22,7 +22,7 @@ Historical bidevs, A-share research, vLLM E2E Report, and other repositories are
 
 The Skill is model-invoked and remains directly user-invocable. Its frontmatter omits `disable-model-invocation` and uses only:
 
-- `name: dag-skill`;
+- `name: dag`, matching the `skill/dag/` artifact directory;
 - a narrow description that triggers on explicit requests to execute, advance, continue, or resume an already approved multi-Ticket DAG and routes Spec or Ticket authoring and isolated single-Ticket work to their dedicated Skills.
 
 Before acting, the Coordinator must receive or uniquely discover the Target Project, Approved Spec, in-scope Ticket set and dependency carrier, and DAG Run Authorization. A missing or ambiguous pointer pauses execution and requires one precise clarification rather than a guessed scope.
@@ -232,7 +232,7 @@ Complete does not imply or authorize remote publication.
 
 The implementation is acceptable when:
 
-- `SKILL.md` is the only runtime artifact and is written in accurate Agent-facing English;
+- `skill/dag/SKILL.md` is the only runtime artifact and is written in accurate Agent-facing English;
 - `README.md` is a concise Chinese human-facing companion that remains consistent with `SKILL.md` and is not a runtime dependency;
 - it expresses implementation through `implement`, including its Implementation-Side Review, followed by the Coordinator's Review Sufficiency Gate, conditional fresh review through `code-review`, and Coordinator adjudication;
 - it defines the disclosed DAG-native fallbacks without silently claiming unavailable Skill use;

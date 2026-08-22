@@ -2,7 +2,7 @@
 
 `dag-skill` 是一个面向 Agent 的通用协调 Skill，用于持续推进已经批准并拆分完成的 Spec/Ticket 有向无环图。它不负责设计 Spec 或创建初始 Tickets，也不绑定 Markdown、GitHub Issues 等具体载体。
 
-英文 [`SKILL.md`](./SKILL.md) 是唯一运行规范；本文只提供中文定位和使用说明。
+可复制 Skill artifact 位于 [`skill/dag/`](./skill/dag/)，其中的英文 [`SKILL.md`](./skill/dag/SKILL.md) 是唯一运行规范；本文只提供中文定位和使用说明。
 
 ## 使用前提
 
@@ -86,6 +86,6 @@ flowchart LR
 
 ## 调用示例
 
-- “使用 dag-skill 执行 Spec 0008 已批准的 Ticket DAG。”
+- “使用 `$dag` 执行 Spec 0008 已批准的 Ticket DAG。”
 - “继续推进这个 DAG，自动调度所有可运行 Tickets。”
 - “根据 live tracker 和 Git 证据恢复上次的 DAG 执行。”

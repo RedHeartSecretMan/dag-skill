@@ -1,5 +1,5 @@
 ---
-name: dag-skill
+name: dag
 description: Coordinate an already approved Spec-and-Ticket dependency DAG through continuous multi-ticket implementation, evidence-aware review, bounded rework, graph revision, and final acceptance. Use when the user explicitly asks to execute, advance, continue, or resume an approved DAG in a target project. Route Spec or Ticket authoring and isolated single-ticket implementation to their dedicated skills.
 ---
 
