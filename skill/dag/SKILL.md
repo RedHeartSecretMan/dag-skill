@@ -14,14 +14,16 @@ Keep DAG and tracker state under the Coordinator's exclusive control. Execution 
 1. Resolve the Target Project, Approved Spec, in-scope Tickets and dependency carrier, and the user's explicit request to execute, advance, continue, or resume the DAG.
 2. Ask for one precise pointer when any required input is missing or ambiguous. Keep the run paused rather than guessing scope, dependencies, or approval.
 3. Read the Target Project's current `AGENTS.md` files, domain and engineering documents, Tracker Contract, Approved Spec, Tickets, repository state, tests, and existing review evidence.
-4. Discover the exact installed `implement`, `code-review`, and Target Project authoring Skills, plus the Agent models, reasoning controls, tools, and runtime metadata actually available in the live environment. Treat availability and applicability as evidence, not as an assumption from chat.
-5. Resolve a run-scoped Execution Profile for each role:
+4. Resolve the Required Skill Bundle before any Ticket claim or Agent dispatch. Require complete, readable Skills named `implement`, `code-review`, `tdd`, and `codebase-design` from `mattpocock/skills` revision `5b15a47f2d7150f545fbcacbfe381787fc0230dc`, installed in a stable user Skill scope such as `$HOME/.agents/skills` on Codex. Verify each resolved name, path, source revision or equivalent immutable content identity, referenced bundled files, invocation policy, and actual contract. Treat a missing, disabled, unreadable, incomplete, differently resolved, duplicate-name, or content-mismatched Skill as a bundle failure.
+5. On bundle failure, stop before claiming or dispatching any Ticket and report the exact repair required. Do not convert absence into DAG-Native Fallback, consume an Operational Retry, or install, update, or overwrite user Skills under DAG Run Authorization. After an authorized out-of-run repair, reread and revalidate the whole bundle. Keep `setup-matt-pocock-skills` outside the bundle; do not install or invoke it under DAG Run Authorization because it configures the Target Project.
+6. Discover the exact Target Project authoring Skills, plus the Agent models, reasoning controls, tools, and runtime metadata actually available in the live environment. Treat availability and applicability as evidence, not as an assumption from chat.
+7. Resolve a run-scoped Execution Profile for each role:
    - Treat an exact model, Agent, or reasoning-effort requirement from the user or Target Project as a hard constraint.
    - Otherwise use a suitable active primary Agent as Coordinator, favoring the strongest available graph-wide reasoning and context capacity.
    - Choose Execution Agents for the Ticket's repository, coding, tool, context, and risk needs. Choose Review Agents for the review surface and an independent context; model diversity is optional unless a governing contract requires it.
    - Use the highest useful supported reasoning effort for coordination and high-risk work, and proportional effort for bounded lower-risk work.
-6. When the user names a model or asks which model to use, evaluate the live available choices against the requested role and work. Recommend concrete role assignments and relevant trade-offs. Honor a suitable available choice; when an exact request is unavailable, incapable, or conflicts with a governing contract, explain why and obtain user authorization before substituting it.
-7. Inspect and record all runtime metadata the host exposes for the active Coordinator and every dispatched Agent, including unavailable fields, the resolved profile, and any run-time change. Never infer a missing model or reasoning effort. If an exact requirement cannot be verified, leave that role unavailable. Without an exact constraint, an Agent may run when its required identity and capabilities are substantiated even if the host omits a model or effort field; disclose the omission. Before dispatch, selecting another suitable substantiated profile is ordinary scheduling, not a reason to stop the whole DAG; after dispatch, handle an observed profile mismatch as an Operational Failure. Never silently substitute or claim a model, Agent, or reasoning effort that the evidence does not show.
+8. When the user names a model or asks which model to use, evaluate the live available choices against the requested role and work. Recommend concrete role assignments and relevant trade-offs. Honor a suitable available choice; when an exact request is unavailable, incapable, or conflicts with a governing contract, explain why and obtain user authorization before substituting it.
+9. Inspect and record all runtime metadata the host exposes for the active Coordinator and every dispatched Agent, including unavailable fields, the resolved profile, and any run-time change. Never infer a missing model or reasoning effort. If an exact requirement cannot be verified, leave that role unavailable. Without an exact constraint, an Agent may run when its required identity and capabilities are substantiated even if the host omits a model or effort field; disclose the omission. Before dispatch, selecting another suitable substantiated profile is ordinary scheduling, not a reason to stop the whole DAG; after dispatch, handle an observed profile mismatch as an Operational Failure. Never silently substitute or claim a model, Agent, or reasoning effort that the evidence does not show.
 
 Optionally use an already-authorized durable host goal or continuation mechanism when available; when used, read back its live state after continuation, resume, or task handoff. Treat it only as run liveness; never treat it as Target Project state, forward progress, or completion evidence.
 
@@ -58,6 +60,7 @@ On every start or continuation:
 
 Keep recovery data in the Target Project's existing tracker or repository evidence under its contract. For every started Ticket, reconstruct:
 
+- resolved Required Skill Bundle paths, content identities, and any unavailable provenance fields;
 - current attempt, ownership, and blockers;
 - resolved and observed Execution Profiles for the active Coordinator and every dispatched Agent, including unavailable metadata fields, mismatches, and changes;
 - for every Agent dispatched directly by the Coordinator, its current bounded progress checkpoint, bound, observed state, and last evidence-bearing milestone;
@@ -96,27 +99,27 @@ For every Agent that the Coordinator dispatches directly, set and persist a boun
 
 ### 1. Claim and capture the fixed point
 
-Reread the Ticket, dependencies, blockers, repository, and tracker immediately before dispatch. Claim it under the Tracker Contract, then capture an immutable pre-implementation Review Fixed Point that bounds the Ticket's change. Persist enough evidence to recover the attempt.
+Reread the Ticket, dependencies, blockers, repository, and tracker immediately before dispatch. Reconfirm that every Required Skill Bundle member still resolves to the recorded content identity; treat drift as bundle failure before claiming. Claim the Ticket under the Tracker Contract, then capture an immutable pre-implementation Review Fixed Point that bounds the Ticket's change. Persist enough evidence to recover the attempt.
 
 ### 2. Dispatch implementation
 
 Dispatch one fresh Execution Agent for exactly one Ticket with its resolved Execution Profile. Supply the Target Project instructions, Approved Spec, Ticket, dependency outputs, Review Fixed Point, acceptance criteria, allowed workspace, and authorization boundary.
 
-When `implement` is installed and applicable, explicitly require the Execution Agent to use it as installed. Let its required `code-review` run as an Implementation-Side Review. Treat the raw Standards and Spec results as candidate evidence.
+After the Required Skill Bundle passes, explicitly require the Execution Agent to use the resolved `implement` Skill when it is applicable. Require its nested `tdd`, `codebase-design` when the seam is in question, and `code-review` calls to resolve to the same verified bundle. Let its required `code-review` run as an Implementation-Side Review. Treat the raw Standards and Spec results as candidate evidence.
 
 Use `implement` only when its Git commit and nested review contracts can be satisfied safely and its commit remains a candidate without advancing the Authoritative Integration Baseline. Supply the fixed point, Spec, Ticket, standards, and tracker context before dispatch. Treat it as inapplicable if following it would require installing prerequisites, mutating project configuration, skipping a required step, or committing in an unsafe, non-Git, or baseline-advancing context.
 
-When `implement` is unavailable or inapplicable, disclose DAG-Native Fallback and dispatch a fresh Execution Agent directly. Require it to:
+When the verified `implement` Skill is inapplicable to the Target Project's live contract, disclose DAG-Native Fallback and dispatch a fresh Execution Agent directly. Require it to:
 
 - implement only the Ticket's approved scope;
-- use public-interface TDD at an agreed seam when feasible;
+- explicitly use the verified `tdd` Skill at the pre-agreed public seam when feasible, and use the verified `codebase-design` Skill when the seam's shape is in question;
 - run focused checks during implementation and the Target Project's complete applicable gates at the end;
 - create a ticket-scoped candidate commit only when the repository and authorization permit it without advancing the Authoritative Integration Baseline;
 - return a complete Implementation Handoff.
 
 Across both paths, count a RED only when its input conforms to the live Ticket contract, it exercises the live Ticket's agreed public contract seam and real delivered seam when applicable, and it fails because of the target behavior rather than an environment, tool, or probe error. Claiming, reading, and exploration are neither RED nor candidate evidence.
 
-Represent fallback honestly; never claim that an unavailable or inapplicable Skill ran.
+Represent fallback honestly. Never convert a missing or invalid Required Skill Bundle into fallback or claim that an inapplicable Skill ran.
 
 ### 3. Validate the handoff
 
@@ -157,9 +160,9 @@ When these conditions hold, proceed without mechanically repeating the review.
 
 Dispatch a fresh Review Agent when evidence is missing, stale, incomplete, contradictory, unverifiable, or inadequate for the risk. Require a fresh review when the Target Project mandates one or when the Coordinator cannot substantiate a high-impact surface such as security, a public contract, persistence or migration, concurrency, deployment behavior, or a release gate.
 
-When `code-review` is installed and applicable, explicitly require the fresh Review Agent to use it with the Review Fixed Point, Final Artifact Identity, Approved Spec and Ticket, standards sources, commit list, and exact scope. Require independent Standards and Spec results side by side; the Spec axis is mandatory for this workflow.
+When the verified `code-review` Skill is applicable, explicitly require the fresh Review Agent to use it with the Review Fixed Point, Final Artifact Identity, Approved Spec and Ticket, standards sources, commit list, and exact scope. Require independent Standards and Spec results side by side; the Spec axis is mandatory for this workflow.
 
-When `code-review` is unavailable or inapplicable, disclose DAG-Native Fallback and dispatch fresh, independent Standards and Spec Reviewers against the same Final Artifact Identity. Preserve both axes and their resolved Execution Profiles.
+When the verified `code-review` Skill is inapplicable to the Target Project's live contract, disclose DAG-Native Fallback and dispatch fresh, independent Standards and Spec Reviewers against the same Final Artifact Identity. Preserve both axes and their resolved Execution Profiles. Treat a missing `docs/agents/issue-tracker.md` required by this pinned `code-review` contract as inapplicability; do not invoke `setup-matt-pocock-skills` without separate authorization.
 
 Require every Review Agent report to include its own and any nested Reviewers' resolved and observed Execution Profiles, unavailable metadata fields, run-time changes, artifact identities, and raw findings. Do not adopt review evidence when required profile evidence is missing or violates an exact constraint.
 

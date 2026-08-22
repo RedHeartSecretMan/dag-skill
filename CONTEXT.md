@@ -138,8 +138,12 @@ _Avoid_: worker completion, reviewer transition, shared ownership
 The single corrected redispatch or retry allowed when an Agent, tool, or integration failure prevents valid implementation, review, or integration evidence, separate from a Ticket's Rework Budget.
 _Avoid_: Formal Rework, automatic retry loop, repeated dispatch
 
+**Required Skill Bundle**:
+The pinned, complete installed set of Matt Skills named `implement`, `code-review`, `tdd`, and `codebase-design` that must be resolved and contract-checked before any Ticket is claimed.
+_Avoid_: optional helper set, runtime download, `setup-matt-pocock-skills`
+
 **Implement Skill**:
-The preferred installed Matt Skill exposed through the exact name `implement` and used for initial Ticket implementation and Formal Rework when applicable, including its implementation-side Code Review before the Implementation Handoff.
+The required installed Matt Skill exposed through the exact name `implement` and used for initial Ticket implementation and Formal Rework when applicable, including its implementation-side Code Review before the Implementation Handoff.
 _Avoid_: Target Implementation Skill, copied implementation rules, fuzzy Skill discovery
 
 **Authoring Skill**:
@@ -159,7 +163,7 @@ The boundary where an Execution Agent returns its implementation, verification, 
 _Avoid_: Ticket acceptance, review result, worker completion claim
 
 **Code Review Skill**:
-The preferred installed Matt Skill exposed through the exact name `code-review` and used when applicable for independent two-axis review either inside the Implement Skill or through a fresh Coordinator dispatch.
+The required installed Matt Skill exposed through the exact name `code-review` and used when applicable for independent two-axis review either inside the Implement Skill or through a fresh Coordinator dispatch.
 _Avoid_: implementer opinion, Coordinator acceptance, aggregate pass/fail
 
 **Review Sufficiency Gate**:
@@ -183,8 +187,8 @@ The Coordinator's evidence-backed classification of every formal-review finding 
 _Avoid_: aggregate pass/fail, reviewer verdict, silent dismissal
 
 **DAG-Native Fallback**:
-The explicitly disclosed direct dispatch of DAG roles when the Implement Skill or Code Review Skill is unavailable or inapplicable, while preserving the same gates.
-_Avoid_: silent downgrade, alternate workflow, skipped Skill
+The explicitly disclosed direct dispatch of DAG roles when a present Required Skill is inapplicable to the Target Project's live contract, while preserving the same gates.
+_Avoid_: missing-dependency recovery, silent downgrade, skipped Skill
 
 **Standards Reviewer**:
 An agent independent of a Ticket's implementation who evaluates conformance with the Target Project's governing engineering standards.
@@ -203,5 +207,5 @@ A live tracker, repository, test, or formal-review artifact that substantiates w
 _Avoid_: chat state, plan text, agent claim
 
 **Recovery Evidence**:
-State Evidence sufficient to reconstruct the active Coordinator's and every dispatched Agent's resolved and observed Execution Profile, including unavailable metadata fields and changes; every directly dispatched Agent's bounded progress checkpoint and observed state for a Ticket; the Review Fixed Point; Final Artifact Identity; integration state, Authoritative Integration Baseline identity, candidate representation or reachability, and integrated-gate commands, contexts, outcomes, and bound artifact identities; known failing gates and their classifications; acceptance state; consumed Operational Retry, Formal Rework and DAG Revision budgets; findings; and Ticket Lineage after start, resume, or handoff.
+State Evidence sufficient to reconstruct the Required Skill Bundle's resolved paths, content identities, and unavailable provenance fields; the active Coordinator's and every dispatched Agent's resolved and observed Execution Profile, including unavailable metadata fields and changes; every directly dispatched Agent's bounded progress checkpoint and observed state for a Ticket; the Review Fixed Point; Final Artifact Identity; integration state, Authoritative Integration Baseline identity, candidate representation or reachability, and integrated-gate commands, contexts, outcomes, and bound artifact identities; known failing gates and their classifications; acceptance state; consumed Operational Retry, Formal Rework and DAG Revision budgets; findings; and Ticket Lineage after start, resume, or handoff.
 _Avoid_: chat memory, Coordinator recollection, separate scheduler state

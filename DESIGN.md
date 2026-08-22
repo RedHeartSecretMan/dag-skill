@@ -4,7 +4,7 @@ This document specifies a minimal, project-independent Agent Skill for continuou
 
 ## Deliverable Boundary
 
-The Agent-facing runtime artifact is one English `skill/dag/SKILL.md`. The complete copyable Skill artifact is `skill/dag/`; its `SKILL.md` is the sole normative runtime source and must not depend on `README.md`, this document, or `CONTEXT.md` at runtime.
+The Agent-facing runtime artifact authored by this project is one English `skill/dag/SKILL.md`. The complete copyable DAG Skill artifact is `skill/dag/`; its `SKILL.md` is the sole normative DAG runtime source and must not depend on `README.md`, this document, or `CONTEXT.md` at runtime. It has the explicit external Required Skill Bundle defined below.
 
 The final deliverable also includes one Chinese, human-facing `README.md` that explains the Skill's purpose, prerequisites, invocation boundary, core DAG flow, fallbacks, authorization boundary, and terminal outcomes without restating the complete state machine or becoming runtime instructions.
 
@@ -26,6 +26,16 @@ The Skill is model-invoked and remains directly user-invocable. Its frontmatter 
 - a narrow description that triggers on explicit requests to execute, advance, continue, or resume an already approved multi-Ticket DAG and routes Spec or Ticket authoring and isolated single-Ticket work to their dedicated Skills.
 
 Before acting, the Coordinator must receive or uniquely discover the Target Project, Approved Spec, in-scope Ticket set and dependency carrier, and DAG Run Authorization. A missing or ambiguous pointer pauses execution and requires one precise clarification rather than a guessed scope.
+
+## Required Skill Bundle
+
+The supported execution profile requires complete installed Matt Skills named `implement`, `code-review`, `tdd`, and `codebase-design`. The default bundle is pinned to `mattpocock/skills` revision `5b15a47f2d7150f545fbcacbfe381787fc0230dc`. Installation copies each whole Skill directory, including the references used by `tdd` and `codebase-design`, into a stable user Skill scope such as `$HOME/.agents/skills` on Codex.
+
+Before any Ticket claim or Agent dispatch, the Coordinator resolves and contract-checks every bundle member. It verifies exact names and paths, required bundled files, invocation policy, actual call contracts, and immutable installation identity when available. A missing, disabled, unreadable, incomplete, differently resolved, duplicate-name, or contract-mismatched member fails the bundle as a whole.
+
+A bundle failure pauses the run before Ticket work. It is neither DAG-Native Fallback nor an Operational Retry. DAG Run Authorization does not authorize installing, updating, or overwriting user Skills; an authorized out-of-run repair must be followed by a full catalog and bundle reread.
+
+`setup-matt-pocock-skills` is not a bundle member. It is a project-configuration capability whose writes require separate authorization. The Coordinator treats the pinned Code Review Skill as inapplicable when its project setup contract is unsatisfied and uses DAG-Native Fallback rather than invoking setup under DAG Run Authorization.
 
 ## Authority and Evidence
 
@@ -74,7 +84,7 @@ The Runnable Frontier contains only unaccepted Tickets whose hard predecessors a
 | Coordinator | Live reconciliation, graph validation, scheduling, tracker state, evidence adjudication, integration, rework or revision decisions, and final acceptance | Suitable active primary Agent; favor the strongest available graph-wide reasoning and context capacity |
 | Execution Agent | One Ticket's implementation through Implementation Handoff | Available Agent matched to the Ticket's repository, coding, tool, context, complexity, and risk needs |
 | Review Agent | Runs a fresh Code Review Skill when the Coordinator determines that existing review evidence is insufficient | Fresh independent context matched to the review surface; use stronger available capability for high-risk work |
-| DAG-native Standards or Spec Reviewer | Supplies the corresponding independent review when the Code Review Skill is unavailable or inapplicable | Fresh independent context with the relevant Standards or Spec capability |
+| DAG-native Standards or Spec Reviewer | Supplies the corresponding independent review when the verified Code Review Skill is inapplicable | Fresh independent context with the relevant Standards or Spec capability |
 
 An exact user or Target Project model, Agent, or reasoning-effort requirement is a hard constraint. Without one, the Coordinator resolves profiles from live availability and work-specific capability, using the highest useful supported reasoning effort for coordination and high-risk work and proportional effort for bounded lower-risk work. Review independence is a context and role boundary; model diversity is optional unless a governing contract requires it.
 
@@ -89,7 +99,7 @@ Only the Coordinator owns DAG and tracker state. Execution and Review Agents ret
 The Skill has no command modes. On every authorized start or continuation, the Coordinator:
 
 1. rereads applicable instructions, the live Spec, all in-scope Tickets, dependency and blocker evidence, tracker rules, Git state, test contracts, and existing formal-review evidence;
-2. discovers the currently available `implement`, `code-review`, and any Target Project authoring Skills, plus live Agent models, reasoning controls, tools, and runtime metadata, without trusting chat memory;
+2. validates the complete Required Skill Bundle, then discovers any Target Project authoring Skills plus live Agent models, reasoning controls, tools, and runtime metadata, without trusting chat memory;
 3. reconstructs and validates the DAG Projection;
 4. reconciles already accepted, in-progress, blocked, superseded, and unclaimed Tickets against live Recovery Evidence;
 5. computes the Runnable Frontier and available safe capacity.
@@ -98,7 +108,7 @@ The Skill never initializes Git. It preserves unrelated dirty work and does not 
 
 Inherited changes are classified as the current Ticket candidate, protected unrelated work, or unaccepted historical work. Unaccepted historical work remains evidence-only unless a live approved Ticket explicitly adopts it.
 
-Recovery Evidence must remain in the Target Project's existing tracker or repository evidence under its Tracker Contract, not in a DAG Skill scheduler file. For every started Ticket, it must reconstruct the current attempt and ownership; the active Coordinator's and every dispatched Agent's resolved and observed Execution Profile, including unavailable metadata fields, mismatches, and changes; every directly dispatched Agent's bounded progress checkpoint, observed state, and last milestone; Review Fixed Point; Final Artifact Identity when available; integration state, Authoritative Integration Baseline identity, candidate representation or reachability, and integrated-gate commands, contexts, outcomes, and bound artifact identities when available; consumed Operational Retry and Formal Rework; findings and dispositions; known failing gates with their context, classification, owner and closing condition; acceptance evidence; and Ticket Lineage with any consumed automatic DAG Revision. If required evidence cannot be reconstructed or legally persisted, the Ticket is not Runnable and the Coordinator fails closed on that path.
+Recovery Evidence must remain in the Target Project's existing tracker or repository evidence under its Tracker Contract, not in a DAG Skill scheduler file. For every started Ticket, it must reconstruct the resolved Required Skill Bundle paths, content identities, and unavailable provenance fields; the current attempt and ownership; the active Coordinator's and every dispatched Agent's resolved and observed Execution Profile, including unavailable metadata fields, mismatches, and changes; every directly dispatched Agent's bounded progress checkpoint, observed state, and last milestone; Review Fixed Point; Final Artifact Identity when available; integration state, Authoritative Integration Baseline identity, candidate representation or reachability, and integrated-gate commands, contexts, outcomes, and bound artifact identities when available; consumed Operational Retry and Formal Rework; findings and dispositions; known failing gates with their context, classification, owner and closing condition; acceptance evidence; and Ticket Lineage with any consumed automatic DAG Revision. If required evidence cannot be reconstructed or legally persisted, the Ticket is not Runnable and the Coordinator fails closed on that path.
 
 An optional, already-authorized host goal may preserve run liveness but never Target Project or recovery state. A cross-task handoff becomes valid only after the receiving Coordinator rereads the live project, reconstructs all required Recovery Evidence, and recomputes the frontier.
 
@@ -121,17 +131,17 @@ Graph independence is necessary but not sufficient for parallel writes. A worksp
 
 ### 1. Dispatch
 
-The Coordinator captures an immutable Review Fixed Point before implementation, then dispatches one fresh Execution Agent for exactly one Ticket in a write boundary that cannot advance the Authoritative Integration Baseline before adjudication.
+Immediately before claiming, the Coordinator confirms that every Required Skill Bundle member still resolves to the recorded content identity; any drift returns to bundle failure. It then captures an immutable Review Fixed Point before implementation and dispatches one fresh Execution Agent for exactly one Ticket in a write boundary that cannot advance the Authoritative Integration Baseline before adjudication.
 
 Each Agent dispatched directly by the Coordinator receives a persisted bounded progress checkpoint appropriate to its role, Ticket, and host. A dispatching Agent is responsible for equivalent bounded monitoring of any nested Agents it creates and for reporting their resolved and observed Execution Profiles, unavailable metadata fields, changes, and terminal states. A live Agent that reaches its checkpoint without an evidence-bearing milestone, evidenced blocker, or terminal result incurs an Operational Failure rather than holding the run open.
 
-When the installed `implement` Skill is available and applicable, the dispatch explicitly tells the Agent to use it as installed, including its required `code-review` step. That nested review is an Implementation-Side Review: its raw Standards and Spec artifacts are candidate evidence for the Coordinator, but neither the Execution Agent nor its reviewers may accept the Ticket or unlock successors.
+When the verified `implement` Skill is applicable, the dispatch explicitly tells the Agent to use it, with every nested `tdd`, conditionally required `codebase-design`, and `code-review` call resolved from the same Required Skill Bundle. That nested review is an Implementation-Side Review: its raw Standards and Spec artifacts are candidate evidence for the Coordinator, but neither the Execution Agent nor its reviewers may accept the Ticket or unlock successors.
 
 The Coordinator supplies the Review Fixed Point, approved Spec and Ticket, applicable standards, and exact scope needed by the nested review. A nested Skill may not install prerequisites or mutate project configuration under DAG Run Authorization. If the required review context cannot be supplied safely, `implement` is inapplicable rather than partially followed.
 
 If the Target Project cannot provide a safe Git candidate-commit context that leaves the Authoritative Integration Baseline unchanged, the installed `implement` Skill's commit contract is inapplicable rather than silently ignored.
 
-If `implement` is unavailable or inapplicable, the Coordinator discloses DAG-Native Fallback and dispatches a fresh Execution Agent directly under the Target Project's live instructions, Spec, Ticket, and verification contracts. The fallback need not manufacture an Implementation-Side Review; missing reusable review evidence will cause the Review Sufficiency Gate to dispatch a fresh review. No fallback is represented as successful Skill use.
+If the verified `implement` Skill is inapplicable, the Coordinator discloses DAG-Native Fallback and dispatches a fresh Execution Agent directly under the Target Project's live instructions, Spec, Ticket, and verification contracts. This Agent still explicitly uses the verified `tdd` Skill at a pre-agreed public seam when feasible and the verified `codebase-design` Skill when the seam's shape is in question. The fallback need not manufacture an Implementation-Side Review; missing reusable review evidence will cause the Review Sufficiency Gate to dispatch a fresh review. A missing or invalid bundle blocks before this branch and is never represented as fallback.
 
 A RED is evidence only when it uses the live Ticket contract through its agreed public and real delivered seam where applicable, and fails because of target behavior rather than environment, tooling, or probe error. Claiming, reading, and exploration are not RED or candidate evidence.
 
@@ -164,11 +174,11 @@ When all conditions hold, the Coordinator adopts the Implementation-Side Review 
 
 When the evidence is missing, stale, incomplete, contradictory, unverifiable, or inadequate for the risk, the Coordinator dispatches a fresh Review Agent with the Review Fixed Point, approved Spec and Ticket, applicable standards sources, commit list, and exact review scope. High-impact surfaces and any Target Project mandate are sufficient reasons to require the fresh review.
 
-When `code-review` is available and applicable, the Review Agent explicitly uses it. Its Standards and Spec reviews remain independent and are returned side by side. The approved Spec always exists for this workflow; the Spec axis may not be silently skipped.
+When the verified `code-review` Skill is applicable, the Review Agent explicitly uses it. Its Standards and Spec reviews remain independent and are returned side by side. The approved Spec always exists for this workflow; the Spec axis may not be silently skipped.
 
 A reused Skill may not install prerequisites, mutate project configuration, or ask the user to repair missing review context under DAG Run Authorization. If its fixed point, diff, Spec, tracker, or other required inputs cannot be supplied safely, it is inapplicable and the Coordinator uses the disclosed fallback.
 
-If `code-review` is unavailable or inapplicable, the Coordinator discloses DAG-Native Fallback and directly dispatches fresh, independent Standards and Spec Reviewers against the same Final Artifact Identity.
+If the verified `code-review` Skill is inapplicable, the Coordinator discloses DAG-Native Fallback and directly dispatches fresh, independent Standards and Spec Reviewers against the same Final Artifact Identity. A missing `docs/agents/issue-tracker.md` required by the pinned Skill is inapplicability; it does not authorize `setup-matt-pocock-skills`.
 
 Every Review Agent report includes its own and any nested Reviewers' resolved and observed Execution Profiles, unavailable metadata fields, run-time changes, artifact identities, and raw findings. Missing required profile evidence or a violated exact constraint prevents adoption of that review evidence.
 
@@ -236,10 +246,11 @@ The implementation is acceptable when:
 - `skill/dag/SKILL.md` is the only runtime artifact and is written in accurate Agent-facing English;
 - `README.md` is a concise Chinese human-facing companion that remains consistent with `SKILL.md` and is not a runtime dependency;
 - it expresses implementation through `implement`, including its Implementation-Side Review, followed by the Coordinator's Review Sufficiency Gate, conditional fresh review through `code-review`, and Coordinator adjudication;
-- it defines the disclosed DAG-native fallbacks without silently claiming unavailable Skill use;
+- it requires and validates the pinned, complete `implement`, `code-review`, `tdd`, and `codebase-design` bundle before Ticket work;
+- it defines DAG-native fallback only for verified-but-inapplicable Skill contracts and never for a missing or invalid bundle;
 - it keeps Ticket dependencies acyclic and bounds both Operational Retry and Formal Rework;
 - it derives scheduling from live project evidence and the Target Project's Tracker Contract;
 - it resolves model and Agent profiles from live constraints, capability, and risk without binding the workflow to one model version or silently replacing an exact request;
 - it preserves Coordinator authority, same-final-bytes review, integration-before-acceptance, atomic acceptance-before-unlock, Safe Parallelism, and Whole-DAG final acceptance;
-- it contains no project-specific tracker, authoring implementation, persistent state, CLI, or extra-file dependency;
+- it contains no project-specific tracker, authoring implementation, persistent state, CLI, or additional dag-skill runtime artifact beyond the explicit external Required Skill Bundle;
 - it does not broaden local authorization into remote or high-impact actions.
