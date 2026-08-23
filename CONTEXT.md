@@ -65,7 +65,7 @@ The final verification of Approved Spec coverage, baseline integration, dependen
 _Avoid_: final test
 
 **Formal Rework**:
-The single Coordinator-authorized return of a Ticket for implementation after accepting an in-scope blocking review or integration finding.
+The single Coordinator-authorized second Ticket Attempt after accepting an in-scope blocking handoff, review, or integration finding.
 _Avoid_: Operational Retry
 
 **DAG Revision**:
@@ -106,8 +106,12 @@ _Avoid_: implementer, reviewer
 The run-scoped assignment of an available Agent to a DAG role, including observable model, reasoning effort, tools, capabilities, and explicitly unknown metadata fields.
 _Avoid_: fixed default model
 
+**Ticket Attempt**:
+A persisted implementation-to-integration cycle created by the initial Ticket claim or its single Formal Rework; continuation, Operational Retry, external-blocker suspension, and a pending write-safety boundary preserve the same cycle and budgets.
+_Avoid_: Agent dispatch
+
 **Operational Retry**:
-The single corrected redispatch available when an Agent, tool, profile, report, or integration failure prevents valid evidence for one Ticket attempt.
+The single corrected retry action available when an Agent, tool, profile, report, or integration failure prevents valid evidence within one Ticket Attempt; implementation and review retry their roles, integration remains Coordinator-owned, and exhaustion routes to a Coordinator graph decision.
 _Avoid_: Formal Rework
 
 **Required Skill Bundle**:
@@ -139,7 +143,7 @@ The independent Standards and Spec evidence adopted by the Coordinator from a su
 _Avoid_: worker summary
 
 **Review Fixed Point**:
-The immutable pre-implementation baseline that bounds one Ticket's review surface.
+The immutable pre-implementation baseline that bounds one Ticket Attempt's review surface.
 _Avoid_: branch name
 
 **Final Artifact Identity**:
