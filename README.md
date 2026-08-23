@@ -38,13 +38,13 @@ Spec/Ticket 的制定与修改仍由目标项目已有的 authoring Skill 完成
 - `tdd`
 - `codebase-design`
 
-默认版本固定为 [`mattpocock/skills@5b15a47f2d7150f545fbcacbfe381787fc0230dc`](https://github.com/mattpocock/skills/tree/5b15a47f2d7150f545fbcacbfe381787fc0230dc/skills/engineering)。应在 DAG 运行之外，将这四个完整目录放入宿主规定的稳定用户级或共享 Skill scope。不能只复制 `SKILL.md`：`tdd` 还需要 `tests.md` 和 `mocking.md`，`codebase-design` 还需要 `DEEPENING.md` 和 `DESIGN-IT-TWICE.md`。
+默认版本固定为 [`mattpocock/skills@5b15a47f2d7150f545fbcacbfe381787fc0230dc`](https://github.com/mattpocock/skills/tree/5b15a47f2d7150f545fbcacbfe381787fc0230dc/skills/engineering)。`skills/engineering/<name>` 只是这些 Skill 在 Matt 仓库里的上游来源路径；安装时会去掉 `engineering` 分组，直接得到 `<host-skills-root>/<name>`。因此宿主的 `skills` 根目录下会直接出现 `implement/`、`code-review/`、`tdd/` 和 `codebase-design/`。不能只复制 `SKILL.md`：`tdd` 还需要 `tests.md` 和 `mocking.md`，`codebase-design` 还需要 `DEEPENING.md` 和 `DESIGN-IT-TWICE.md`。
 
-用户单独授权安装并明确宿主 Skill 目录后，可以运行随 artifact 提供的助手：
+用户单独授权安装并明确宿主的 Skills 根目录后，可以运行随 artifact 提供的助手：
 
 ```bash
 python3 /path/to/dag/scripts/install_dependencies.py \
-  --destination /path/to/agent-host/skills
+  --skills-root /path/to/agent-host/skills
 ```
 
 该脚本只依赖 Python 标准库、Git 和网络，始终从固定 revision 复制上述四个完整目录。它不会安装 `setup-matt-pocock-skills`，不会猜测宿主目录，也没有覆盖选项：目标不存在时安装、与固定源完全相同时幂等跳过，任何目标不同、为文件或为软链接时都会在写入前停止整批操作。若脚本不可用，应按同一固定 revision 和完整目录契约手工安装，而不是降低依赖门禁。

@@ -15,7 +15,7 @@ import tempfile
 
 REPOSITORY = "https://github.com/mattpocock/skills.git"
 REVISION = "5b15a47f2d7150f545fbcacbfe381787fc0230dc"
-SOURCE_ROOT = Path("skills/engineering")
+UPSTREAM_BUNDLE_ROOT = Path("skills/engineering")
 SKILLS = ("implement", "code-review", "tdd", "codebase-design")
 REQUIRED_FILES = {
     "implement": ("SKILL.md",),
@@ -81,7 +81,7 @@ def fetch_pinned_source(workspace: Path) -> dict[str, Path]:
 
     sources: dict[str, Path] = {}
     for skill in SKILLS:
-        source = checkout / SOURCE_ROOT / skill
+        source = checkout / UPSTREAM_BUNDLE_ROOT / skill
         missing = [name for name in REQUIRED_FILES[skill] if not (source / name).is_file()]
         if missing:
             raise InstallError(f"Pinned {skill} source is missing: {', '.join(missing)}")
@@ -89,15 +89,15 @@ def fetch_pinned_source(workspace: Path) -> dict[str, Path]:
     return sources
 
 
-def install(destination: Path) -> None:
+def install(skills_root: Path) -> None:
     if shutil.which("git") is None:
         raise InstallError("Git is required to fetch the pinned dependency bundle")
 
-    destination = destination.expanduser().resolve(strict=False)
-    if destination == Path("/"):
-        raise InstallError("Refusing to use the filesystem root as the Skill directory")
-    if destination.exists() and not destination.is_dir():
-        raise InstallError(f"Skill destination is not a directory: {destination}")
+    skills_root = skills_root.expanduser().resolve(strict=False)
+    if skills_root == Path("/"):
+        raise InstallError("Refusing to use the filesystem root as the Skills root")
+    if skills_root.exists() and not skills_root.is_dir():
+        raise InstallError(f"Skills root is not a directory: {skills_root}")
 
     with tempfile.TemporaryDirectory(prefix="dag-skill-dependencies-") as temporary:
         sources = fetch_pinned_source(Path(temporary))
@@ -107,7 +107,7 @@ def install(destination: Path) -> None:
         current: list[str] = []
         conflicts: list[str] = []
         for skill in SKILLS:
-            target = destination / skill
+            target = skills_root / skill
             if not target.exists() and not target.is_symlink():
                 missing.append(skill)
             elif target.is_symlink() or not target.is_dir():
@@ -125,12 +125,12 @@ def install(destination: Path) -> None:
             )
 
         if not missing:
-            print(f"Required Skill Bundle is already current at {destination}")
+            print(f"Required Skill Bundle is already current at {skills_root}")
             print(f"Revision: {REVISION}")
             return
 
-        destination.mkdir(parents=True, exist_ok=True)
-        staging = Path(tempfile.mkdtemp(prefix=".dag-skill-stage-", dir=destination))
+        skills_root.mkdir(parents=True, exist_ok=True)
+        staging = Path(tempfile.mkdtemp(prefix=".dag-skill-stage-", dir=skills_root))
         installed: list[str] = []
         try:
             for skill in missing:
@@ -140,19 +140,19 @@ def install(destination: Path) -> None:
                     raise InstallError(f"Staged copy verification failed for {skill}")
 
             for skill in missing:
-                target = destination / skill
+                target = skills_root / skill
                 if target.exists() or target.is_symlink():
                     raise InstallError(f"Target appeared during installation: {target}")
                 os.rename(staging / skill, target)
                 installed.append(skill)
         except Exception:
             for skill in reversed(installed):
-                shutil.rmtree(destination / skill)
+                shutil.rmtree(skills_root / skill)
             raise
         finally:
             shutil.rmtree(staging, ignore_errors=True)
 
-    print(f"Installed pinned Matt Skill bundle at {destination}")
+    print(f"Installed pinned Matt Skill bundle at {skills_root}")
     print(f"Revision: {REVISION}")
     print(f"Installed: {', '.join(missing)}")
     if current:
@@ -161,18 +161,18 @@ def install(destination: Path) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Install the DAG Skill's pinned dependencies into an explicit Skill directory."
+        description="Install the DAG Skill's pinned dependencies into an explicit host Skills root."
     )
     parser.add_argument(
-        "--destination",
+        "--skills-root",
         required=True,
         type=Path,
-        help="stable user or shared Skill directory documented by the Agent Host",
+        help="stable host Skills root; dependencies are installed directly beneath it",
     )
     arguments = parser.parse_args()
 
     try:
-        install(arguments.destination)
+        install(arguments.skills_root)
     except (InstallError, OSError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
