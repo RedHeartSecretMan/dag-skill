@@ -122,6 +122,10 @@ _Avoid_: routine DAG operation, local step
 
 ## Roles and Evidence
 
+**Agent Host**:
+The runtime environment that makes Skills and fresh role-isolated Agent contexts available for one DAG run, with observable execution and governed Target Project access.
+_Avoid_: vendor-specific runtime, model, arbitrary chatbot
+
 **Coordinator**:
 The primary agent accountable for live-state reconciliation, DAG scheduling, evidence adjudication, byte-preserving integration, replanning decisions, and final acceptance.
 _Avoid_: worker, reviewer, agent manager
@@ -139,7 +143,7 @@ The single corrected redispatch or retry allowed when an Agent, tool, or integra
 _Avoid_: Formal Rework, automatic retry loop, repeated dispatch
 
 **Required Skill Bundle**:
-The pinned, complete installed set of Matt Skills named `implement`, `code-review`, `tdd`, and `codebase-design` that must be resolved and contract-checked before any Ticket is claimed.
+The pinned, complete set of Matt Skills named `implement`, `code-review`, `tdd`, and `codebase-design` that the Agent Host must resolve, explicitly activate, and contract-check before any Ticket is claimed.
 _Avoid_: optional helper set, runtime download, `setup-matt-pocock-skills`
 
 **Implement Skill**:
@@ -187,7 +191,7 @@ The Coordinator's evidence-backed classification of every formal-review finding 
 _Avoid_: aggregate pass/fail, reviewer verdict, silent dismissal
 
 **DAG-Native Fallback**:
-The explicitly disclosed direct dispatch of DAG roles when a present Required Skill is inapplicable to the Target Project's live contract, while preserving the same gates.
+The explicitly disclosed direct dispatch of DAG roles when a present Required Skill is inapplicable to the Agent Host or Target Project's live contract, while preserving the same gates.
 _Avoid_: missing-dependency recovery, silent downgrade, skipped Skill
 
 **Standards Reviewer**:
@@ -207,5 +211,5 @@ A live tracker, repository, test, or formal-review artifact that substantiates w
 _Avoid_: chat state, plan text, agent claim
 
 **Recovery Evidence**:
-State Evidence sufficient to reconstruct the Required Skill Bundle's resolved paths, content identities, and unavailable provenance fields; the active Coordinator's and every dispatched Agent's resolved and observed Execution Profile, including unavailable metadata fields and changes; every directly dispatched Agent's bounded progress checkpoint and observed state for a Ticket; the Review Fixed Point; Final Artifact Identity; integration state, Authoritative Integration Baseline identity, candidate representation or reachability, and integrated-gate commands, contexts, outcomes, and bound artifact identities; known failing gates and their classifications; acceptance state; consumed Operational Retry, Formal Rework and DAG Revision budgets; findings; and Ticket Lineage after start, resume, or handoff.
+State Evidence sufficient to reconstruct the Required Skill Bundle's resolved identifiers or locations, content identities, activation status, and unavailable provenance fields; the active Coordinator's and every dispatched Agent's resolved and observed Execution Profile, including unavailable metadata fields and changes; every directly dispatched Agent's bounded progress checkpoint and observed state for a Ticket; the Review Fixed Point; Final Artifact Identity; integration state, Authoritative Integration Baseline identity, candidate representation or reachability, and integrated-gate commands, contexts, outcomes, and bound artifact identities; known failing gates and their classifications; acceptance state; consumed Operational Retry, Formal Rework and DAG Revision budgets; findings; and Ticket Lineage after start, resume, or handoff.
 _Avoid_: chat memory, Coordinator recollection, separate scheduler state

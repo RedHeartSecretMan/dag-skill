@@ -1,6 +1,6 @@
 # DAG Skill
 
-`dag-skill` 是一个面向 Agent 的通用协调 Skill，用于持续推进已经批准并拆分完成的 Spec/Ticket 有向无环图。它不负责设计 Spec 或创建初始 Tickets，也不绑定 Markdown、GitHub Issues 等具体载体。
+`dag-skill` 是一个面向 Agent 的通用协调 Skill，用于持续推进已经批准并拆分完成的 Spec/Ticket 有向无环图。它不负责设计 Spec 或创建初始 Tickets，也不绑定某个 Agent 宿主、模型、Markdown、GitHub Issues 等具体实现。
 
 可复制 Skill artifact 位于 [`skill/dag/`](./skill/dag/)，其中的英文 [`SKILL.md`](./skill/dag/SKILL.md) 是唯一运行规范；本文只提供中文定位和使用说明。
 
@@ -15,6 +15,20 @@
 
 Spec/Ticket 的制定与修改仍由目标项目已有的 authoring Skill 完成。单张孤立 Ticket 的实现也应直接使用相应实施 Skill，而不是触发 DAG 协调。
 
+## Agent 宿主兼容性
+
+运行规范采用开放的 [Agent Skills 格式](https://agentskills.io/specification)：`SKILL.md` 只使用标准 frontmatter，并通过 Skill 名称和能力描述表达依赖，不包含固定安装器、目录、mention 前缀、斜杠命令或某个厂商的 Agent API。具体如何安装、选择或显式激活 Skill，由当前宿主的原生机制决定。
+
+这里承诺的是**契约可移植性**，不是宣称任意聊天工具都能完整执行该流程。一个受支持的 Agent 宿主至少需要能够：
+
+- 读取并显式激活具名 Skill；
+- 派发具有全新、相互隔离上下文的 Agent；
+- 建立实现侧可写、评审侧只读的工作边界；
+- 观察 Agent 的存活、进展检查点和终态；
+- 访问目标项目的 tracker、仓库和验证工具。
+
+宿主不支持并行时可以串行调度；缺少角色隔离、可观察终态或其他必需能力时，主 Agent 会在认领 Ticket 前报告能力缺口并停止受影响路径，不会在同一污染上下文中伪装独立评审。
+
 ## 必需 Skill 依赖
 
 `dag` 的受支持执行环境必须预先安装以下四个完整 Matt Skill 目录：
@@ -24,19 +38,19 @@ Spec/Ticket 的制定与修改仍由目标项目已有的 authoring Skill 完成
 - `tdd`
 - `codebase-design`
 
-默认版本固定为 [`mattpocock/skills@5b15a47f2d7150f545fbcacbfe381787fc0230dc`](https://github.com/mattpocock/skills/tree/5b15a47f2d7150f545fbcacbfe381787fc0230dc/skills/engineering)。在 Codex 中，应通过 `$skill-installer` 或等价的受信安装流程，将这四个目录完整安装到用户级 `$HOME/.agents/skills`；其他宿主应使用其等价的稳定用户级 Skill scope。不能只复制 `SKILL.md`：`tdd` 还需要 `tests.md` 和 `mocking.md`，`codebase-design` 还需要 `DEEPENING.md` 和 `DESIGN-IT-TWICE.md`。
+默认版本固定为 [`mattpocock/skills@5b15a47f2d7150f545fbcacbfe381787fc0230dc`](https://github.com/mattpocock/skills/tree/5b15a47f2d7150f545fbcacbfe381787fc0230dc/skills/engineering)。应在 DAG 运行之外，通过宿主受信的安装或注册机制，将这四个完整目录放入其稳定的用户级或共享 Skill scope；实际目录和命令服从宿主文档，不属于 DAG 运行契约。不能只复制 `SKILL.md`：`tdd` 还需要 `tests.md` 和 `mocking.md`，`codebase-design` 还需要 `DEEPENING.md` 和 `DESIGN-IT-TWICE.md`。
 
-每次开始或恢复 DAG 时，主 Agent 都会在认领 Ticket 或派发 Agent 前核查四个 Skill 的名称、解析路径、完整资源、调用策略和实际契约。任一 Skill 缺失、禁用、同名冲突、内容不匹配或资源不完整都会使运行停在依赖检查阶段；缺失依赖不能转成 DAG 内建回退，也不消耗 Ticket 的操作性重试。普通 DAG Run Authorization 不允许安装、更新或覆盖用户 Skill，修复后必须重新读取并验证整个依赖集合。
+每次开始或恢复 DAG 时，主 Agent 都会在认领 Ticket 或派发 Agent 前核查四个 Skill 的准确名称、唯一解析标识或位置、完整资源、固定内容身份、可显式激活性和实际契约。只核查宿主实际暴露的策略与来源字段，不假定某个厂商扩展必然存在。任一 Skill 缺失、禁用或不可激活、同名冲突、内容不匹配或资源不完整都会使运行停在依赖检查阶段；缺失依赖不能转成 DAG 内建回退，也不消耗 Ticket 的操作性重试。普通 DAG Run Authorization 不允许安装、注册、更新或覆盖用户 Skill，修复后必须重新读取并验证整个依赖集合。
 
-`setup-matt-pocock-skills` 不属于必需集合，也不会自动安装或运行，因为它会配置目标项目。若已安装的 `code-review` 因目标项目缺少其 tracker 前置条件而不适用，主 Agent 使用 DAG 内建双轴评审；只有用户另行授权时才可运行项目配置 Skill。
+`setup-matt-pocock-skills` 不属于必需集合，也不会自动安装或激活，因为它会配置目标项目。若已安装的 `code-review` 因宿主能力或目标项目缺少其 tracker 前置条件而不适用，主 Agent 使用 DAG 内建双轴评审；只有用户另行授权时才可运行项目配置 Skill。
 
 Review Agent、Standards Reviewer 和 Spec Reviewer 都是主流程派发的 Agent 角色，不是额外 Skill，因此不存在需要安装的 `reviewer` Skill。`triage`、`to-spec`、`to-tickets` 和 `domain-modeling` 也不属于 DAG 执行依赖。
 
 ## 模型与 Agent 选择
 
-Skill 不绑定某个具体模型版本。若用户或目标项目明确指定模型、Agent 或 reasoning effort，它就是当次运行的硬约束；否则，主 Agent 会根据当前真实可用性、角色、Ticket 复杂度、工具和风险选择合适 profile。主 Agent 倾向使用最强的可用全图推理能力，实现与评审 Agent 按实际工作选择，评审必须保持独立上下文，但不强制使用不同模型。
+Skill 不绑定某个 Agent 宿主或具体模型版本。若用户或目标项目明确指定模型、Agent 或 reasoning effort，它就是当次运行的硬约束；否则，主 Agent 会根据当前真实可用性、角色、Ticket 复杂度、工具和风险选择合适 profile。主 Agent 倾向使用最强的可用全图推理能力，实现与评审 Agent 按实际工作选择，评审必须保持独立上下文，但不强制使用不同模型。
 
-当用户点名模型或询问该选哪些模型时，主 Agent 先核查本地实际可用选项，再按角色给出具体建议和取舍。点名选项不可用、能力不匹配或违反项目约束时，必须先说明原因并得到用户授权才能替换；未点名模型时，只要 Agent 的身份和必需能力有证据支持，就可在公开宿主实际可见元数据以及未暴露字段后继续调度，不会仅因本地缺少某个版本而停止整个 DAG。
+当用户点名模型或询问该选哪些模型时，主 Agent 先核查当前宿主实际可用的选项，再按角色给出具体建议和取舍。点名选项不可用、能力不匹配或违反项目约束时，必须先说明原因并得到用户授权才能替换；未点名模型时，只要 Agent 的身份和必需能力有证据支持，就可在明确记录宿主可见元数据和未暴露字段后继续调度，不会仅因当前宿主缺少某个模型版本而停止整个 DAG。
 
 ## 核心流程
 
@@ -84,7 +98,7 @@ flowchart LR
 
 ## Skill 复用与回退
 
-Required Skill Bundle 通过检查后，Execution Agent 必须显式使用其中的 `implement`，其嵌套调用必须解析到同一集合中的 `tdd`、需要时的 `codebase-design` 和 `code-review`。只有当已验证的 Skill 因当前目标项目的 Git、Spec、tracker 或安全边界而不适用时，主 Agent 才会公开说明并使用 DAG 内建流程；即使 `implement` 不适用，原生实施分支仍显式使用 `tdd`，并在 seam 形状需要设计时使用 `codebase-design`。流程不会把依赖缺失伪装成回退，也不会跳过测试、独立 Standards/Spec 评审、真实交付边界或最终字节核验。
+Required Skill Bundle 通过检查后，Execution Agent 必须通过当前宿主的原生机制显式激活并使用其中的 `implement`，其嵌套使用必须解析到同一集合中的 `tdd`、需要时的 `codebase-design` 和 `code-review`，而不依赖固定调用语法。只有当已验证的 Skill 因当前宿主能力或目标项目的 Git、Spec、tracker、安全边界而不适用时，主 Agent 才会公开说明并使用 DAG 内建流程；即使 `implement` 不适用，原生实施分支仍显式激活 `tdd`，并在 seam 形状需要设计时激活 `codebase-design`。流程不会把依赖缺失伪装成回退，也不会跳过测试、独立 Standards/Spec 评审、真实交付边界或最终字节核验。
 
 需要新增或修改 Ticket 时必须调用目标项目的 authoring Skill；`dag-skill` 不提供 Ticket authoring fallback。
 
@@ -103,6 +117,6 @@ Required Skill Bundle 通过检查后，Execution Agent 必须显式使用其中
 
 ## 调用示例
 
-- “使用 `$dag` 执行 Spec 0008 已批准的 Ticket DAG。”
+- “使用 dag Skill 执行 Spec 0008 已批准的 Ticket DAG。”
 - “继续推进这个 DAG，自动调度所有可运行 Tickets。”
 - “根据 live tracker 和 Git 证据恢复上次的 DAG 执行。”
