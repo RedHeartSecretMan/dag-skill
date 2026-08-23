@@ -2,7 +2,7 @@
 
 `dag-skill` 是一个面向 Agent 的通用协调 Skill，用于持续推进已经批准并拆分完成的 Spec/Ticket 有向无环图。它不负责设计 Spec 或创建初始 Tickets，也不绑定某个 Agent 宿主、模型、Markdown、GitHub Issues 等具体实现。
 
-可复制 Skill artifact 位于 [`skill/dag/`](./skill/dag/)，其中的英文 [`SKILL.md`](./skill/dag/SKILL.md) 是唯一运行规范；本文只提供中文定位和使用说明。
+可复制 Skill artifact 位于 [`skill/dag/`](./skill/dag/)；其中的英文 [`SKILL.md`](./skill/dag/SKILL.md) 是唯一 DAG 运行规范，[`agents/openai.yaml`](./skill/dag/agents/openai.yaml) 是可选的 OpenAI/Codex 界面元数据，[`scripts/install_dependencies.py`](./skill/dag/scripts/install_dependencies.py) 是只在单独授权后使用的依赖安装助手。本文只提供中文定位和使用说明。
 
 ## 使用前提
 
@@ -17,7 +17,7 @@ Spec/Ticket 的制定与修改仍由目标项目已有的 authoring Skill 完成
 
 ## Agent 宿主兼容性
 
-运行规范采用开放的 [Agent Skills 格式](https://agentskills.io/specification)：`SKILL.md` 只使用标准 frontmatter，并通过 Skill 名称和能力描述表达依赖，不包含固定安装器、目录、mention 前缀、斜杠命令或某个厂商的 Agent API。具体如何安装、选择或显式激活 Skill，由当前宿主的原生机制决定。
+运行规范采用开放的 [Agent Skills 格式](https://agentskills.io/specification)：`SKILL.md` 只使用标准 frontmatter，并通过 Skill 名称和能力描述表达依赖，不绑定固定安装目录、mention 前缀、斜杠命令或某个厂商的 Agent API。`agents/openai.yaml` 只增强支持该格式的 OpenAI/Codex 界面，其他宿主可以忽略；依赖安装脚本要求调用方显式提供宿主文档规定的 Skill 目录，不负责猜测宿主。具体如何发现、选择或显式激活 Skill，仍由当前宿主的原生机制决定。
 
 这里承诺的是**契约可移植性**，不是宣称任意聊天工具都能完整执行该流程。一个受支持的 Agent 宿主至少需要能够：
 
@@ -38,9 +38,18 @@ Spec/Ticket 的制定与修改仍由目标项目已有的 authoring Skill 完成
 - `tdd`
 - `codebase-design`
 
-默认版本固定为 [`mattpocock/skills@5b15a47f2d7150f545fbcacbfe381787fc0230dc`](https://github.com/mattpocock/skills/tree/5b15a47f2d7150f545fbcacbfe381787fc0230dc/skills/engineering)。应在 DAG 运行之外，通过宿主受信的安装或注册机制，将这四个完整目录放入其稳定的用户级或共享 Skill scope；实际目录和命令服从宿主文档，不属于 DAG 运行契约。不能只复制 `SKILL.md`：`tdd` 还需要 `tests.md` 和 `mocking.md`，`codebase-design` 还需要 `DEEPENING.md` 和 `DESIGN-IT-TWICE.md`。
+默认版本固定为 [`mattpocock/skills@5b15a47f2d7150f545fbcacbfe381787fc0230dc`](https://github.com/mattpocock/skills/tree/5b15a47f2d7150f545fbcacbfe381787fc0230dc/skills/engineering)。应在 DAG 运行之外，将这四个完整目录放入宿主规定的稳定用户级或共享 Skill scope。不能只复制 `SKILL.md`：`tdd` 还需要 `tests.md` 和 `mocking.md`，`codebase-design` 还需要 `DEEPENING.md` 和 `DESIGN-IT-TWICE.md`。
 
-每次开始或恢复 DAG 时，主 Agent 都会在认领 Ticket 或派发 Agent 前核查四个 Skill 的准确名称、唯一解析标识或位置、完整资源、固定内容身份、可显式激活性和实际契约。只核查宿主实际暴露的策略与来源字段，不假定某个厂商扩展必然存在。任一 Skill 缺失、禁用或不可激活、同名冲突、内容不匹配或资源不完整都会使运行停在依赖检查阶段；缺失依赖不能转成 DAG 内建回退，也不消耗 Ticket 的操作性重试。普通 DAG Run Authorization 不允许安装、注册、更新或覆盖用户 Skill，修复后必须重新读取并验证整个依赖集合。
+用户单独授权安装并明确宿主 Skill 目录后，可以运行随 artifact 提供的助手：
+
+```bash
+python3 /path/to/dag/scripts/install_dependencies.py \
+  --destination /path/to/agent-host/skills
+```
+
+该脚本只依赖 Python 标准库、Git 和网络，始终从固定 revision 复制上述四个完整目录。它不会安装 `setup-matt-pocock-skills`，不会猜测宿主目录，也没有覆盖选项：目标不存在时安装、与固定源完全相同时幂等跳过，任何目标不同、为文件或为软链接时都会在写入前停止整批操作。若脚本不可用，应按同一固定 revision 和完整目录契约手工安装，而不是降低依赖门禁。
+
+每次开始或恢复 DAG 时，主 Agent 都会在认领 Ticket 或派发 Agent 前核查四个 Skill 的准确名称、唯一解析标识或位置、完整资源、固定内容身份、可显式激活性和实际契约。只核查宿主实际暴露的策略与来源字段，不假定某个厂商扩展必然存在。任一 Skill 缺失、禁用或不可激活、同名冲突、内容不匹配或资源不完整都会使运行停在依赖检查阶段；缺失依赖不能转成 DAG 内建回退，也不消耗 Ticket 的操作性重试。普通 DAG Run Authorization 不允许安装、注册、更新或覆盖用户 Skill；只有用户另行授权并明确目标目录时才能使用安装助手，修复后仍必须重新读取并验证整个依赖集合。
 
 `setup-matt-pocock-skills` 不属于必需集合，也不会自动安装或激活，因为它会配置目标项目。若已安装的 `code-review` 因宿主能力或目标项目缺少其 tracker 前置条件而不适用，主 Agent 使用 DAG 内建双轴评审；只有用户另行授权时才可运行项目配置 Skill。
 

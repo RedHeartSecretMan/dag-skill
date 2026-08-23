@@ -4,11 +4,11 @@ This document specifies a minimal, project-independent and host-neutral Agent Sk
 
 ## Deliverable Boundary
 
-The Agent-facing runtime artifact authored by this project is one English `skill/dag/SKILL.md` in the open Agent Skills format. The complete copyable DAG Skill artifact is `skill/dag/`; its `SKILL.md` is the sole normative DAG runtime source and must not depend on `README.md`, this document, or `CONTEXT.md` at runtime. It has the explicit external Required Skill Bundle defined below.
+The Agent-facing normative runtime artifact authored by this project is one English `skill/dag/SKILL.md` in the open Agent Skills format. The complete copyable DAG Skill artifact is `skill/dag/`; it may also contain optional host metadata and the setup helper defined below, but `SKILL.md` remains the sole normative DAG runtime source and must not depend on `README.md`, this document, or `CONTEXT.md` for DAG semantics. It has the explicit external Required Skill Bundle defined below.
 
 The final deliverable also includes one Chinese, human-facing `README.md` that explains the Skill's purpose, prerequisites, invocation boundary, core DAG flow, fallbacks, authorization boundary, and terminal outcomes without restating the complete state machine or becoming runtime instructions.
 
-The project will not add references, scripts, fixtures, persistent scheduler state, a graph DSL, a CLI, or `check`, `start`, `resume`, or `status` commands. `CONTEXT.md` and this document are non-runtime design evidence only.
+`skill/dag/agents/openai.yaml` is optional, non-normative OpenAI/Codex interface metadata; unsupported hosts may ignore it. `skill/dag/scripts/install_dependencies.py` is the only executable helper: it performs separately authorized, setup-only installation of the pinned Required Skill Bundle and never schedules Tickets or changes a Target Project. The project will not add references, fixtures, persistent scheduler state, a graph DSL, a general CLI, runtime scheduling scripts, or `check`, `start`, `resume`, or `status` commands. `CONTEXT.md` and this document are non-runtime design evidence only.
 
 ## Scope
 
@@ -20,7 +20,7 @@ Historical bidevs, A-share research, vLLM E2E Report, and other repositories are
 
 ## Invocation and Inputs
 
-The Skill is discoverable from its description where the Agent Host supports automatic activation and remains explicitly selectable through the Agent Host's native mechanism. Exact mention prefixes, slash commands, installers, paths, and invocation APIs are outside the runtime contract. Its frontmatter uses the portable minimum defined by the open Agent Skills specification:
+The Skill is discoverable from its description where the Agent Host supports automatic activation and remains explicitly selectable through the Agent Host's native mechanism. Exact mention prefixes, slash commands, host installation paths, and invocation APIs are outside the runtime contract. Its frontmatter uses the portable minimum defined by the open Agent Skills specification:
 
 - `name: dag`, matching the `skill/dag/` artifact directory;
 - a narrow `description` that triggers on explicit requests to execute, advance, continue, or resume an already approved multi-Ticket DAG and routes Spec or Ticket authoring and isolated single-Ticket work to their dedicated Skills.
@@ -43,7 +43,7 @@ The supported execution profile requires complete installed or registered Matt S
 
 Before any Ticket claim or Agent dispatch, the Coordinator resolves and contract-checks every bundle member through the Agent Host's native discovery and explicit-activation mechanism. It verifies exact names, unique resolved identifiers or locations, required bundled files, actual call contracts, explicit activation, and immutable content identity. Host-specific policy or provenance fields are checked only when exposed. A missing, disabled or non-activatable, unreadable, incomplete, differently resolved, duplicate-name, or contract-mismatched member fails the bundle as a whole.
 
-A bundle failure pauses the run before Ticket work. It is neither DAG-Native Fallback nor an Operational Retry. DAG Run Authorization does not authorize installing, registering, updating, or overwriting user Skills; an authorized out-of-run repair must be followed by a full catalog and bundle reread.
+A bundle failure pauses the run before Ticket work. It is neither DAG-Native Fallback nor an Operational Retry. DAG Run Authorization does not authorize installing, registering, updating, or overwriting user Skills. With separate user authorization and an explicit stable Agent Host Skill directory, the Coordinator may invoke `scripts/install_dependencies.py --destination <skill-directory>` relative to the DAG Skill. The helper fetches the fixed Matt revision, installs the four complete directories, treats identical targets as current, and fails the entire preflight without overwriting any differing target. An unavailable helper requires equivalent manual repair, never a weaker bundle gate. Every repair must be followed by a full catalog and bundle reread.
 
 `setup-matt-pocock-skills` is not a bundle member. It is a project-configuration capability whose writes require separate authorization. The Coordinator treats the pinned Code Review Skill as inapplicable when its Agent Host or project setup contract is unsatisfied and uses DAG-Native Fallback rather than activating setup under DAG Run Authorization.
 
@@ -253,9 +253,10 @@ Complete does not imply or authorize remote publication.
 
 The implementation is acceptable when:
 
-- `skill/dag/SKILL.md` is the only runtime artifact and is written in accurate Agent-facing English;
+- `skill/dag/SKILL.md` is the only normative DAG runtime artifact and is written in accurate Agent-facing English;
+- `skill/dag/agents/openai.yaml` contains only optional interface metadata, and `skill/dag/scripts/install_dependencies.py` remains a setup-only, explicit-destination, pinned, no-overwrite helper;
 - `README.md` is a concise Chinese human-facing companion that remains consistent with `SKILL.md` and is not a runtime dependency;
-- it uses only open Agent Skills frontmatter and host-neutral runtime language, with no required vendor-specific path, installer, invocation syntax, policy extension, or Agent API;
+- it uses only open Agent Skills frontmatter and host-neutral runtime language, with no required vendor-specific path, invocation syntax, policy extension, or Agent API;
 - it verifies the Agent Host's isolation, access-boundary, observability, Skill-activation, and project-access capabilities before Ticket work while allowing serial scheduling when parallelism is unavailable;
 - it expresses implementation through `implement`, including its Implementation-Side Review, followed by the Coordinator's Review Sufficiency Gate, conditional fresh review through `code-review`, and Coordinator adjudication;
 - it requires and validates the pinned, complete `implement`, `code-review`, `tdd`, and `codebase-design` bundle before Ticket work;
@@ -264,5 +265,5 @@ The implementation is acceptable when:
 - it derives scheduling from live project evidence and the Target Project's Tracker Contract;
 - it resolves model and Agent profiles from live constraints, capability, and risk without binding the workflow to one model version or silently replacing an exact request;
 - it preserves Coordinator authority, same-final-bytes review, integration-before-acceptance, atomic acceptance-before-unlock, Safe Parallelism, and Whole-DAG final acceptance;
-- it contains no project-specific tracker, authoring implementation, persistent state, CLI, or additional dag-skill runtime artifact beyond the explicit external Required Skill Bundle;
+- it contains no project-specific tracker, authoring implementation, persistent state, general CLI, or additional DAG scheduling runtime artifact beyond the explicit external Required Skill Bundle;
 - it does not broaden local authorization into remote or high-impact actions.
