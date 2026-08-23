@@ -4,13 +4,13 @@ This document records the stable design of a project-independent, host-neutral A
 
 ## Artifact and scope
 
-The copyable artifact is `skill/dag/`:
+The copyable artifact is [`skill/dag/`](../skill/dag/):
 
-- `SKILL.md` is the sole normative DAG runtime source;
-- `agents/openai.yaml` provides optional interface metadata;
-- `scripts/install_dependencies.py` performs separately authorized setup of the Required Skill Bundle.
+- [`SKILL.md`](../skill/dag/SKILL.md) is the sole normative DAG runtime source;
+- [`agents/openai.yaml`](../skill/dag/agents/openai.yaml) provides optional interface metadata;
+- [`scripts/install_dependencies.py`](../skill/dag/scripts/install_dependencies.py) performs separately authorized setup of the Required Skill Bundle.
 
-The Chinese `README.md` is the human-facing guide. `CONTEXT.md` and this document preserve shared language and design evidence. Runtime coordination state lives in the Target Project's existing tracker or repository evidence, giving the project one recovery authority; the artifact itself consists of instructions, interface metadata, and dependency setup.
+The Chinese [`README.md`](../README.md) is the human-facing guide. [`CONTEXT.md`](../CONTEXT.md) and this document preserve shared language and design evidence. Runtime coordination state lives in the Target Project's existing tracker or repository evidence, giving the project one recovery authority; the artifact itself consists of instructions, interface metadata, and dependency setup.
 
 The Skill consumes an Approved DAG whose Spec, Tickets, and dependency semantics are already approved. Target Project authoring capabilities create or revise Spec and Ticket content; isolated single-Ticket work goes directly to its implementation capability. Local Markdown, GitHub Issues, and other carriers are represented through the Target Project's Tracker Contract.
 

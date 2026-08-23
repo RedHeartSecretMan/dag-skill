@@ -4,6 +4,12 @@
 
 可复制 artifact 位于 [`skill/dag/`](./skill/dag/)：英文 [`SKILL.md`](./skill/dag/SKILL.md) 是 DAG 运行规范，[`agents/openai.yaml`](./skill/dag/agents/openai.yaml) 提供可选的 OpenAI/Codex 界面元数据，[`scripts/install_dependencies.py`](./skill/dag/scripts/install_dependencies.py) 提供依赖安装。本文提供中文使用说明，运行语义以 `SKILL.md` 为准。
 
+## 项目文档
+
+- [`docs/DESIGN.md`](./docs/DESIGN.md)：稳定设计、角色边界与状态机依据。
+- [`CONTEXT.md`](./CONTEXT.md)：DAG 协调领域词汇。
+- [`CHANGELOG.md`](./CHANGELOG.md)：各版本的用户可见变化。
+
 ## 启动条件
 
 一次 DAG 运行需要唯一定位：
