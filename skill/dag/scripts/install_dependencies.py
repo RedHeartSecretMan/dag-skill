@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install the pinned DAG Skill dependencies without overwriting conflicts."""
+"""Install the pinned DAG Skill dependencies with conflict-safe preflight."""
 
 from __future__ import annotations
 

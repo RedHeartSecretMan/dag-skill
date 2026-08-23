@@ -1,175 +1,140 @@
 ---
 name: dag
-description: Coordinate an already approved Spec-and-Ticket dependency DAG through continuous multi-ticket implementation, evidence-aware review, bounded rework, graph revision, and final acceptance. Use when the user explicitly asks to execute, advance, continue, or resume an approved DAG in a target project. Route Spec or Ticket authoring and isolated single-ticket implementation to their dedicated skills.
+description: Coordinate an approved Spec-and-Ticket dependency DAG through live-state scheduling, ticket-scoped implementation, evidence-aware review, bounded rework, graph revision, integration, and final acceptance. Use when the user asks to execute, advance, continue, or resume a multi-ticket DAG. Route Spec or Ticket authoring and isolated single-ticket implementation to their dedicated skills.
 ---
 
 # Coordinate an Approved Ticket DAG
 
-Act as the Coordinator for an approved directed acyclic graph of delivery Tickets. Advance the graph from live Target Project evidence; treat worker reports and chat history as leads to verify, not state to trust.
+Act as the Coordinator for an approved directed acyclic graph of delivery Tickets. Advance it from live Target Project evidence, using chat history and Agent reports as pointers to verify.
 
-Keep DAG and tracker state under the Coordinator's exclusive control. Execution Agents may change only their authorized Ticket workspace; Review Agents remain read-only. Execution, Review, and nested Agents return artifacts and evidence but do not claim or accept Tickets, mutate tracker or graph state, integrate candidates, or unlock successors.
+The Coordinator owns Ticket claims, tracker and graph transitions, candidate integration, rework and revision decisions, acceptance, and successor unlocking. Execution Agents implement one authorized Ticket; Review Agents inspect a fixed artifact in read-only contexts; every dispatched Agent returns artifacts and evidence to the Coordinator.
 
 ## Establish the run
 
-1. Resolve the Target Project, Approved Spec, in-scope Tickets and dependency carrier, and the user's explicit request to execute, advance, continue, or resume the DAG.
-2. Ask for one precise pointer when any required input is missing or ambiguous. Keep the run paused rather than guessing scope, dependencies, or approval.
-3. Read the Target Project's current instruction hierarchy, domain and engineering documents, Tracker Contract, Approved Spec, Tickets, repository state, tests, and existing review evidence.
-4. Verify that the Agent Host can explicitly activate named Skills, dispatch fresh role-isolated Agent contexts, establish write-capable Execution and read-only Review boundaries, observe liveness and terminal states, and access the Target Project evidence and tools required by this run. Serialize when parallel dispatch is unavailable. Treat a missing required capability as an unavailable role; preserve the same independence and evidence gates rather than simulating them in one contaminated context.
-5. Resolve the Required Skill Bundle through the Agent Host's native Skill discovery and explicit-activation mechanism before any Ticket claim or Agent dispatch. Require complete, readable Skill directories named `implement`, `code-review`, `tdd`, and `codebase-design` from `mattpocock/skills` revision `5b15a47f2d7150f545fbcacbfe381787fc0230dc`. Verify each exact name, unique resolved identifier or location, referenced bundled file, immutable content identity, actual contract, and ability to activate it explicitly. Record host-specific policy or provenance fields only when exposed; do not require a vendor-specific field from an Agent Host that does not implement it. Treat a missing, disabled or non-activatable, unreadable, incomplete, differently resolved, duplicate-name, or content-mismatched Skill as a bundle failure.
-6. On bundle failure, stop before claiming or dispatching any Ticket and report the exact repair required. Do not convert absence into DAG-Native Fallback, consume an Operational Retry, or install, register, update, or overwrite user Skills under DAG Run Authorization. If the user separately authorizes dependency installation and the Agent Host's stable Skills root is explicit, run `scripts/install_dependencies.py --skills-root <host-skills-root>` relative to this Skill; the setup helper installs each pinned dependency directly under that root and refuses conflicting targets. If Python, Git, network access, or an explicit Skills root is unavailable, report the manual repair instead of guessing. After any authorized out-of-run repair, reread and revalidate the whole bundle. Keep `setup-matt-pocock-skills` outside the bundle; do not install or activate it under DAG Run Authorization because it configures the Target Project.
-7. Discover the exact Target Project authoring Skills, plus the Agent models, reasoning controls, tools, and runtime metadata actually available in the live environment. Treat availability and applicability as evidence, not as an assumption from chat.
-8. Resolve a run-scoped Execution Profile for each role:
-   - Treat an exact model, Agent, or reasoning-effort requirement from the user or Target Project as a hard constraint.
-   - Otherwise use a suitable active primary Agent as Coordinator, favoring the strongest available graph-wide reasoning and context capacity.
-   - Choose Execution Agents for the Ticket's repository, coding, tool, context, and risk needs. Choose Review Agents for the review surface and an independent context; model diversity is optional unless a governing contract requires it.
-   - Use the highest useful supported reasoning effort for coordination and high-risk work, and proportional effort for bounded lower-risk work.
-9. When the user names a model or asks which model to use, evaluate the live available choices against the requested role and work. Recommend concrete role assignments and relevant trade-offs. Honor a suitable available choice; when an exact request is unavailable, incapable, or conflicts with a governing contract, explain why and obtain user authorization before substituting it.
-10. Inspect and record all runtime metadata the Agent Host exposes for the active Coordinator and every dispatched Agent, including unavailable fields, the resolved profile, and any run-time change. Never infer a missing model or reasoning effort. If an exact requirement cannot be verified, leave that role unavailable. Without an exact constraint, an Agent may run when its required identity and capabilities are substantiated even if the Agent Host omits a model or effort field; disclose the omission. Before dispatch, selecting another suitable substantiated profile is ordinary scheduling, not a reason to stop the whole DAG; after dispatch, handle an observed profile mismatch as an Operational Failure. Never silently substitute or claim a model, Agent, or reasoning effort that the evidence does not show.
+1. Resolve the Target Project, Approved Spec, in-scope Tickets and dependency carrier, and the user's request to execute, advance, continue, or resume the DAG. When a pointer is ambiguous, ask for the one precise input needed and keep the frontier empty until it is resolved.
+2. Read the live instruction hierarchy, domain and engineering documents, Tracker Contract, Approved Spec, Tickets, repository state, tests, and review evidence.
+3. Verify that the Agent Host can activate named Skills, dispatch fresh role-isolated contexts, provide write-capable Execution and read-only Review boundaries, expose liveness and terminal state, and access the Target Project's evidence and tools. Use serial scheduling when parallel dispatch is unavailable. Make each role available after establishing its required isolation and observability.
+4. Resolve and validate complete Skill directories named `implement`, `code-review`, `tdd`, and `codebase-design` from `mattpocock/skills` revision `5b15a47f2d7150f545fbcacbfe381787fc0230dc`. Verify each unique resolved identity or location, every referenced file, immutable content identity, actual contract, and explicit activation through the Agent Host. Record host-specific policy and provenance fields when the host exposes them.
+5. Treat a valid Required Skill Bundle as an entry gate. While setup is pending, keep Ticket attempts and retry budgets unchanged and report the exact setup action. With separate user authorization and an explicit host Skills root, run `scripts/install_dependencies.py --skills-root <host-skills-root>` relative to this Skill; then reread and revalidate the full bundle. The installer scope is the four bundle members, while project configuration uses separate authorization. Reserve DAG-Native Fallback for a validated, present Skill whose contract is inapplicable to the live host or project.
+6. Discover the Target Project's authoring capability and the live Agent models, reasoning controls, tools, and runtime metadata. Build a run-scoped Execution Profile for each role from exact constraints, capability, context, tools, and risk:
+   - apply an exact user or Target Project model, Agent, or reasoning-effort requirement as a hard constraint;
+   - otherwise favor the strongest useful graph-wide reasoning and context capacity for the Coordinator, and match Execution and Review Agents to their work;
+   - establish review independence through fresh role context; model diversity is optional unless a governing contract requires it;
+   - represent unexposed metadata fields as unknown, and record each resolved profile plus any run-time change.
+7. When an exact requested profile is unavailable, unverifiable, or unsuitable for its role, explain the mismatch, recommend available alternatives, and obtain authorization before substitution. Treat a post-dispatch profile mismatch as an Operational Failure.
 
-Optionally use an already-authorized durable Agent Host goal or continuation mechanism when available; when used, read back its live state after continuation, resume, or task handoff. Treat it only as run liveness; never treat it as Target Project state, forward progress, or completion evidence.
+An already-authorized durable Agent Host goal may preserve run liveness. Read back its live state after continuation or handoff, while keeping Target Project evidence as the source of progress and completion.
 
-Treat a contradiction among user scope, project instructions, Tracker Contract, Approved Spec, or approved Tickets as a blocked design input when it affects scope, semantics, acceptance, or delivery behavior. Pause the affected node and propose a Ticket repair, split, or graph revision through the Target Project's authoring capability.
+When governing sources disagree on scope, semantics, acceptance, or delivery behavior, hold scheduling for the affected node and propose a Ticket repair, split, or graph revision through the Target Project's authoring capability.
 
-## Respect authorization
+## Work within authority
 
-Treat the DAG Run Authorization as permission for continuous, locally auditable coordination without per-Ticket confirmation when the Target Project permits it:
+DAG Run Authorization covers continuous, locally auditable coordination under the Target Project's contract:
 
-- update a local tracker carrier and claim local Tickets;
-- dispatch Agents;
-- create and use non-destructive, ticket-scoped local candidate branches or worktrees;
-- make ticket-scoped local changes and run verification;
-- create a ticket-scoped commit in a safe Git context;
-- persist local acceptance evidence and unlock successors.
+- local Ticket claims and tracker updates;
+- Agent dispatch;
+- non-destructive ticket-scoped candidate branches or worktrees;
+- ticket-scoped implementation, verification, and commits in a safe Git context;
+- local acceptance evidence and successor unlocking.
 
-Obtain separate user authorization before any external-system mutation, including remote tracker writes, deployments, external API or database writes, and state-changing remote CI triggers. Also obtain separate authorization before push, pull request creation, tag, release, destructive Git, approved product-semantic or acceptance changes, or gate weakening.
+Obtain separate user authorization for remote tracker writes, push, pull requests, tags, releases, deployment, external API or database writes, state-changing remote CI, destructive Git, product-semantic or acceptance changes, and gate weakening.
 
-Preserve unrelated work. Use the existing repository as found; never initialize Git, reset or clean away state, or manufacture a baseline. Classify inherited changes as the current Ticket candidate, protected unrelated work, or unaccepted historical work. Treat unaccepted historical work as evidence only unless a live approved Ticket explicitly adopts it.
+Preserve the repository's live baseline and unrelated work. Classify inherited changes as the current Ticket candidate, protected unrelated work, or unaccepted historical evidence; adopt historical work only through a live approved Ticket.
 
 ## Reconstruct the live graph
 
-Treat each executable node as one approved Ticket. Require every Ticket to expose an authoritative identity, one delivery objective, scope boundaries, dependency inputs, downstream outputs, acceptance and verification requirements, current state, ownership, and blockers.
+Represent each executable node as one approved Ticket with an authoritative identity, one delivery objective, scope boundaries, dependency inputs, downstream outputs, acceptance and verification requirements, current state, ownership, and blockers.
 
-Orient every dependency edge `prerequisite -> dependent`. Add an edge only when the dependent consumes an accepted output of the prerequisite. Treat preferred order, similar files, shared ownership, implementation phases, and external blockers as scheduling facts rather than dependency edges.
+Orient each dependency edge `prerequisite -> dependent` when the dependent consumes an accepted output of the prerequisite. Keep preferred order, similar files, shared ownership, implementation phases, and external blockers as scheduling facts.
 
 On every start or continuation:
 
-1. Project the live carrier into a DAG without creating a shadow authority.
-2. Resolve unique nodes and edges.
-3. Reject self-edges, cycles, missing hard dependencies, ambiguous semantics, incomplete node contracts, and acceptance claims unsupported by current evidence.
-4. Exclude Superseded Tickets from execution while retaining their provenance; include every approved replacement Ticket in the effective graph.
-5. Reconcile accepted, in-progress, blocked, superseded, and unclaimed Tickets from live evidence.
+1. project the live tracker carrier into a carrier-neutral DAG view while retaining the Target Project as authority;
+2. validate unique nodes, complete Ticket contracts, defensible edges, acyclicity, hard-dependency coverage, and acceptance evidence;
+3. retain Superseded Tickets as provenance and schedule their approved replacements;
+4. reconcile accepted, in-progress, blocked, superseded, and unclaimed Tickets from live evidence.
 
-Keep recovery data in the Target Project's existing tracker or repository evidence under its contract. For every started Ticket, reconstruct:
+Use the Target Project's existing tracker or repository evidence as the recovery store. For every started Ticket, reconstruct:
 
-- resolved Required Skill Bundle identifiers or locations, content identities, activation status, and any unavailable provenance fields;
-- current attempt, ownership, and blockers;
-- resolved and observed Execution Profiles for the active Coordinator and every dispatched Agent, including unavailable metadata fields, mismatches, and changes;
-- for every Agent dispatched directly by the Coordinator, its current bounded progress checkpoint, bound, observed state, and last evidence-bearing milestone;
-- Review Fixed Point and Final Artifact Identity when available;
-- integration state, Authoritative Integration Baseline identity, candidate representation or reachability, and integrated-gate commands, contexts, outcomes, and bound artifact identities when available;
-- consumed Operational Retry and Formal Rework;
-- raw review findings and Coordinator dispositions;
-- acceptance evidence;
-- known failing gates, including the exact command and context, actual result, classification, owning Ticket or blocker, and closing condition;
-- Ticket Lineage and consumed automatic DAG Revision.
+- bundle identities and activation state;
+- attempt, ownership, blockers, Operational Retry, Formal Rework, and DAG Revision budgets;
+- Coordinator and Agent Execution Profiles, progress checkpoints, observed states, and evidence-bearing milestones;
+- Review Fixed Point, Final Artifact Identity, integration baseline and reachability, verification commands and outcomes, review findings and dispositions;
+- acceptance evidence, failing-gate owners and closing conditions, and Ticket Lineage.
 
-Treat a Ticket as non-runnable when required recovery evidence cannot be reconstructed or legally persisted. Do not create a DAG Skill scheduler file.
-
-For a cross-task handoff, persist this recovery evidence first. Count the handoff as established only after the receiving Coordinator rereads the live Target Project, reconstructs all required Recovery Evidence, and recomputes the frontier; sending a message or observing an active task is insufficient.
+A Ticket becomes Runnable after its required recovery evidence is both reconstructable and persistable under the Tracker Contract. A cross-task handoff completes when the receiving Coordinator rereads the live project, reconstructs this evidence, and recomputes the frontier.
 
 ## Compute and schedule the frontier
 
-Include a Ticket in the Runnable Frontier only when:
+Include a Ticket in the Runnable Frontier when:
 
-- the Ticket is not already accepted;
+- its acceptance state is open;
 - every hard predecessor is accepted;
 - blockers are cleared;
-- current authorization permits both claiming and acceptance evidence persistence;
-- a suitable resolved Execution Profile and required capability are available;
-- a safe write boundary exists without an ownership conflict and cannot advance the Authoritative Integration Baseline before adjudication.
+- current authorization supports claiming and acceptance-evidence persistence;
+- a suitable Execution Profile and required capabilities are verified;
+- a safe write boundary protects the Authoritative Integration Baseline until adjudication.
 
-Treat a ready-like status string as insufficient by itself.
+Use ready-like tracker statuses as inputs to this calculation. Finish review, integration, and acceptance already in progress before opening more implementation work, and recompute the frontier after every claim, handoff, acceptance, block, or graph revision.
 
-Finish evidence checks, review, and acceptance for work already in progress before opening more implementation work. Recompute the frontier after every claim, handoff, acceptance, block, or graph revision. Within currently available Agent capacity, select the largest safe subset whose peak direct and nested Agent demand fits; serialize when that demand is unknown. Break capacity ties by tracker priority, then clear downstream-unlock or critical-path value, then stable Ticket identity.
+Select the largest safe frontier subset whose peak direct and nested Agent demand fits current capacity. Use serial scheduling when demand is uncertain. Break capacity ties by tracker priority, downstream-unlock or critical-path value, then stable Ticket identity.
 
-Run graph-independent Tickets concurrently only when the Target Project permits isolated workspaces and defines an explicit integration boundary. Under the Target Project's contract, the Coordinator may create and use ticket-scoped local candidate branches or worktrees for those boundaries. Keep one write-capable Execution Agent per workspace. Serialize uncertain write interactions; allow independent read-only reviews to run concurrently.
+Run graph-independent Tickets concurrently when the Target Project provides isolated workspaces and an explicit integration boundary. Keep one write-capable Execution Agent per workspace; independent read-only reviews may run concurrently.
 
-For every Agent that the Coordinator dispatches directly, set and persist a bounded progress checkpoint appropriate to its role, Ticket, and Agent Host. Make a dispatching Agent responsible for equivalent bounded monitoring of any nested Agents it creates and for reporting their resolved and observed Execution Profiles, unavailable metadata fields, changes, and terminal states. At each checkpoint, require an evidence-bearing milestone, an evidenced blocker, or a terminal result; otherwise interrupt the still-live Agent and record an Operational Failure.
+Give every directly dispatched Agent a persisted, bounded progress checkpoint. Valid checkpoint outcomes are an evidence-bearing milestone, an evidenced blocker, or a terminal result. Any other outcome at the bound becomes an Operational Failure: interrupt the live Agent and apply the Ticket's retry budget.
 
 ## Advance one Ticket
 
 ### 1. Claim and capture the fixed point
 
-Reread the Ticket, dependencies, blockers, repository, and tracker immediately before dispatch. Reconfirm that every Required Skill Bundle member still resolves to the recorded content identity; treat drift as bundle failure before claiming. Claim the Ticket under the Tracker Contract, then capture an immutable pre-implementation Review Fixed Point that bounds the Ticket's change. Persist enough evidence to recover the attempt.
+Immediately before dispatch, reread the Ticket, dependencies, blockers, repository, tracker, and Required Skill Bundle identities. Claim the Ticket under the Tracker Contract, capture an immutable pre-implementation Review Fixed Point, and persist the attempt's recovery evidence.
 
 ### 2. Dispatch implementation
 
-Dispatch one fresh Execution Agent for exactly one Ticket with its resolved Execution Profile. Supply the Target Project instructions, Approved Spec, Ticket, dependency outputs, Review Fixed Point, acceptance criteria, allowed workspace, and authorization boundary.
+Dispatch one fresh Execution Agent for exactly one Ticket. Supply its Execution Profile, Target Project instructions, Approved Spec, Ticket, accepted dependency outputs, Review Fixed Point, acceptance criteria, workspace, and authorization boundary.
 
-After the Required Skill Bundle passes, explicitly activate the resolved `implement` Skill for the Execution Agent through the Agent Host's native mechanism when it is applicable. Require every nested use of `tdd`, `codebase-design` when the seam is in question, and `code-review` to resolve to the same verified bundle regardless of Agent Host invocation syntax. Let its required `code-review` run as an Implementation-Side Review. Treat the raw Standards and Spec results as candidate evidence.
+When `implement` is applicable, explicitly activate it through the Agent Host. Resolve its nested `tdd`, conditional `codebase-design`, and `code-review` uses from the validated bundle. Supply the fixed point, Spec, Ticket, standards, scope, and tracker context so its nested Code Review produces raw Standards and Spec evidence for the Implementation Handoff.
 
-Use `implement` only when the Agent Host and Target Project can safely satisfy its Git commit and nested review contracts and its commit remains a candidate without advancing the Authoritative Integration Baseline. Supply the fixed point, Spec, Ticket, standards, and tracker context before dispatch. Treat it as inapplicable if following it would require installing prerequisites, mutating project configuration, skipping a required step, or committing in an unsafe, non-Git, or baseline-advancing context.
+`implement` is applicable when the host and project can satisfy its nested-review and ticket-scoped candidate-commit contracts within a safe Git context while the Authoritative Integration Baseline remains unchanged.
 
-When the verified `implement` Skill is inapplicable to the Agent Host or Target Project's live contract, disclose DAG-Native Fallback and dispatch a fresh Execution Agent directly. Require it to:
+When that contract is inapplicable, disclose DAG-Native Fallback and dispatch a fresh Execution Agent directly under the Target Project's live contracts. Explicitly activate `tdd` at the agreed public seam when feasible and `codebase-design` when the seam shape needs design. Run focused checks during implementation and all applicable project gates at the end, create a candidate commit when the safe Git context permits it, and return the same complete Implementation Handoff.
 
-- implement only the Ticket's approved scope;
-- explicitly activate and use the verified `tdd` Skill at the pre-agreed public seam when feasible, and the verified `codebase-design` Skill when the seam's shape is in question;
-- run focused checks during implementation and the Target Project's complete applicable gates at the end;
-- create a ticket-scoped candidate commit only when the repository and authorization permit it without advancing the Authoritative Integration Baseline;
-- return a complete Implementation Handoff.
-
-Across both paths, count a RED only when its input conforms to the live Ticket contract, it exercises the live Ticket's agreed public contract seam and real delivered seam when applicable, and it fails because of the target behavior rather than an environment, tool, or probe error. Claiming, reading, and exploration are neither RED nor candidate evidence.
-
-Represent fallback honestly. Never convert a missing or invalid Required Skill Bundle into fallback or claim that an inapplicable Skill ran.
+Across both paths, a valid RED exercises the live Ticket contract through its agreed public seam and delivered seam where applicable, and fails because of the target behavior. Keep the candidate isolated from the Authoritative Integration Baseline until adjudication.
 
 ### 3. Validate the handoff
 
-Require the Execution Agent to return:
+A valid Implementation Handoff contains:
 
-- Ticket identity and delivered scope;
-- changed files and commit when applicable;
-- exact verification commands, execution contexts, and outcomes, including failures and checks not run; classify each failure as an introduced regression, an evidenced baseline exception with an owning Ticket or blocker and closing condition, an environment/tool/probe failure, or unverified;
-- raw Standards and Spec review artifacts when available;
-- actual Execution Agent and reviewer runtime metadata, and the artifact identity each reviewer examined;
-- every change made after the Implementation-Side Review;
-- deviations, unresolved risks, and blockers.
+- Ticket identity, delivered scope, changed files, and candidate commit when applicable;
+- exact verification commands, contexts, and actual outcomes;
+- each failure classified as an introduced regression, an evidenced baseline exception with an owner and closing condition, an environment/tool/probe failure, or unverified;
+- raw Standards and Spec review artifacts when available, the actual Agent profiles, and each reviewed artifact identity;
+- changes made after Implementation-Side Review;
+- deviations, risks, and blockers.
 
-Inspect the live diff, commit, repository state, scope, verification results, raw review artifacts, reviewer independence, and artifact identities yourself. Inspect the delivered public seam when it differs from source or test fixtures, and reject unexplained generated, formatted, or dependency-lock churn. Reject a completion claim or second-hand review summary as an invalid handoff.
+Verify the live diff, candidate commit, repository state, scope, gates, review artifacts, reviewer independence, artifact identities, delivered public seam, and generated or dependency-lock changes. Reproduce claimed environment, tool, or probe failures in a suitable authorized context; otherwise retain the unverified classification.
 
-Reproduce a claimed environment, tool, or probe failure with the same relevant check in a suitable authorized environment; otherwise keep it unverified. Never represent a non-green gate as green or project an exception from one artifact identity onto another.
+Acceptance requires every applicable gate to be green or covered by the exact evidenced exception permitted by the Target Project, with an owner or blocker and closing condition.
 
-Treat a required gate that remains non-green or unverified as blocking unless the Target Project contract explicitly permits that exact exception and its recovery evidence identifies an owner or blocker and a closing condition.
+Allow one corrected Operational Retry per Ticket attempt across implementation, review, and integration. Persist its consumption before redispatch. A later operational failure blocks the Ticket. Redispatch the appropriate role so the Coordinator remains focused on coordination and adjudication.
 
-Allow one total corrected Operational Retry per Ticket attempt across implementation, review, and integration when an Agent crash, tool failure, profile mismatch, invalid handoff or report, or integration tool failure prevents a valid result. Persist the consumed retry before redispatch. After that budget is consumed, treat any further operational failure as a blocker rather than another retry.
+### 4. Establish Formal Review evidence
 
-Keep role separation after failure: redispatch the appropriate Agent within the retry budget or block the Ticket. The Coordinator does not take over Ticket implementation or replace independent review.
+Freeze the Final Artifact Identity through adjudication. Adopt the Implementation-Side Review as Formal Review evidence when:
 
-### 4. Apply the Review Sufficiency Gate
+- raw Standards and Spec reports are present;
+- reviewers are independent of implementation and have verified profiles and suitable contexts;
+- both reports cover the same Final Artifact Identity, including every implementation change;
+- the evidence supports each finding disposition;
+- the Target Project contract and change risk permit reuse.
 
-Identify and freeze the immutable Final Artifact Identity before adjudication. Prevent writers from changing the reviewed workspace or artifact until the Coordinator decides its disposition.
+When these conditions hold, proceed directly to adjudication. Otherwise dispatch a fresh Review Agent against the Review Fixed Point and Final Artifact Identity with the Approved Spec and Ticket, standards sources, commit list, and exact scope. Target Project mandates and high-impact security, public-contract, persistence, migration, concurrency, deployment, or release surfaces may require this fresh review.
 
-Adopt the Implementation-Side Review as Formal Review evidence only when:
+Use the validated `code-review` Skill when its live contract is applicable. It returns independent Standards and Spec results side by side. When its contract is inapplicable, disclose DAG-Native Fallback and dispatch fresh Standards and Spec Reviewers against the same Final Artifact Identity. The pinned contract uses `docs/agents/issue-tracker.md` as its tracker-context input; project-configuration work remains separately authorized.
 
-- both raw Standards and Spec reports are available;
-- the reviewers did not implement the Ticket and their actual profiles and contexts are valid;
-- both reports examine the same Final Artifact Identity;
-- no implementation change followed the review;
-- the evidence is complete enough to substantiate every finding disposition;
-- neither the Target Project nor the change risk requires a fresh review.
+Each Review Agent report includes its own and nested reviewers' resolved and observed Execution Profiles, run-time changes, artifact identities, and raw findings. Treat a timeout or missing report as missing evidence, apply the remaining Operational Retry when appropriate, and reconcile every reviewer after it reaches a terminal state or is explicitly superseded.
 
-When these conditions hold, proceed without mechanically repeating the review.
-
-Dispatch a fresh Review Agent when evidence is missing, stale, incomplete, contradictory, unverifiable, or inadequate for the risk. Require a fresh review when the Target Project mandates one or when the Coordinator cannot substantiate a high-impact surface such as security, a public contract, persistence or migration, concurrency, deployment behavior, or a release gate.
-
-When the verified `code-review` Skill is applicable, explicitly activate it for the fresh Review Agent through the Agent Host's native mechanism with the Review Fixed Point, Final Artifact Identity, Approved Spec and Ticket, standards sources, commit list, and exact scope. Require independent Standards and Spec results side by side; the Spec axis is mandatory for this workflow.
-
-When the verified `code-review` Skill is inapplicable to the Agent Host or Target Project's live contract, disclose DAG-Native Fallback and dispatch fresh, independent Standards and Spec Reviewers against the same Final Artifact Identity. Preserve both axes and their resolved Execution Profiles. Treat a missing `docs/agents/issue-tracker.md` required by this pinned `code-review` contract as inapplicability; do not activate `setup-matt-pocock-skills` without separate authorization.
-
-Require every Review Agent report to include its own and any nested Reviewers' resolved and observed Execution Profiles, unavailable metadata fields, run-time changes, artifact identities, and raw findings. Do not adopt review evidence when required profile evidence is missing or violates an exact constraint.
-
-Treat a review timeout or missing report as missing evidence, never as a clean result. Use the remaining Operational Retry for a replacement when the missing evidence is an operational failure; block after that retry is consumed. Before adjudication, require every dispatched reviewer for the attempt to reach an observed terminal state or be explicitly superseded, then reconcile every queued or late report even when a replacement review has already been dispatched.
-
-Treat any later change to reviewed bytes or review-relevant identity or history as invalidating both review axes. Establish the new Final Artifact Identity and apply the Review Sufficiency Gate again. Retain existing evidence across a topology-only integration only when equivalence is verifiable and the changed identity or history lies outside both review scopes.
+Any change to reviewed bytes or review-relevant identity or history establishes a new Final Artifact Identity and reapplies this gate. Retain prior evidence for a topology-only integration only when verified equivalence keeps the change outside both review scopes.
 
 ### 5. Adjudicate
 
@@ -177,51 +142,43 @@ Inspect the implementation evidence and raw review results. Give every finding o
 
 - blocking within the Ticket's approved scope;
 - valid but graph-changing;
-- advisory and non-blocking, with rationale;
+- advisory, with non-blocking rationale;
 - false positive, with evidence;
 - unresolved.
 
-Keep mandatory Target Project, Spec, and Ticket violations blocking. Keep unresolved findings blocking. Treat every graph-changing finding as preventing integration until the Target Project's authoring capability produces an approved, valid revision. Do not weaken a gate or change approved semantics to obtain acceptance.
+Integration becomes available after all mandatory Target Project, Spec, and Ticket violations are resolved and every finding has a supported non-blocking disposition. Route graph-changing findings through DAG Revision; semantic, acceptance, and gate changes require user approval.
 
 ### 6. Integrate and accept
 
-After adjudication leaves no blocking, graph-changing, or unresolved finding, integrate the exact reviewed candidate into the Target Project's Authoritative Integration Baseline under its contract and the current authorization. Verify that the reviewed artifact is represented by or reachable from that baseline, then run the required affected and integration gates on the integrated bytes, including the delivered public seam when applicable.
+Integrate the exact reviewed candidate into the Target Project's Authoritative Integration Baseline under its contract and current authorization. Verify artifact reachability or representation, then run affected, integration, and delivered-public-seam gates on the integrated bytes.
 
-Apply the same invalidation rule when integration, conflict resolution, rebase, generated output, or any other integration action changes the reviewed artifact.
+Keep integration byte-preserving. A conflict that changes reviewed bytes within the original Ticket scope uses the remaining Formal Rework and returns to an Execution Agent; the new artifact repeats handoff, review, adjudication, and integration. Scope drift or exhausted Formal Rework enters DAG Revision.
 
-Keep integration byte-preserving. When a conflict requires reviewed-byte changes within the original Ticket scope, preserve the reviewed candidate and consume the Ticket's remaining Formal Rework to redispatch the appropriate Execution Agent. Require the new artifact to pass handoff, review, adjudication, and integration again. Revise the graph when Formal Rework is exhausted or the conflict exposes scope drift; the Coordinator does not implement the resolution.
-
-Accept the Ticket only when the integrated Final Artifact Identity, verification, review evidence, finding dispositions, scope, Authoritative Integration Baseline, and tracker evidence agree. When an external resolved state promises artifact availability from a designated integration or remote reference, prove that reachability before writing the state; without every required remote tracker-write and publication authorization, retain local acceptance evidence and leave the external state unchanged. Persist the Target Project's acceptance state and evidence, reread it, and only then unlock successors. Never use green tests, an Execution Agent claim, or a Reviewer verdict alone as completion proof.
+Accept the Ticket when the integrated Final Artifact Identity, verification, Formal Review, finding dispositions, scope, baseline, and tracker evidence agree. Persist and reread acceptance evidence before unlocking successors. Synchronize an external resolved state after proving the promised reference contains the artifact and confirming the required remote-write and publication authorization.
 
 ## Bound rework and revise the graph
 
-Stop in-place implementation as soon as the Ticket acquires another independent delivery objective or acceptance seam, or its fixed diff no longer supports a bounded review. Use the Target Project's authoring capability to repair or split the graph instead of allowing scope to accumulate inside the node.
+Each Ticket has one Formal Rework for an accepted blocking Formal Review or integration finding within its original scope. Persist the consumed budget, then reuse the original suitable Execution Agent or dispatch a fresh one with the complete accepted findings. The reworked artifact repeats the full Ticket flow. Self-correction before handoff, duplicate findings, false positives, and Operational Retry remain outside this budget.
 
-Authorize one Formal Rework per Ticket when the Coordinator accepts a blocking Formal Review or integration finding within the original scope. Persist the consumed rework before redispatch. Reuse the original Execution Agent when it remains available with a suitable resolved Execution Profile; otherwise dispatch a fresh Execution Agent with the complete accepted findings. Reapply the initial dispatch's Skill applicability gate against the live Agent Host and Target Project: explicitly activate `implement` when applicable, or disclose and use DAG-Native Fallback.
+Move directly to DAG Revision when a Ticket gains another independent objective or acceptance seam, or its fixed diff exceeds a bounded review surface. When blockers remain after Formal Rework, choose among a split Ticket, a new prerequisite, reordered work, rejected or deferred scope, or an external blocker.
 
-Treat self-correction before handoff, duplicate findings, false positives, and Operational Retry as outside the Formal Rework budget. Make the reworked artifact pass implementation, handoff, review sufficiency, and adjudication again.
+Use the Target Project's authoring capability to create or revise Ticket content. Preserve acyclicity and provenance by appending an approved replacement subgraph and retaining displaced Tickets as Superseded. One semantics-preserving DAG Revision may proceed automatically per original Ticket Lineage after its rationale and consumed budget are persisted; a further revision in that lineage requires explicit user authorization. Revalidate the whole graph after every revision.
 
-When valid blockers remain after Formal Rework, stop retrying that Ticket. Decide whether the graph needs a split Ticket, a new prerequisite, reordered work, rejected or deferred scope, or an external blocker. Preserve acyclicity and provenance; append a replacement subgraph rather than adding a back edge or deleting history.
-
-Use the Target Project's current authoring Skill to create or revise Ticket content. The DAG Skill decides that revision is required but does not author replacement Tickets and has no authoring fallback. Obtain user approval for any product-semantic, acceptance, or gate change.
-
-Allow at most one automatic semantics-preserving DAG Revision per original Ticket Lineage. Persist its rationale, provenance, and consumed budget before scheduling the replacement subgraph. Require explicit user authorization for another revision in the same lineage; otherwise leave that path evidenced and unfinished. Revalidate the whole graph after every revision.
-
-When a valid late review finding or Whole-DAG failure contradicts an accepted Ticket, immediately treat its acceptance evidence and the acceptance of every consuming descendant as invalid, and pause the affected subgraph. Persist that invalidation under the Tracker Contract when authorized; block the path when it cannot be legally persisted. Reopen the Ticket when its remaining Formal Rework can address the original scope; otherwise use the authoring capability to append a remediation lineage. Recompute and revalidate the graph before resuming affected work.
+A valid late finding or Whole-DAG failure invalidates the contradicted Ticket and each accepted descendant that consumes its output. Persist the invalidation when authorized, hold scheduling for the affected subgraph, and use remaining Formal Rework or an authoring-produced remediation lineage before recomputing the graph.
 
 ## Reach a terminal outcome
 
-Continue independent runnable branches when one branch blocks. Count an Agent as running only while its liveness is observable and its bounded progress checkpoint has not failed; convert a lost or non-progressing Agent into an Operational Failure. Report forward progress only from evidence-bearing milestones such as a valid RED, a ticket-scoped change, a candidate artifact, or a valid handoff; an active goal or chat output alone is not progress.
+Continue independent Runnable Frontier branches while another branch is blocked. Count an Agent as running while liveness is observable and its progress checkpoint remains valid. Report progress through evidence-bearing milestones.
 
-Report **Stalled** only when unfinished effective Tickets remain, no Agent is running, and the Runnable Frontier is empty. Give every stopped path a live evidenced cause, such as missing authorization, invalid graph, unavailable capability, external blocker, repeated Operational Failure, exhausted Formal Rework, or exhausted automatic DAG Revision.
+Report **Stalled** when effective Tickets remain unfinished, running Agent count is zero, and the Runnable Frontier is empty. Give each stopped path its live evidenced cause.
 
-Report **Complete** only after every effective Ticket is accepted and a Whole-DAG Acceptance Gate verifies:
+Report **Complete** after every effective Ticket is accepted and the Whole-DAG Acceptance Gate verifies:
 
 - complete Approved Spec coverage;
-- integration of every accepted candidate into the Authoritative Integration Baseline and of accepted predecessor outputs into dependents;
-- current Final Artifact Identities matching Ticket and review evidence;
+- every accepted candidate on the Authoritative Integration Baseline and every accepted predecessor output consumed by its dependents;
+- current Final Artifact Identities aligned with Ticket and review evidence;
 - all Target Project graph-wide verification gates;
-- no unresolved findings, blockers, or unexplained in-scope changes;
+- resolved findings, blockers, and in-scope changes;
 - tracker, commit, Ticket Lineage, and acceptance-evidence consistency.
 
-Return a final evidence-backed summary of accepted, superseded, and stalled Tickets, verification performed and omitted, review dispositions, graph revisions, and any unexecuted High-impact Operations. Treat Complete as local acceptance only; it grants no publication authority.
+Return an evidence-backed summary of accepted, superseded, and stalled Tickets; verification performed and omitted; review dispositions; graph revisions; and pending High-impact Operations. Complete represents local acceptance; publication remains separately authorized.
