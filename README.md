@@ -1,124 +1,178 @@
 # DAG Skill
 
-`dag-skill` 是一个面向 Agent 的通用协调 Skill，用于持续推进已经批准并拆分完成的 Spec/Ticket 有向无环图。Spec/Ticket 的制定与修改由目标项目的 authoring Skill 完成；单张独立 Ticket 由实施 Skill 直接处理。
+`dag-skill` 是一个可以跨项目、跨 Agent 宿主复用的协调 Skill，用来持续推进一个已经设计并批准好的任务图（Ticket DAG）。这里的 DAG 是有向无环图：每张 Ticket 是一个节点；当后一张 Ticket 必须使用前一张 Ticket 已验收的产物时，两者之间才有一条依赖边。
 
-可复制 artifact 位于 [`skill/dag/`](./skill/dag/)：英文 [`SKILL.md`](./skill/dag/SKILL.md) 是 DAG 运行规范，[`agents/openai.yaml`](./skill/dag/agents/openai.yaml) 提供可选的 OpenAI/Codex 界面元数据，[`scripts/install_dependencies.py`](./skill/dag/scripts/install_dependencies.py) 提供依赖安装。本文提供中文使用说明，运行语义以 `SKILL.md` 为准。
+运行时，主 Agent 会反复读取项目的真实状态，找出当前可以开始的 Tickets，派发 Execution Agent，核验实施和评审证据，把通过验收的改动合入本次 DAG 的集成分支，再解锁后继 Tickets。这个循环会一直继续，直到整张图完成，或者已有证据证明当前无法再推进。
+
+DAG Skill 负责执行和协调整张图。Spec 与 Ticket 的制定、拆分和内容修订继续遵循目标项目原有的流程。
+
+可安装的 Skill 位于 [`skill/dag/`](./skill/dag/)：[`SKILL.md`](./skill/dag/SKILL.md) 定义准确的运行规则，[`scripts/install_dependencies.py`](./skill/dag/scripts/install_dependencies.py) 安装固定版本的支持 Skills，[`agents/openai.yaml`](./skill/dag/agents/openai.yaml) 提供可选的宿主界面信息。
+
+运行规范采用开放的 [Agent Skills 格式](https://agentskills.io/specification)，任何能够提供所需 Agent 隔离、项目访问和验证能力的宿主都可以接入。
 
 ## 项目文档
 
-- [`docs/DESIGN.md`](./docs/DESIGN.md)：稳定设计、角色边界与状态机依据。
-- [`CONTEXT.md`](./CONTEXT.md)：DAG 协调领域词汇。
-- [`CHANGELOG.md`](./CHANGELOG.md)：各版本的用户可见变化。
+- [`docs/DESIGN.md`](./docs/DESIGN.md)：解释设计选择、角色边界和状态变化。
+- [`CONTEXT.md`](./CONTEXT.md)：记录运行规范中使用的正式术语。
+- [`CHANGELOG.md`](./CHANGELOG.md)：记录各版本的用户可见变化。
 
-## 启动条件
+## 开始一次 DAG 运行
 
-一次 DAG 运行需要唯一定位：
+开始或恢复运行时，主 Agent 会先从项目的 Spec、Ticket 系统、Git 和测试证据中确认以下信息。能够从现场确认的内容由主 Agent 直接读取，只有无法唯一判断的部分才需要用户补充。
 
-- 目标项目；
-- 已批准的 Spec；
-- 本次纳入的 Tickets 与依赖载体；
-- 适用 TDD 的 Ticket 已经约定 public test seam；
-- 用户对执行、推进、继续或恢复整个 DAG 的授权。
+1. **目标项目**：这次工作对应的仓库，以及实际要操作的分支或工作树。
+2. **已批准的 Spec**：已经确认可以实施的需求或设计，而不是仍在讨论的草稿。
+3. **本次 Tickets、依赖关系及其权威来源**：要推进哪些 Tickets，以及 Ticket 内容、状态和依赖记录在哪里。它可以是仓库内的 Markdown、GitHub Issues、Jira 或目标项目采用的其他系统。
+4. **每张 Ticket 的公开验收入口**：至少有一个能够从公开行为验证结果的入口，例如 CLI 命令、HTTP API、公开函数、配置接口或输出校验器。运行规范把它称为 `public test seam`；它指“从哪里触发并观察行为”，不是某一条具体测试。
+5. **整张 DAG 的运行授权**：用户已经同意主 Agent 执行、继续或恢复这批 Tickets。该授权覆盖正常的本地协调操作；远端发布和其他高影响操作使用单独授权。
 
-运行规范采用开放的 [Agent Skills 格式](https://agentskills.io/specification)。支持该流程的 Agent 宿主能够激活具名 Skill、派发 fresh 且角色隔离的 Agent、建立实现可写与评审只读边界、观察执行状态，并访问目标项目的 tracker、仓库和验证工具。宿主可以并行调度，也可以在同一契约下串行推进。
+Git 项目还会确认本次工作的起点和 DAG 集成分支。项目存在可写远端仓库（remote）时，主 Agent 会明确远端名称、远端 DAG 分支，以及本次运行是否允许在里程碑处推送该分支。
 
-## 必需 Skill Bundle
+宿主需要能够派发彼此隔离的 Agent、为实施提供可写工作区、为评审提供只读边界，并允许主 Agent 观察 Agent 状态和访问目标项目的 Ticket 系统、仓库及验证工具。宿主只支持串行派发时，DAG 也可以串行运行。
 
-运行环境使用以下四个完整 Matt Skill：
+## 需要的支持 Skills
 
-- `implement`
-- `code-review`
-- `tdd`
-- `codebase-design`
+DAG 运行使用三个固定版本的 Matt Skills：
 
-默认 Bundle 固定为 [`mattpocock/skills@5b15a47f2d7150f545fbcacbfe381787fc0230dc`](https://github.com/mattpocock/skills/tree/5b15a47f2d7150f545fbcacbfe381787fc0230dc/skills/engineering)。安装助手从 Matt 仓库的 `skills/engineering/<name>` 读取四个完整目录，并分别写入 `<host-skills-root>/<name>`；各 Skill 的配套文件随目录一同安装。
+- `tdd`：从 Ticket 的公开验收入口开始，用测试驱动实施；
+- `code-review`：对固定的候选提交分别进行 Standards 和 Spec 评审；
+- `codebase-design`：在需要判断接口、模块边界或测试入口时提供统一的设计原则。
 
-用户单独授权依赖安装并明确宿主的 Skills 根目录后，可以运行：
+同一支持包还包含 `setup-matt-pocock-skills`，负责为需要它的目标项目一次性生成 Matt Skills 共用的项目配置，例如 `code-review` 用于定位 Issue 和 Spec 的 `docs/agents/issue-tracker.md`。支持包固定在 [`mattpocock/skills@5b15a47f2d7150f545fbcacbfe381787fc0230dc`](https://github.com/mattpocock/skills/tree/5b15a47f2d7150f545fbcacbfe381787fc0230dc/skills/engineering)。安装后，四个完整目录会直接位于宿主的 Skills 根目录下，并保留各自的配套文件。
+
+用户授权安装并给出宿主的 Skills 根目录后，可以运行：
 
 ```bash
 python3 /path/to/dag/scripts/install_dependencies.py \
   --skills-root /path/to/agent-host/skills
 ```
 
-脚本使用 Python 3.12+ 标准库、Git 和网络获取固定 revision。Git 获取使用隔离的配置环境、空 hook/template 路径和 120 秒命令边界；全部目标先完成冲突检查，缺失目录通过专属目标预留与内容校验完成安装。安装中断时保留已验证目录和当前预留目录以便核查，再次运行会重新完成全 Bundle 校验。`setup-matt-pocock-skills` 属于目标项目配置流程，使用独立授权。
+安装脚本使用 Python 3.12+ 标准库。它会校验固定版本的文件内容，复用已经完整安装的目录，并在缺少目录时获取固定提交。主 Agent 随后会实际核验这些 Skills 能否被当前宿主调用，并检查目标项目是否已经具备所需配置。配置齐全时直接继续；需要首次配置时，用户运行一次 `setup-matt-pocock-skills`，主 Agent 回读结果后继续调度。
 
-每次启动或恢复时，主 Agent 都会核查四个 Skill 的唯一解析位置、完整资源、固定内容身份、可激活性和实际契约。Bundle 通过后进入 Ticket 调度；修复 Bundle 后会重新验证整个集合。四个目录构成完整 Bundle，Review Agent、Standards Reviewer 和 Spec Reviewer 则是 DAG 派发的角色。
+## Agent 和模型怎么选
 
-## 模型与 Agent
+用户或目标项目明确指定的模型、Agent 或推理强度（reasoning effort）是必须满足的条件。没有精确指定时，主 Agent 根据宿主当前可用能力、角色、Ticket 难度和风险选择合适的 Agent。
 
-用户或目标项目明确指定的模型、Agent 或 reasoning effort 构成硬约束。其余情况由主 Agent 依据实时可用性、角色、上下文、工具、Ticket 复杂度和风险选择 Execution Profile：主 Agent 侧重全图推理，实现 Agent 匹配编码工作，Review Agent 使用独立上下文匹配评审面。
+运行记录只写宿主真实公开的模型和运行信息；宿主没有公开的字段会记为 `unknown`。如果无法满足用户指定的精确配置，主 Agent 会说明当前可用选择及影响，并在取得同意后再替换。
 
-当用户希望获得模型建议时，主 Agent 先核查宿主的真实选项，再给出角色分配和取舍。宿主公开的运行元数据会被记录，未公开字段标记为 unknown；精确要求需要替换时，先说明原因并取得授权。
+## 开跑前先核对现场
 
-## 核心流程
+主 Agent 在领取任何 Ticket 前，会重新读取最新的 Spec、Tickets、依赖、Git、测试和已有评审证据。聊天记录可以帮助定位信息，但项目现场才是状态依据。
+
+入口检查发现问题时，主 Agent 按原因继续处理：
+
+- **当前机器或工具环境不同**：建立项目认可的可复现环境，再运行同一项检查。
+- **项目起点本身有缺陷**：按照目标项目流程增加最小的前置修复 Ticket。
+- **Ticket 内容、验收入口或依赖关系有误**：在保持已批准语义的前提下调整受影响的图。
+- **需要改变产品语义、验收标准、必须通过的质量检查或高影响权限**：记录受影响节点和继续条件，向用户取得授权。
+- **原因还不清楚**：暂不领取受影响节点，继续取证，同时推进与它无关的 Tickets。
+
+只要仍有 Agent 在工作，或者主 Agent 还有获授权的修复、恢复或调整任务图的路径，整张 DAG 就会继续运行。
+
+## 整体流程
 
 ```mermaid
-flowchart LR
-    A["读取 live Spec、Tickets、依赖和证据"] --> B["校验 DAG 并计算 Runnable Frontier"]
-    B --> C["Execution Agent 使用 implement"]
-    C --> D["Implementation-Side Review 与 Handoff"]
-    D --> E{"Handoff 有效？"}
-    E -->|"证据故障"| R["Attempt 内一次 Operational Retry"]
-    E -->|"范围内缺陷"| I["一次 Formal Rework"]
-    E -->|"图级变化"| J["DAG Revision 或外部阻塞"]
-    E -->|"通过"| Q{"评审证据充分？"}
-    Q -->|"是"| G{"主 Agent 裁决结果"}
-    Q -->|"需要补强"| F["fresh code-review"]
-    F --> G
-    G -->|"可接受"| H["集成并复验最终字节"]
-    H --> K["接受 Ticket 并解锁后继"]
-    G -->|"范围内问题"| I["一次 Formal Rework"]
-    G -->|"图级变化"| J["DAG Revision 或外部阻塞"]
-    R --> C
-    I --> C
+flowchart TD
+    A["读取 Spec、Tickets、依赖、Git 和验证证据"] --> B{"入口和整张图是否有效"}
+    B -->|"需要修复环境、基线或任务图"| C["按原因修复、恢复或调整任务图"]
+    C --> A
+    B -->|"有效"| D["找出所有前置条件已满足的 Tickets"]
+    D --> E{"当前有可执行 Ticket 吗"}
+    E -->|"有"| F["为 Ticket 建立独立分支和工作目录"]
+    F --> G["Execution Agent 使用 TDD 实施"]
+    G --> H["固定待审提交并请求独立 code-review"]
+    H --> I{"Execution Agent 能否关闭评审问题"}
+    I -->|"能"| J["复验最终代码并交给主 Agent"]
+    I -->|"不能"| K["提交阻塞原因、证据和继续条件"]
+    J --> L{"主 Agent 核验实施交接"}
+    L -->|"实施仍有缺口"| G
+    L -->|"通过"| M["对齐最新 DAG 分支并运行集成测试和必过检查"]
+    M --> N{"现有评审是否足以覆盖最终提交"}
+    N -->|"有明确缺口"| O["补充定向评审或完整独立评审"]
+    N -->|"充分"| P{"主 Agent 是否接受"}
+    O --> P
+    P -->|"接受"| Q["只向前移动 DAG 分支"]
+    Q --> R{"本次需要远端检查点吗"}
+    R -->|"需要"| S["推送 DAG 分支并核对远端提交"]
+    R -->|"不需要"| U2["记录 Ticket 已接受并解锁后继"]
+    S --> U2
+    U2 --> A
+    P -->|"票内问题"| T["进入一次正式返工"]
+    T --> F
+    P -->|"任务图问题"| C
+    K --> U["主 Agent 决定继续当前工作、调整任务图或记录阻塞"]
+    U --> A
+    E -->|"没有"| V{"仍有运行中的 Agent 或可执行的恢复动作吗"}
+    V -->|"有"| A
+    V -->|"没有"| W{"所有有效 Tickets 都已接受吗"}
+    W -->|"是"| X{"整张 DAG 的最终验收是否通过"}
+    X -->|"通过"| Y["Complete"]
+    X -->|"发现缺口"| C
+    W -->|"否"| Z["Stalled"]
 ```
 
-`implement` 内部的 `code-review` 形成 Implementation-Side Review。主 Agent 检查原始 Standards/Spec 报告、Reviewer 独立性、运行元数据和 Final Artifact Identity；充分证据直接进入裁决，需要补强的证据由 fresh Review Agent 重新评审。
+这张图可以概括为一句话：**读取现场 → 找出能做的票 → 独立实施和评审 → 主 Agent 验收并集成 → 解锁后继 → 重新读取现场。**
 
-主 Agent 拥有 Ticket 认领、tracker/DAG 状态、集成、接受、返工、修图和最终验收权。Execution Agent 实现一个 Ticket，Reviewer 读取固定产物，所有子 Agent 将产物和证据交回主 Agent。
+“当前可以开始的 Tickets”在运行规范中称为 `Runnable Frontier`。它不是简单读取一个 `ready` 状态：一张票只有在依赖它的前置产物已经验收、阻塞已经解除、工作区不会互相覆盖，并且所需权限和 Agent 能力都满足时才可以派发。图上互不依赖的 Tickets 可以在宿主容量允许时一起派发。
 
-主 Agent 持续执行“派发 frontier → 等待最早的有界检查点或终态 → 核验产物并推进 Ticket → 持久化证据 → 重算 frontier”。frontier 暂时为空但仍有 Agent 运行时继续等待；所有 Agent 结束且 frontier 为空时才进入 `Stalled` 判定。
+## 一张 Ticket 怎么完成闭环
 
-## 调度、评审与返工
+1. 主 Agent 从当前已验收的 DAG 集成分支创建 Ticket 分支和独立 worktree，也就是为这张票准备一个互不干扰的 Git 工作目录。
+2. 一个使用全新独立上下文的 Execution Agent 只负责这一张 Ticket，并重新读取它的最新内容、依赖、验收要求和代码起点。全新上下文不要求更换模型。
+3. Execution Agent 使用 `tdd` 从公开验收入口开始实施，并运行 Ticket 约定必须通过的测试和检查。
+4. Execution Agent 固定一个待审提交，请求一次完整且独立的 `code-review`，由 Review Agent 分别检查项目规范（Standards）和 Ticket 要求（Spec）。
+5. Execution Agent 逐条处理成立的问题：行为问题用能够证明“修复前失败、修复后通过”的测试闭环，其他问题提供同等清晰的前后证据，然后重新运行受影响的测试和最终检查。
+6. Execution Agent 把最终提交、原始评审报告、问题处理结果、测试结果和剩余阻塞一起交给主 Agent。无法在当前检查点关闭时，也要返回可核验的阻塞证据，而不是只报告“失败了”。
+7. 主 Agent 先核验这次实施交接，再把候选提交对齐到最新 DAG 分支并运行集成测试和其他必过检查。
+8. 修复完成后，主 Agent 根据最终改动决定后续评审范围：现有证据完整覆盖最终提交时直接裁决，存在明确缺口时增加定向独立评审，无法确定覆盖范围时重新进行一次完整的独立评审。
+9. 主 Agent 根据最终证据选择接受、正式返工、调整任务图、拒绝、延后或记录外部阻塞。Execution Agent 或 Review Agent 的结论都不会自动等同于 Ticket 完成。
 
-- Runnable Frontier 同时满足已接受依赖、已清除 blocker、当前授权、Agent 能力、证据持久化和安全写边界；tracker 状态字符串是计算输入之一。
-- 已在进行的评审、集成和接受优先完成。主 Agent 在当前容量内选择最大的安全 frontier 子集，并在写入关系需要进一步确认时串行推进。
-- 每个 workspace 保持一个写入 Agent；目标项目提供隔离 workspace 和显式集成边界时，可以并行实现图上独立的 Tickets。
-- 每个直接派发的 Agent 都有有界进展检查点，以持续减少或澄清剩余工作的 RED、ticket-scoped diff、候选产物、评审报告、明确 blocker 或终态 handoff 作为可观察 milestone；重复且没有推进的 milestone 进入 Operational Failure。
-- 初始 claim 建立第一个 Ticket Attempt；Formal Rework 建立唯一的第二个 Attempt。每个 Attempt 在实现、评审和集成之间共享一次 Operational Retry，恢复、follow-up 和角色重派沿用当前预算。有证据的外部 blocker 会暂停已开始的 Attempt，并完整保留其身份、fixed point、milestone 与预算；closing condition 清除后按 live 证据恢复同一 Attempt。
-- Handoff 的证据故障进入当前 Attempt 的 Operational Retry，范围内实现缺陷进入 Formal Rework，外部 blocker 记录 owner 与 closing condition，图级问题进入 DAG Revision。多个条件并存时，以 live diff 已确认的实质缺陷优先；仅补充证据的重试保持候选字节不变。
-- 缺失适用 public test seam 的节点在 claim 前保持预算不变，并通过目标项目的 authoring capability 修订 Ticket；验收或产品语义变化继续使用显式用户授权。
-- 恢复已认领 Ticket 时，主 Agent 先核对旧 dispatch 的身份、liveness、workspace 和可信 milestone；可验证的完成阶段直接续接，失联 dispatch 在写边界静止或隔离后按当前 Attempt 的 Operational Failure 处理。
-- 实现和评审故障重派对应角色；集成工具或 probe 故障由主 Agent 在当前 Attempt 内执行一次修正重试。任何写型重派都先确认旧 writer 已到达终态或 superseded，并建立静止或隔离写边界，再在修正动作前持久化重试消费；未确定的旧写边界保持当前 Attempt 与预算。
-- 当前 Attempt 的 Operational Retry 耗尽后，主 Agent 持久化图决策并选择拆票、新增前置、重排、拒绝、延后，或在具有 owner 与 closing condition 的证据下暂停为外部 blocker。
-- Ticket 出现新的独立目标、验收 seam 或超出有界评审范围的 diff 时，主 Agent 进入 DAG Revision，选择拆票、新增前置、重排、拒绝、延后或外部阻塞。
-- 每条原始 Ticket Lineage 可以自动进行一次保持语义的 DAG Revision；后续修图使用显式用户授权。
+这套流程让 Execution Agent 在交付前完成“实施—独立检查—修复—复验”闭环，同时保留主 Agent 对是否需要更多评审以及整张图是否推进的最终裁决权。
 
-候选产物通过 Formal Review 后进入目标项目的 Authoritative Integration Baseline，并在集成后的最终字节和真实交付边界上复验。改变已评审字节的集成冲突会从当前集成基线建立 Formal Rework Attempt 和新的 Review Fixed Point；返工预算已使用或范围发生变化时进入 DAG Revision。Ticket 的接受证据持久化并回读成功后，后继节点才会解锁。
+## Git 如何隔离和集成
 
-迟到的有效 finding 或 Whole-DAG Acceptance Gate 发现问题时，主 Agent 冻结消费该输出的子图，使相关在途 Agent 到达可核验终态或 superseded 状态，并保留其候选作为未接受证据。相关接受证据完成授权范围内的失效记录后，主 Agent 使用剩余 Formal Rework 或目标项目的 authoring Skill 建立 remediation lineage。
+一次 Git DAG 运行使用一条专门的 **DAG 集成分支**，并在主 Agent 自己的 worktree 中管理。worktree 是同一仓库的独立 Git 工作目录。每张正在实施的 Ticket 都从该分支当前已验收的最新提交创建独立分支和 worktree。
 
-## Skill 复用
+Ticket 实施可以并行，候选对齐、最终评审、合入和远端检查点按顺序完成。只有已经通过本地验收的候选，才会让 DAG 分支只向前移动（fast-forward）；新的分支最新提交就是一个 **DAG 里程碑**。评审通过的提交会原样进入 DAG 分支；代码字节发生变化时，主 Agent 会重新核验受影响的测试和评审覆盖，必要时补充评审，再决定是否接受。
 
-验证后的 `implement` 负责 Ticket 实施，并从同一 Bundle 使用 `tdd`、按需使用 `codebase-design`、调用 `code-review` 完成执行侧评审。需要原生适配的场景由主 Agent 公开 DAG-Native Fallback，并用 fresh Agent 保持相同的 TDD、Standards/Spec Review、集成和最终字节门禁。
+项目配置了可写远端仓库，并且本次运行已经获得远端检查点授权时，每个里程碑会推送到选定的远端 DAG 分支。主 Agent 会回读远端提交编号（SHA），确认它与本地里程碑完全一致，再把 Ticket 标记为已接受并解锁依赖它的后继 Tickets。
 
-目标项目的 authoring Skill 负责 DAG Revision 所需的 Ticket 内容；DAG Skill 负责判断何时进入修图以及如何继续调度。
+远端检查点或项目权威 Ticket 状态尚未确认时，主 Agent 会先完成这项确认，再打开新的 Ticket 工作目录；已经开始且互不依赖的 Ticket 可以继续实施。
 
-## 授权边界
+远端检查点只发布本次 DAG 分支。把最终结果合入 `main`、创建 PR、打 tag 或发布 release 仍由用户单独授权。
 
-DAG Run Authorization 覆盖本地认领、Agent 分派、ticket-scoped candidate branch/worktree、代码修改、测试、合适场景下的 ticket-scoped commit、本地票据证据和后继解锁。
+## 失败、返工和调整任务图
 
-远端 tracker 写入、push、PR、tag、release、部署、外部 API 或数据库写入、状态型远端 CI、破坏性 Git、产品语义或验收变化以及降低门禁使用单独授权。
+不同问题由相应角色处理，主 Agent 负责核验结果并决定流程如何继续：
 
-## 终态
+| 发生的情况 | 主要负责人 | 处理方式 |
+| --- | --- | --- |
+| 命令、路径或派发请求写错，目标动作实际没有开始 | 发起该动作的 Agent | 主 Agent 确认目标动作没有开始或没有到达预期边界，发起者纠正调用后从原检查点继续 |
+| Agent、工具或集成环境发生可定位的运行故障 | 实施故障由 Execution Agent 处理；评审故障由 Review Agent 处理；集成故障由主 Agent 处理 | 主 Agent 核实并记录原因；对应负责人修正后重试一次。同一原因再次发生且没有新进展时，主 Agent 记录为运行阻塞 |
+| 目标 Ticket 的实现未通过初次验证、一次完整独立评审发现的问题经核验成立，或修复后复验仍未通过 | Execution Agent | 验证并修复成立的问题，重新运行受影响的测试和检查，整理问题关闭证据后再交接 |
+| 目标 Ticket 的实施交接核验通过后，后续检查确认票内阻断问题 | 主 Agent | 批准一次正式返工，并派发 Execution Agent 开始第二个实施轮次 |
+| 目标 Ticket 的正式返工仍未通过，或其所在任务图存在结构问题 | 主 Agent | 根据证据拆票、补齐前置、修正依赖、拒绝、延后或记录外部阻塞，让仍可完成的任务继续推进 |
+| 目标 Ticket 需要改变产品语义、验收标准、必须通过的质量检查或远端权限 | 主 Agent 与用户 | 主 Agent 记录受影响节点和继续条件，用户决定是否授权 |
 
-- `Complete`：有效图中的所有 Tickets 已集成并接受，Whole-DAG Acceptance Gate 覆盖 Spec、依赖输出、最终产物、项目门禁和 tracker 一致性。
-- `Stalled`：有效图仍有未完成 Tickets，运行中的 Agent 数量为零，Runnable Frontier 为空，每条停止路径都有 live 证据。
+调整后的图仍然必须保持无环。被替代的 Ticket 会保留来源关系，便于恢复运行和追溯为什么发生变化。
 
-`Complete` 表示本地验收完成；发布仍使用独立授权。
+## 授权范围
+
+| 授权 | 覆盖的操作 |
+| --- | --- |
+| **DAG 运行授权** | 本地领取 Ticket、派发 Agent、创建 DAG/Ticket 分支和 worktree、修改代码、运行测试、创建合适的票内提交、记录本地证据、进行保持语义的本地图调整、集成已验收 Ticket 并解锁后继 |
+| **远端检查点授权** | 在本次运行中，把每个 DAG 里程碑以只向前移动的方式推送到一个选定的远端 DAG 分支，并回读核对远端提交编号 |
+| **单独授权** | 安装依赖、远端 Ticket 系统写入、其他 push、PR、合入 `main`、tag、release、部署、外部 API 或数据库写入、会改变状态的远端 CI、破坏性 Git、产品语义或验收变化，以及降低必须通过的质量检查 |
+
+## 什么时候结束
+
+- **`Complete`**：所有仍有效的 Tickets 都已集成并接受；最终验收确认 Spec 覆盖、依赖产物、DAG 分支、项目要求的检查、Ticket 状态和本次要求的远端检查点彼此一致。
+- **`Stalled`**：仍有未完成 Tickets，但已经没有运行中的 Agent、当前可执行的 Ticket，也没有获授权的恢复或调整任务图的方式能够继续推进；主 Agent 会为每个阻塞记录原因和恢复所需条件。
+
+如果仍有 Agent 在运行，或还有获授权的恢复路径，DAG 就处于运行中，而不是 `Stalled`。
 
 ## 调用示例
 
 - “使用 dag Skill 执行 Spec 0008 已批准的 Ticket DAG。”
-- “继续推进这个 DAG，自动调度所有可运行 Tickets。”
-- “根据 live tracker 和 Git 证据恢复上次的 DAG 执行。”
+- “继续推进这个 DAG，自动调度所有当前可执行的 Tickets。”
+- “根据最新的 Ticket、Git 和测试证据恢复上次的 DAG 执行。”

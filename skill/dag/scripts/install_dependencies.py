@@ -15,7 +15,9 @@ from pathlib import Path, PurePath
 REPOSITORY = "https://github.com/mattpocock/skills.git"
 REVISION = "5b15a47f2d7150f545fbcacbfe381787fc0230dc"
 UPSTREAM_BUNDLE_ROOT = Path("skills/engineering")
-SKILLS = ("implement", "code-review", "tdd", "codebase-design")
+RUNTIME_SKILLS = ("code-review", "tdd", "codebase-design")
+SETUP_SKILL = "setup-matt-pocock-skills"
+SUPPORT_SKILLS = (*RUNTIME_SKILLS, SETUP_SKILL)
 MINIMUM_PYTHON = (3, 12)
 GIT_TIMEOUT_SECONDS = 120
 SAFE_GIT_ENVIRONMENT = {
@@ -26,10 +28,23 @@ SAFE_GIT_ENVIRONMENT = {
     "GIT_TERMINAL_PROMPT": "0",
 }
 REQUIRED_FILES = {
-    "implement": ("SKILL.md",),
     "code-review": ("SKILL.md",),
     "tdd": ("SKILL.md", "tests.md", "mocking.md"),
     "codebase-design": ("SKILL.md", "DEEPENING.md", "DESIGN-IT-TWICE.md"),
+    "setup-matt-pocock-skills": (
+        "SKILL.md",
+        "domain.md",
+        "issue-tracker-github.md",
+        "issue-tracker-gitlab.md",
+        "issue-tracker-local.md",
+        "triage-labels.md",
+    ),
+}
+PINNED_TREE_DIGESTS = {
+    "code-review": "469775f63f281a7f74f5ca03c08030ba48bdd5fe146003a6a0231a91051202f6",
+    "tdd": "e91b8b8c3fb7e55f6432b4c7023291135ea2141578af432459b6c57b25a1bf2f",
+    "codebase-design": "d8500952a6f5631d8b3f748155d70b81e18bf74d28f1f41116f3eb64988a873a",
+    "setup-matt-pocock-skills": "b2dda865f0a6069d7d2c60ca3c3b95a622fe4a7bf98c96764a2f4ed6c091e0d3",
 }
 
 
@@ -80,6 +95,12 @@ def run_git(arguments: list[str], cwd: Path) -> str:
     return result.stdout.strip()
 
 
+def framed(value: bytes) -> bytes:
+    """Encode one digest field with an unambiguous length prefix."""
+
+    return len(value).to_bytes(8, byteorder="big") + value
+
+
 def tree_digest(root: Path) -> str:
     digest = hashlib.sha256()
     entries = sorted(
@@ -88,19 +109,21 @@ def tree_digest(root: Path) -> str:
     for entry in entries:
         relative = entry.relative_to(root).as_posix().encode()
         if entry.is_symlink():
-            digest.update(
-                b"L\0" + relative + b"\0" + os.readlink(entry).encode() + b"\0"
-            )
+            kind = b"L"
+            payload = os.readlink(entry).encode()
         elif entry.is_dir():
-            digest.update(b"D\0" + relative + b"\0")
+            kind = b"D"
+            payload = b""
         elif entry.is_file():
-            digest.update(b"F\0" + relative + b"\0")
+            kind = b"F"
+            content_digest = hashlib.sha256()
             with entry.open("rb") as handle:
                 for block in iter(lambda: handle.read(1024 * 1024), b""):
-                    digest.update(block)
-            digest.update(b"\0")
+                    content_digest.update(block)
+            payload = content_digest.digest()
         else:
             raise InstallError(f"Unsupported source entry: {entry}")
+        digest.update(framed(kind) + framed(relative) + framed(payload))
     return digest.hexdigest()
 
 
@@ -120,9 +143,13 @@ def copy_directory_contents(source: Path, target: Path) -> None:
                 os.readlink(entry), destination, target_is_directory=entry.is_dir()
             )
         elif entry.is_dir():
-            shutil.copytree(entry, destination, symlinks=True)
+            destination.mkdir()
+            copy_directory_contents(entry, destination)
         elif entry.is_file():
-            shutil.copy2(entry, destination)
+            with entry.open("rb") as source_handle:
+                with destination.open("xb") as destination_handle:
+                    shutil.copyfileobj(source_handle, destination_handle)
+            shutil.copystat(entry, destination, follow_symlinks=False)
         else:
             raise InstallError(f"Unsupported staged entry: {entry}")
     shutil.copystat(source, target, follow_symlinks=False)
@@ -165,7 +192,7 @@ def fetch_pinned_source(workspace: Path) -> dict[str, Path]:
         )
 
     sources: dict[str, Path] = {}
-    for skill in SKILLS:
+    for skill in SUPPORT_SKILLS:
         source = checkout / UPSTREAM_BUNDLE_ROOT / skill
         missing = [
             name for name in REQUIRED_FILES[skill] if not (source / name).is_file()
@@ -174,8 +201,44 @@ def fetch_pinned_source(workspace: Path) -> dict[str, Path]:
             raise InstallError(
                 f"Pinned {skill} source is missing: {', '.join(missing)}"
             )
+        actual_digest = tree_digest(source)
+        expected_digest = PINNED_TREE_DIGESTS[skill]
+        if actual_digest != expected_digest:
+            raise InstallError(
+                f"Pinned {skill} source digest is {actual_digest}; "
+                f"expected {expected_digest}"
+            )
         sources[skill] = source
     return sources
+
+
+def inspect_targets(skills_root: Path) -> tuple[list[str], list[str], list[str]]:
+    """Classify every pinned target from local content alone."""
+
+    missing: list[str] = []
+    current: list[str] = []
+    conflicts: list[str] = []
+    for skill in SUPPORT_SKILLS:
+        target = skills_root / skill
+        if not target.exists() and not target.is_symlink():
+            missing.append(skill)
+        elif target.is_symlink() or not target.is_dir():
+            conflicts.append(f"{skill}: target is not an ordinary directory")
+        elif tree_digest(target) == PINNED_TREE_DIGESTS[skill]:
+            current.append(skill)
+        else:
+            conflicts.append(f"{skill}: existing directory differs from pinned source")
+    return missing, current, conflicts
+
+
+def verify_complete_bundle(skills_root: Path) -> None:
+    """Verify all final targets against the pinned tree identities."""
+
+    missing, _, conflicts = inspect_targets(skills_root)
+    problems = [*(f"{skill}: target is missing" for skill in missing), *conflicts]
+    if problems:
+        details = "\n".join(f"  - {problem}" for problem in problems)
+        raise InstallError("Pinned Matt Skill bundle verification failed:\n" + details)
 
 
 def install(skills_root: Path) -> None:
@@ -184,43 +247,27 @@ def install(skills_root: Path) -> None:
         raise InstallError("Skills root must be a directory below the filesystem root")
     if skills_root.exists() and not skills_root.is_dir():
         raise InstallError(f"Skills root is not a directory: {skills_root}")
+
+    missing, current, conflicts = inspect_targets(skills_root)
+    if conflicts:
+        details = "\n".join(f"  - {conflict}" for conflict in conflicts)
+        raise InstallError(
+            "Existing Skill targets were preserved; resolve these conflicts before setup:\n"
+            + details
+        )
+
+    if not missing:
+        verify_complete_bundle(skills_root)
+        print(f"Pinned Matt Skill bundle is already current at {skills_root}")
+        print(f"Revision: {REVISION}")
+        return
+
     if shutil.which("git") is None:
         raise InstallError("Git is required to fetch the pinned dependency bundle")
 
     with tempfile.TemporaryDirectory(prefix="dag-skill-dependencies-") as temporary:
         workspace = Path(temporary)
         sources = fetch_pinned_source(workspace)
-        source_digests = {
-            skill: tree_digest(source) for skill, source in sources.items()
-        }
-
-        missing: list[str] = []
-        current: list[str] = []
-        conflicts: list[str] = []
-        for skill in SKILLS:
-            target = skills_root / skill
-            if not target.exists() and not target.is_symlink():
-                missing.append(skill)
-            elif target.is_symlink() or not target.is_dir():
-                conflicts.append(f"{skill}: target is not an ordinary directory")
-            elif tree_digest(target) == source_digests[skill]:
-                current.append(skill)
-            else:
-                conflicts.append(
-                    f"{skill}: existing directory differs from pinned source"
-                )
-
-        if conflicts:
-            details = "\n".join(f"  - {conflict}" for conflict in conflicts)
-            raise InstallError(
-                "Existing Skill targets were preserved; resolve these conflicts before setup:\n"
-                + details
-            )
-
-        if not missing:
-            print(f"Required Skill Bundle is already current at {skills_root}")
-            print(f"Revision: {REVISION}")
-            return
 
         skills_root.mkdir(parents=True, exist_ok=True)
         staging = workspace / "stage"
@@ -230,12 +277,14 @@ def install(skills_root: Path) -> None:
             for skill in missing:
                 staged = staging / skill
                 shutil.copytree(sources[skill], staged, symlinks=True)
-                if tree_digest(staged) != source_digests[skill]:
+                if tree_digest(staged) != PINNED_TREE_DIGESTS[skill]:
                     raise InstallError(f"Staged copy verification failed for {skill}")
 
             for skill in missing:
                 target = skills_root / skill
-                install_staged_skill(staging / skill, target, source_digests[skill])
+                install_staged_skill(
+                    staging / skill, target, PINNED_TREE_DIGESTS[skill]
+                )
                 installed.append(target)
         except Exception as error:
             if installed:
@@ -245,6 +294,8 @@ def install(skills_root: Path) -> None:
                     f"{paths}. Resolve this condition and run setup again: {error}"
                 ) from error
             raise
+
+        verify_complete_bundle(skills_root)
 
     print(f"Installed pinned Matt Skill bundle at {skills_root}")
     print(f"Revision: {REVISION}")

@@ -26,7 +26,7 @@ SPEC.loader.exec_module(installer)
 
 def create_sources(root: Path) -> dict[str, Path]:
     sources: dict[str, Path] = {}
-    for skill in installer.SKILLS:
+    for skill in installer.SUPPORT_SKILLS:
         source = root / skill
         source.mkdir(parents=True)
         for relative in installer.REQUIRED_FILES[skill]:
@@ -116,6 +116,68 @@ class GitIsolationTests(unittest.TestCase):
             self.assertEqual(len(template_options), 1)
             self.assertTrue((workspace / "empty-git-templates").is_dir())
 
+    def test_fetch_rejects_content_outside_the_pinned_tree_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            workspace = Path(temporary)
+
+            def emulate_git(arguments: list[str], cwd: Path) -> str:
+                if arguments[0] == "checkout":
+                    create_sources(cwd / installer.UPSTREAM_BUNDLE_ROOT)
+                if arguments[0] == "rev-parse":
+                    return installer.REVISION
+                return ""
+
+            with mock.patch.object(installer, "run_git", side_effect=emulate_git):
+                with self.assertRaisesRegex(installer.InstallError, "source digest"):
+                    installer.fetch_pinned_source(workspace)
+
+    def test_fetch_checks_out_a_matching_local_revision(self) -> None:
+        if shutil.which("git") is None:
+            self.skipTest("Git is unavailable")
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            upstream = root / "upstream"
+            templates = root / "empty-git-templates"
+            workspace = root / "workspace"
+            upstream.mkdir()
+            templates.mkdir()
+            workspace.mkdir()
+            installer.run_git(["init", "--quiet", f"--template={templates}"], upstream)
+            sources = create_sources(upstream / installer.UPSTREAM_BUNDLE_ROOT)
+            installer.run_git(["add", "."], upstream)
+            installer.run_git(
+                [
+                    "-c",
+                    "user.name=DAG Skill Tests",
+                    "-c",
+                    "user.email=dag-skill-tests@example.invalid",
+                    "commit",
+                    "--quiet",
+                    "-m",
+                    "fixture",
+                ],
+                upstream,
+            )
+            revision = installer.run_git(["rev-parse", "HEAD"], upstream)
+            source_digests = {
+                skill: installer.tree_digest(source)
+                for skill, source in sources.items()
+            }
+
+            with (
+                mock.patch.object(installer, "REPOSITORY", str(upstream)),
+                mock.patch.object(installer, "REVISION", revision),
+                mock.patch.object(installer, "PINNED_TREE_DIGESTS", source_digests),
+            ):
+                fetched = installer.fetch_pinned_source(workspace)
+
+            self.assertEqual(set(fetched), set(installer.SUPPORT_SKILLS))
+            for skill in installer.SUPPORT_SKILLS:
+                self.assertEqual(
+                    installer.tree_digest(fetched[skill]), source_digests[skill]
+                )
+
 
 class PathSafetyTests(unittest.TestCase):
     def test_python_runtime_floor_is_3_12(self) -> None:
@@ -142,12 +204,78 @@ class PathSafetyTests(unittest.TestCase):
                 installer.install(Path("/"))
         fetch.assert_not_called()
 
+    def test_tree_digest_frames_file_content_and_following_records(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            first = root / "first"
+            second = root / "second"
+            first.mkdir()
+            second.mkdir()
+            (first / "a").write_bytes(b"x\0F\0b\0y")
+            (second / "a").write_bytes(b"x")
+            (second / "b").write_bytes(b"y")
+
+            self.assertNotEqual(
+                installer.tree_digest(first), installer.tree_digest(second)
+            )
+
+
+class BundleContractTests(unittest.TestCase):
+    def test_bundle_matches_dependency_contract(self) -> None:
+        self.assertEqual(
+            installer.SUPPORT_SKILLS,
+            (
+                "code-review",
+                "tdd",
+                "codebase-design",
+                "setup-matt-pocock-skills",
+            ),
+        )
+        self.assertEqual(
+            installer.RUNTIME_SKILLS,
+            ("code-review", "tdd", "codebase-design"),
+        )
+        self.assertEqual(installer.SETUP_SKILL, "setup-matt-pocock-skills")
+        self.assertEqual(
+            installer.PINNED_TREE_DIGESTS,
+            {
+                "code-review": "469775f63f281a7f74f5ca03c08030ba48bdd5fe146003a6a0231a91051202f6",
+                "tdd": "e91b8b8c3fb7e55f6432b4c7023291135ea2141578af432459b6c57b25a1bf2f",
+                "codebase-design": "d8500952a6f5631d8b3f748155d70b81e18bf74d28f1f41116f3eb64988a873a",
+                "setup-matt-pocock-skills": "b2dda865f0a6069d7d2c60ca3c3b95a622fe4a7bf98c96764a2f4ed6c091e0d3",
+            },
+        )
+        self.assertEqual(
+            installer.REQUIRED_FILES,
+            {
+                "code-review": ("SKILL.md",),
+                "tdd": ("SKILL.md", "tests.md", "mocking.md"),
+                "codebase-design": (
+                    "SKILL.md",
+                    "DEEPENING.md",
+                    "DESIGN-IT-TWICE.md",
+                ),
+                "setup-matt-pocock-skills": (
+                    "SKILL.md",
+                    "domain.md",
+                    "issue-tracker-github.md",
+                    "issue-tracker-gitlab.md",
+                    "issue-tracker-local.md",
+                    "triage-labels.md",
+                ),
+            },
+        )
+
 
 class BundleInstallationTests(unittest.TestCase):
     def run_install(self, sources: dict[str, Path], skills_root: Path) -> str:
         output = io.StringIO()
+        source_digests = {
+            skill: installer.tree_digest(source) for skill, source in sources.items()
+        }
         with (
             mock.patch.object(installer, "fetch_pinned_source", return_value=sources),
+            mock.patch.object(installer, "PINNED_TREE_DIGESTS", source_digests),
             mock.patch.object(installer.shutil, "which", return_value="/usr/bin/git"),
         ):
             with contextlib.redirect_stdout(output):
@@ -163,13 +291,26 @@ class BundleInstallationTests(unittest.TestCase):
             first = self.run_install(sources, skills_root)
             digests = {
                 skill: installer.tree_digest(skills_root / skill)
-                for skill in installer.SKILLS
+                for skill in installer.SUPPORT_SKILLS
             }
-            second = self.run_install(sources, skills_root)
+            source_digests = {
+                skill: installer.tree_digest(source)
+                for skill, source in sources.items()
+            }
+            output = io.StringIO()
+            with (
+                mock.patch.object(installer, "PINNED_TREE_DIGESTS", source_digests),
+                mock.patch.object(installer, "fetch_pinned_source") as fetch,
+                mock.patch.object(installer.shutil, "which", return_value=None),
+                contextlib.redirect_stdout(output),
+            ):
+                installer.install(skills_root)
+            second = output.getvalue()
 
             self.assertIn("Installed pinned Matt Skill bundle", first)
             self.assertIn("already current", second)
-            for skill in installer.SKILLS:
+            fetch.assert_not_called()
+            for skill in installer.SUPPORT_SKILLS:
                 self.assertEqual(
                     installer.tree_digest(skills_root / skill), digests[skill]
                 )
@@ -190,7 +331,7 @@ class BundleInstallationTests(unittest.TestCase):
                 self.run_install(sources, skills_root)
 
             self.assertEqual(conflict.read_text(encoding="utf-8"), "local version\n")
-            self.assertFalse((skills_root / "implement").exists())
+            self.assertFalse((skills_root / "code-review").exists())
 
     def test_symlink_target_is_preserved_as_a_conflict(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -198,17 +339,17 @@ class BundleInstallationTests(unittest.TestCase):
             sources = create_sources(root / "sources")
             skills_root = root / "skills"
             skills_root.mkdir()
-            target = skills_root / "implement"
+            target = skills_root / "code-review"
             try:
-                target.symlink_to(sources["implement"], target_is_directory=True)
+                target.symlink_to(sources["code-review"], target_is_directory=True)
             except OSError as error:
                 self.skipTest(f"directory symlinks unavailable: {error}")
 
-            with self.assertRaisesRegex(installer.InstallError, "implement"):
+            with self.assertRaisesRegex(installer.InstallError, "code-review"):
                 self.run_install(sources, skills_root)
 
             self.assertTrue(target.is_symlink())
-            self.assertFalse((skills_root / "code-review").exists())
+            self.assertFalse((skills_root / "tdd").exists())
 
     def test_target_created_after_preflight_preserves_every_completed_target(
         self,
@@ -217,12 +358,16 @@ class BundleInstallationTests(unittest.TestCase):
             root = Path(temporary)
             sources = create_sources(root / "sources")
             skills_root = root / "skills"
+            source_digests = {
+                skill: installer.tree_digest(source)
+                for skill, source in sources.items()
+            }
             original = installer.install_staged_skill
 
             def create_racing_target(
                 staged: Path, target: Path, expected_digest: str
             ) -> None:
-                if target.name == "code-review":
+                if target.name == "tdd":
                     target.mkdir()
                     (target / "owner.txt").write_text(
                         "other process\n", encoding="utf-8"
@@ -233,6 +378,7 @@ class BundleInstallationTests(unittest.TestCase):
                 mock.patch.object(
                     installer, "fetch_pinned_source", return_value=sources
                 ),
+                mock.patch.object(installer, "PINNED_TREE_DIGESTS", source_digests),
                 mock.patch.object(
                     installer.shutil, "which", return_value="/usr/bin/git"
                 ),
@@ -244,11 +390,92 @@ class BundleInstallationTests(unittest.TestCase):
                     installer.install(skills_root)
 
             self.assertEqual(
-                installer.tree_digest(skills_root / "implement"),
-                installer.tree_digest(sources["implement"]),
+                installer.tree_digest(skills_root / "code-review"),
+                installer.tree_digest(sources["code-review"]),
             )
             self.assertEqual(
-                (skills_root / "code-review" / "owner.txt").read_text(encoding="utf-8"),
+                (skills_root / "tdd" / "owner.txt").read_text(encoding="utf-8"),
+                "other process\n",
+            )
+
+    def test_final_verification_detects_a_concurrent_change(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            sources = create_sources(root / "sources")
+            skills_root = root / "skills"
+            shutil.copytree(sources["code-review"], skills_root / "code-review")
+            source_digests = {
+                skill: installer.tree_digest(source)
+                for skill, source in sources.items()
+            }
+            original = installer.install_staged_skill
+            changed = False
+
+            def mutate_current_target(
+                staged: Path, target: Path, expected_digest: str
+            ) -> None:
+                nonlocal changed
+                original(staged, target, expected_digest)
+                if not changed:
+                    changed = True
+                    (skills_root / "code-review" / "SKILL.md").write_text(
+                        "concurrent change\n", encoding="utf-8"
+                    )
+
+            with (
+                mock.patch.object(
+                    installer, "fetch_pinned_source", return_value=sources
+                ),
+                mock.patch.object(installer, "PINNED_TREE_DIGESTS", source_digests),
+                mock.patch.object(
+                    installer.shutil, "which", return_value="/usr/bin/git"
+                ),
+                mock.patch.object(
+                    installer,
+                    "install_staged_skill",
+                    side_effect=mutate_current_target,
+                ),
+            ):
+                with self.assertRaisesRegex(
+                    installer.InstallError, "bundle verification failed"
+                ):
+                    installer.install(skills_root)
+
+            self.assertEqual(
+                (skills_root / "code-review" / "SKILL.md").read_text(encoding="utf-8"),
+                "concurrent change\n",
+            )
+
+    def test_child_created_after_reservation_is_preserved(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            sources = create_sources(root / "sources")
+            target = root / "skills" / "code-review"
+            target.parent.mkdir()
+            original = installer.copy_directory_contents
+
+            def create_racing_child(source: Path, destination: Path) -> None:
+                (destination / "SKILL.md").write_text(
+                    "other process\n", encoding="utf-8"
+                )
+                original(source, destination)
+
+            with mock.patch.object(
+                installer,
+                "copy_directory_contents",
+                side_effect=create_racing_child,
+            ):
+                with self.assertRaisesRegex(
+                    installer.InstallError, "remains for inspection"
+                ):
+                    installer.install_staged_skill(
+                        sources["code-review"],
+                        target,
+                        installer.tree_digest(sources["code-review"]),
+                    )
+
+            self.assertEqual(
+                (target / "SKILL.md").read_text(encoding="utf-8"),
                 "other process\n",
             )
 
@@ -256,7 +483,7 @@ class BundleInstallationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             sources = create_sources(root / "sources")
-            target = root / "skills" / "implement"
+            target = root / "skills" / "code-review"
             target.parent.mkdir()
 
             def fail_after_partial_copy(source: Path, destination: Path) -> None:
@@ -273,9 +500,9 @@ class BundleInstallationTests(unittest.TestCase):
                     installer.InstallError, "remains for inspection"
                 ):
                     installer.install_staged_skill(
-                        sources["implement"],
+                        sources["code-review"],
                         target,
-                        installer.tree_digest(sources["implement"]),
+                        installer.tree_digest(sources["code-review"]),
                     )
 
             self.assertEqual(
