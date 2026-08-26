@@ -4,6 +4,13 @@
 
 ## [Unreleased]
 
+### Changed
+
+- 统一主 Agent（Coordinator Agent）、执行 Agent 和审查 Agent 三种角色的命名、责任与实例边界，并将 Standards/Spec 明确为审查轴。
+- 正式返工后的 DAG Revision 以失败原因和 Structural Progress 为准入依据，识别 Equivalent Revision，并根据一个完整目标或多个独立可验收结果选择替换 Ticket 或子图。
+- DAG Revision 由交付契约和依赖证据触发，代码差异大小用于审查范围，新增公开验收入口用于完善 Ticket 契约；Split Independence Gate 支持原子验收目标的前置—消费者结构并确保父验收责任唯一归属。
+- 修图次数作为审计证据，授权条件追溯至用户指令或目标项目规范；`Stalled` 只在没有可执行节点、运行中 Agent、获授权的恢复方式和可行的结构进展路径时成立。
+
 ## [0.1.1] - 2026-08-25
 
 ### Changed

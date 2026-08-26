@@ -30,7 +30,7 @@ _Avoid_: prompt, step
 
 **Accepted Ticket**:
 A Ticket whose Final Artifact Identity is promoted to a DAG Milestone and whose verification, Formal Review, Finding Dispositions, tracker evidence, and required Remote Checkpoint agree.
-_Avoid_: worker-complete Ticket
+_Avoid_: implementation-complete Ticket
 
 **DAG Integration Branch**:
 The run-scoped Git branch that advances only to locally verified DAG Milestones and supplies accepted baselines for downstream Tickets.
@@ -46,7 +46,7 @@ _Avoid_: DAG Integration Branch, shared checkout
 
 **DAG Milestone**:
 The locally verified DAG Integration Branch tip produced by one Ticket or governed DAG Revision.
-_Avoid_: worker checkpoint, candidate commit
+_Avoid_: Execution Agent checkpoint, candidate commit
 
 **Remote Checkpoint**:
 Verified equality between a DAG Milestone and its selected remote DAG branch after authorized fast-forward publication.
@@ -61,7 +61,7 @@ The Tickets currently eligible for dispatch through accepted dependencies, clear
 _Avoid_: ready status
 
 **Continuous Scheduling**:
-The Coordinator's repeated live reconciliation, frontier calculation, dispatch, adjudication, integration, acceptance, and successor unlocking under DAG Run Authorization.
+The Coordinator Agent's repeated live reconciliation, frontier calculation, dispatch, adjudication, integration, acceptance, and successor unlocking under DAG Run Authorization.
 _Avoid_: background daemon
 
 **Safe Parallelism**:
@@ -70,7 +70,7 @@ _Avoid_: maximum fan-out
 
 **Complete**:
 The terminal outcome where every effective Ticket is Accepted and the Whole-DAG Acceptance Gate passes.
-_Avoid_: workers done
+_Avoid_: Agent work finished
 
 **Stalled**:
 The terminal outcome where effective Tickets remain unfinished, running Agent count is zero, the Runnable Frontier is empty, and no authorized recovery or graph transition can make progress.
@@ -81,7 +81,7 @@ The final verification of Approved Spec coverage, DAG Milestones, dependency con
 _Avoid_: final test
 
 **Formal Rework**:
-The single Coordinator-authorized second Ticket Attempt after accepting an in-scope blocking finding in a candidate that cleared the Implementation Handoff gate.
+The single second Ticket Attempt authorized by the Coordinator Agent after it accepts an in-scope blocking finding in a candidate that cleared the Implementation Handoff gate.
 _Avoid_: Operational Recovery
 
 **DAG Revision**:
@@ -89,15 +89,23 @@ An evidence-backed replacement or restructuring of part of an Approved DAG that 
 _Avoid_: retry, back edge
 
 **Structural Progress**:
-A DAG Revision's demonstrated reduction or clarification of remaining work through a smaller objective, a missing prerequisite, a corrected dependency, or an evidenced disposition.
+A DAG Revision's evidenced movement toward delivery through narrower acceptance ownership, a consumed prerequisite, an invariant assigned to its owning seam, a corrected dependency, or an evidenced disposition.
 _Avoid_: revision count, renamed retry
+
+**Equivalent Revision**:
+A proposed DAG Revision that reproduces a failed ancestor's effective delivery objective, acceptance ownership, hard dependencies, and owning seam under a new identity.
+_Avoid_: Structural Progress
+
+**Independent Acceptance**:
+A Ticket property where accepted hard-predecessor outputs plus the Ticket's own artifact and public seams suffice to decide its acceptance.
+_Avoid_: file split, implementation phase
 
 **Ticket Lineage**:
 The provenance chain connecting an original Ticket to every replacement Ticket or subgraph created through DAG Revision.
 _Avoid_: retry sequence
 
 **Superseded Ticket**:
-A historical Ticket retained as provenance after an approved replacement subgraph assumes its delivery role.
+A historical Ticket retained as provenance after an approved replacement Ticket or subgraph assumes its delivery role.
 _Avoid_: deleted Ticket
 
 **Tracker Contract**:
@@ -118,15 +126,17 @@ _Avoid_: local DAG operation
 
 ## Roles and evidence
 
+DAG coordination uses exactly three Agent roles: Coordinator Agent, Execution Agent, and Review Agent. Chinese documentation names them 主 Agent, 执行 Agent, and 审查 Agent; Ticket Worker Protocol and Worker Self-Check are Execution Agent workflows, while Standards and Spec are Review Agent review axes.
+
 **Agent Host**:
 The runtime environment that provides Skills, fresh role-isolated Agent contexts, observable execution, and governed Target Project access.
 _Avoid_: model
 
-**Coordinator**:
-The primary Agent accountable for live reconciliation, graph scheduling, evidence adjudication, integration, revision decisions, and final acceptance.
+**Coordinator Agent**:
+The single primary Agent in a DAG run, accountable for live reconciliation, graph scheduling, evidence adjudication, integration, revision decisions, and final acceptance.
 _Avoid_: implementer, reviewer
 
-**Execution Profile**:
+**Agent Profile**:
 The run-scoped assignment of an available Agent to a DAG role, including observable model, reasoning effort, tools, capabilities, and explicitly unknown metadata fields.
 _Avoid_: fixed default model
 
@@ -151,7 +161,7 @@ The pinned, complete set of model-invoked `code-review`, `tdd`, and `codebase-de
 _Avoid_: optional helpers
 
 **Ticket Worker Protocol**:
-The DAG-native contract that gives one fresh Execution Agent one Ticket, its fixed scope and public test seam, TDD implementation, independent pre-handoff review, finding closure, final-byte verification, candidate identity, and Implementation Handoff.
+The DAG-native contract that gives one fresh Execution Agent one Ticket, its fixed scope and public test seams, TDD implementation, independent pre-handoff review, finding closure, final-byte verification, candidate identity, and Implementation Handoff.
 _Avoid_: generic task prompt
 
 **Spec/Ticket Authoring Process**:
@@ -160,23 +170,23 @@ _Avoid_: Authoring Skill, DAG-native implementation
 
 **Execution Agent**:
 A fresh Agent assigned to advance exactly one Ticket through Worker Self-Check and return either an Implementation Handoff or an evidenced blocked result at a bounded checkpoint.
-_Avoid_: Coordinator
+_Avoid_: Coordinator Agent, Review Agent
 
 **Worker Self-Check**:
 The Execution Agent-owned, checkpoint-bounded pre-handoff loop that uses TDD, independent Standards and Spec review, finding repair, and final-byte verification to close one Ticket candidate before handoff.
 _Avoid_: Formal Review, self-approval
 
 **Implementation Handoff**:
-The evidence boundary where an Execution Agent returns its committed review and final candidates, raw Worker review reports, finding responses, repair closure, verification, profiles, deviations, and blockers to the Coordinator.
+The evidence boundary where an Execution Agent returns its committed review and final candidates, raw pre-handoff review reports, finding responses, repair closure, verification, profiles, deviations, and blockers to the Coordinator Agent.
 _Avoid_: Ticket acceptance
 
 **Review Sufficiency Gate**:
-The Coordinator's choice to adopt current Worker review evidence, supplement an identifiable gap with targeted review, or obtain complete fresh review for the Final Artifact Identity.
+The Coordinator Agent's choice to adopt current pre-handoff review evidence, supplement an identifiable gap with targeted review, or obtain complete fresh review for the Final Artifact Identity.
 _Avoid_: automatic duplicate review
 
 **Formal Review**:
-The Coordinator-approved body of independent Standards and Spec reports plus any verified post-review closure evidence for one Final Artifact Identity.
-_Avoid_: worker summary
+The body of independent Standards and Spec reports plus verified post-review closure evidence that the Coordinator Agent accepts for one Final Artifact Identity.
+_Avoid_: Execution Agent summary
 
 **Review Fixed Point**:
 The immutable DAG Integration Branch commit that bounds an aligned candidate's Formal Review and promotion.
@@ -187,15 +197,15 @@ The immutable aligned candidate commit or verifiable content snapshot that clear
 _Avoid_: latest files
 
 **Finding Disposition**:
-The Coordinator's evidence-backed classification of a review finding as blocking, graph-changing, advisory, false positive, or unresolved.
+The Coordinator Agent's evidence-backed classification of a review finding as blocking, graph-changing, advisory, false positive, or unresolved.
 _Avoid_: aggregate verdict
 
-**Standards / Spec Reviewers**:
-Independent Agents that evaluate one fixed Review Candidate or Final Artifact Identity against Target Project standards or the Approved Spec and Ticket acceptance criteria.
-_Avoid_: implementer
+**Review Agent**:
+An independent Agent that evaluates one fixed Review Candidate or Final Artifact Identity along the Standards axis, the Spec axis, or a defined targeted-review scope.
+_Avoid_: Coordinator Agent, Execution Agent, implementer
 
 **Normative Authority**:
-A live governing source that defines authorized scope, intended semantics, acceptance, or delivery behavior for an Approved DAG.
+A live governing source that defines authorized scope, intended semantics, acceptance, or delivery behavior for an Approved DAG; Agent-authored State Evidence can cite but cannot narrow it.
 _Avoid_: Agent report
 
 **State Evidence**:
@@ -204,4 +214,4 @@ _Avoid_: chat state
 
 **Recovery Evidence**:
 State Evidence sufficient to reconstruct a Ticket's identities, ownership, profiles, workspace, checkpoints, Formal Rework, operational causes and corrections, review, DAG Milestone, Remote Checkpoint, blockers, acceptance, and lineage across start, resume, or handoff.
-_Avoid_: Coordinator memory
+_Avoid_: Coordinator Agent memory
