@@ -4,8 +4,16 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-27
+
 ### Changed
 
+- Ticket 在 claim 前通过最小完整的 Ticket Execution Contract Gate，明确验收责任、直接依赖产物、交付产物、acceptance-to-probe 映射、scope 和最终门禁；状态变化、等价分类和禁止结果仅在适用且有权威来源时加入。
+- 初次实施和 Formal Rework 派发采用有限闭环：因果 TDD、最终门禁、一次完整只读 Worker review，以及最多一次即时修复和终止性的 Targeted Closure Review；首次探针已 GREEN 时按缺失行为、合同冲突或完整 baseline satisfaction 分流，零交付差异由 fresh Review Agents 直接完成 current-state review。
+- Blocked Handoff 只允许当前 Attempt 定点续派一次；续派消耗状态、来源候选和关闭条件可恢复，仍有效的审查证据被复用，完整或定向审查都直接形成终止 Handoff。
+- 主 Agent 在交接后采用 Worker review、补充 Targeted Formal Review 或取得完整 Formal Review；不同固定候选的只读审查可以并行，alignment、增量审查与裁决、promotion 和 Remote Checkpoint 保持串行。
+- Delivery-affecting Change 与 Evidence-only Change 使用不同验证范围；固定候选、相关输入、门禁定义、执行环境和覆盖范围保持有效时，纯证据提交和 byte-preserving alignment 在验证增量后保留现有交付门禁与审查证据。
+- 精简 Run Receipt 只索引当前里程碑和活动状态；pending Remote Checkpoint 阻止当前里程碑接受、依赖后继和下一次推广，同时允许图独立 Ticket 从最后已核验的 accepted tip 继续，并以 ref 相等终止仓库内 Accepted 状态所需的纯证据最终检查点。
 - 统一主 Agent（Coordinator Agent）、执行 Agent 和审查 Agent 三种角色的命名、责任与实例边界，并将 Standards/Spec 明确为审查轴。
 - 正式返工后的 DAG Revision 以失败原因和 Structural Progress 为准入依据，识别 Equivalent Revision，并根据一个完整目标或多个独立可验收结果选择替换 Ticket 或子图。
 - DAG Revision 由交付契约和依赖证据触发，代码差异大小用于审查范围，新增公开验收入口用于完善 Ticket 契约；Split Independence Gate 支持原子验收目标的前置—消费者结构并确保父验收责任唯一归属。
@@ -34,6 +42,7 @@
 - 提供固定 Skill Bundle 的 Python 3.12+ 安装器。
 - 提供项目使用指南、设计说明、领域词汇、可选宿主界面元数据和安装器回归测试。
 
-[Unreleased]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/RedHeartSecretMan/dag-skill/releases/tag/v0.1.0
