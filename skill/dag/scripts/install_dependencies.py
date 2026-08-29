@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install the pinned DAG Skill dependencies with conflict-safe preflight."""
+"""Install the optional pinned DAG supporting Skills with conflict-safe preflight."""
 
 from __future__ import annotations
 
@@ -15,9 +15,9 @@ from pathlib import Path, PurePath
 REPOSITORY = "https://github.com/mattpocock/skills.git"
 REVISION = "5b15a47f2d7150f545fbcacbfe381787fc0230dc"
 UPSTREAM_BUNDLE_ROOT = Path("skills/engineering")
-RUNTIME_SKILLS = ("code-review", "tdd", "codebase-design")
+OPTIONAL_ENGINEERING_SKILLS = ("code-review", "tdd", "codebase-design")
 SETUP_SKILL = "setup-matt-pocock-skills"
-SUPPORT_SKILLS = (*RUNTIME_SKILLS, SETUP_SKILL)
+SUPPORT_SKILLS = (*OPTIONAL_ENGINEERING_SKILLS, SETUP_SKILL)
 MINIMUM_PYTHON = (3, 12)
 GIT_TIMEOUT_SECONDS = 120
 SAFE_GIT_ENVIRONMENT = {
@@ -87,7 +87,7 @@ def run_git(arguments: list[str], cwd: Path) -> str:
     except subprocess.TimeoutExpired as error:
         operation = arguments[0] if arguments else "command"
         raise InstallError(
-            f"Git {operation} exceeded the {GIT_TIMEOUT_SECONDS}-second setup bound"
+            f"Git {operation} exceeded the {GIT_TIMEOUT_SECONDS}-second installation bound"
         ) from error
     if result.returncode != 0:
         detail = result.stderr.strip() or result.stdout.strip() or "unknown Git error"
@@ -252,7 +252,7 @@ def install(skills_root: Path) -> None:
     if conflicts:
         details = "\n".join(f"  - {conflict}" for conflict in conflicts)
         raise InstallError(
-            "Existing Skill targets were preserved; resolve these conflicts before setup:\n"
+            "Existing Skill targets were preserved; resolve these conflicts before installation:\n"
             + details
         )
 
@@ -263,9 +263,9 @@ def install(skills_root: Path) -> None:
         return
 
     if shutil.which("git") is None:
-        raise InstallError("Git is required to fetch the pinned dependency bundle")
+        raise InstallError("Git is required to fetch the pinned support bundle")
 
-    with tempfile.TemporaryDirectory(prefix="dag-skill-dependencies-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="dag-skill-support-") as temporary:
         workspace = Path(temporary)
         sources = fetch_pinned_source(workspace)
 
@@ -291,7 +291,7 @@ def install(skills_root: Path) -> None:
                 paths = ", ".join(str(path) for path in installed)
                 raise InstallError(
                     "Bundle installation stopped; verified targets remain at "
-                    f"{paths}. Resolve this condition and run setup again: {error}"
+                    f"{paths}. Resolve this condition and run the installer again: {error}"
                 ) from error
             raise
 
@@ -306,13 +306,16 @@ def install(skills_root: Path) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Install the DAG Skill's pinned dependencies into an explicit host Skills root."
+        description=(
+            "Install the DAG Skill's optional pinned supporting Skills into an "
+            "explicit host Skills root."
+        )
     )
     parser.add_argument(
         "--skills-root",
         required=True,
         type=Path,
-        help="stable host Skills root; dependencies are installed directly beneath it",
+        help="stable host Skills root; supporting Skills are installed directly beneath it",
     )
     arguments = parser.parse_args()
 

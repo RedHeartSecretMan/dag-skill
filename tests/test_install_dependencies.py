@@ -91,7 +91,7 @@ class GitIsolationTests(unittest.TestCase):
                 ["git", "fetch"], installer.GIT_TIMEOUT_SECONDS
             ),
         ):
-            with self.assertRaisesRegex(installer.InstallError, "setup bound"):
+            with self.assertRaisesRegex(installer.InstallError, "installation bound"):
                 installer.run_git(["fetch"], Path("/tmp"))
 
     def test_fetch_uses_an_explicit_empty_template_directory(self) -> None:
@@ -221,7 +221,7 @@ class PathSafetyTests(unittest.TestCase):
 
 
 class BundleContractTests(unittest.TestCase):
-    def test_bundle_matches_dependency_contract(self) -> None:
+    def test_bundle_matches_optional_support_contract(self) -> None:
         self.assertEqual(
             installer.SUPPORT_SKILLS,
             (
@@ -232,7 +232,7 @@ class BundleContractTests(unittest.TestCase):
             ),
         )
         self.assertEqual(
-            installer.RUNTIME_SKILLS,
+            installer.OPTIONAL_ENGINEERING_SKILLS,
             ("code-review", "tdd", "codebase-design"),
         )
         self.assertEqual(installer.SETUP_SKILL, "setup-matt-pocock-skills")

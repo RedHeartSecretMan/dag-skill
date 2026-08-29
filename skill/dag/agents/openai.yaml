@@ -1,4 +1,4 @@
 interface:
   display_name: "DAG"
-  short_description: "Coordinate an approved ticket dependency DAG"
-  default_prompt: "Use $dag to continuously advance this approved Spec-and-Ticket DAG from live project evidence."
+  short_description: "Coordinate an approved Git-backed ticket DAG"
+  default_prompt: "Use $dag to continuously advance this approved Git-backed Ticket DAG from live project evidence."

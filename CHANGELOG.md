@@ -4,6 +4,29 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-29
+
+### Changed
+
+- 将运行范围明确为 Git-backed Ticket DAG，与必需的 `code-review` fixed-point、非空 diff 和 commit-list 契约保持一致，不再声称存在未实现的 non-Git 推广路径。
+- 将运行模型收敛为 Coordinator Agent 与单票端到端 Execution Agent 两个 DAG 角色；`code-review` 的 Standards 和可用时的 Spec 审查上下文属于其内部实现，不再由主 Agent 派发或管理生命周期。
+- 将简单的单票实施行为直接固化为 Ticket 执行契约，移除 `$implement` 适配器及其等价 prompt 分支。
+- 单票实现、门禁、候选提交、双轴审查和批准范围内的 finding 修复由同一执行责任持续闭环；以关闭 finding、候选变化、门禁修复或新边界证据定义可观察进展，不再使用固定修复次数。
+- 执行 Agent 只返回 Ready for Acceptance、Needs Coordinator Decision 或 Externally Blocked；成功态同时覆盖已审查候选和由既有规则确定的完整 baseline-satisfaction 证据。
+- 候选审查记录显式绑定 Base、candidate commit/tree、评估范围和 `code-review` 的完整双轴结果；每个 finding 必须有证据化处置，仍成立的阻断 finding 不得推广。
+- Base drift 由主 Agent 显式签发最新 Accepted tip 作为新 Base；刷新后的候选必须从新 Base 派生并重新完成门禁和审查，推广采用 fast-forward-only 精确身份回读。
+- 零差异 Ticket 只有在目标项目已有 baseline-satisfaction 契约时才能 Accepted 或 Superseded，否则返回准确的 current-state audit 或验收决策需求。
+- 零差异验收在状态转移前串行回读 commit/tree 必须仍等于审计 Base；发生漂移时签发新 Base 并重跑空 diff、audit、门禁和所选发布模式检查。
+- 本地 integration branch 创建或恢复时固定 Local-only 或 Remote-mirrored；选择远端同步时一次确定 configured remote 与 branch，启动时用普通 `git push -u` 从本地 tip 创建或快进对齐远端分支并回读。
+- Remote-mirrored 的运行级授权覆盖该 integration branch 的创建、每个里程碑的普通 fast-forward push 和 SHA 回读；不逐票询问，也不扩展到 Ticket branch、`main`、PR、tag 或 release。
+- 每个非空候选先推广到本地 integration branch，再同步远端；push 失败时保留 `pending remote sync`，完成同步前不 Accepted、不解锁后继、不开始下一票。丢响应最多自动重发一次并在重发前持久关闭自动 push；非快进只报告并等待对账，不 force push、不自动换 ref，也不触发 DAG Revision。
+- DAG Milestone 明确定义为非空候选通过串行验收通道后形成的新 Accepted integration commit/tree；Ticket 候选、中间 commits、zero-diff Accepted 和 Superseded 都不产生新 Milestone。
+- 恢复时对存活状态不明的旧写入者保留 claim 和工作区，以具名 owner 和可观察 recheck event 建立关闭条件；未形成静止交接前不派发替代写入者。
+- 串行验收事务在入口最后核对图、候选证据和 Base，之后固定这些输入直至完成本地推广、所选远端同步和 Accepted；期间新到的图证据在事务后处理，不引入候选回滚或 force-push 分支。事务外替换已 claim Ticket 时，先确认写入者停止并保留证据，再原子记录 Superseded 与 close claim。
+- 未决的 Needs Coordinator Decision 明确阻止 Stalled；完成选择后若只剩不可用的外部条件，才转换为带 owner 和 closing event 的 Externally Blocked。
+- Run Receipt 必须保存在交付 ref 之外，避免验收记录制造未经候选审查的新提交或改变下一张票的 Base。
+- `code-review` 能力改为 Ticket 派发时检查；有 Spec 来源时创建独立 Spec 上下文，确认无 Spec 时记录 skip 而不误判为能力缺失。固定支持包安装器保留为可选兼容工具。
+
 ## [0.2.0] - 2026-08-27
 
 ### Changed
@@ -42,7 +65,8 @@
 - 提供固定 Skill Bundle 的 Python 3.12+ 安装器。
 - 提供项目使用指南、设计说明、领域词汇、可选宿主界面元数据和安装器回归测试。
 
-[Unreleased]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/RedHeartSecretMan/dag-skill/releases/tag/v0.1.0
