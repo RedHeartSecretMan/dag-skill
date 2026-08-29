@@ -6,6 +6,7 @@ import io
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path, PurePosixPath, PureWindowsPath
@@ -26,7 +27,7 @@ SPEC.loader.exec_module(installer)
 
 def create_sources(root: Path) -> dict[str, Path]:
     sources: dict[str, Path] = {}
-    for skill in installer.SUPPORT_SKILLS:
+    for skill in installer.AVAILABLE_SKILLS:
         source = root / skill
         source.mkdir(parents=True)
         for relative in installer.REQUIRED_FILES[skill]:
@@ -172,8 +173,8 @@ class GitIsolationTests(unittest.TestCase):
             ):
                 fetched = installer.fetch_pinned_source(workspace)
 
-            self.assertEqual(set(fetched), set(installer.SUPPORT_SKILLS))
-            for skill in installer.SUPPORT_SKILLS:
+            self.assertEqual(set(fetched), set(installer.RUNTIME_SKILLS))
+            for skill in installer.RUNTIME_SKILLS:
                 self.assertEqual(
                     installer.tree_digest(fetched[skill]), source_digests[skill]
                 )
@@ -221,9 +222,9 @@ class PathSafetyTests(unittest.TestCase):
 
 
 class BundleContractTests(unittest.TestCase):
-    def test_bundle_matches_optional_support_contract(self) -> None:
+    def test_bundle_matches_runtime_bootstrap_contract(self) -> None:
         self.assertEqual(
-            installer.SUPPORT_SKILLS,
+            installer.AVAILABLE_SKILLS,
             (
                 "code-review",
                 "tdd",
@@ -232,7 +233,7 @@ class BundleContractTests(unittest.TestCase):
             ),
         )
         self.assertEqual(
-            installer.OPTIONAL_ENGINEERING_SKILLS,
+            installer.RUNTIME_SKILLS,
             ("code-review", "tdd", "codebase-design"),
         )
         self.assertEqual(installer.SETUP_SKILL, "setup-matt-pocock-skills")
@@ -267,8 +268,55 @@ class BundleContractTests(unittest.TestCase):
         )
 
 
+class CommandLineTests(unittest.TestCase):
+    def test_main_installs_only_runtime_skills_by_default(self) -> None:
+        with (
+            mock.patch.object(
+                sys,
+                "argv",
+                [str(SCRIPT), "--skills-root", "/tmp/host-skills"],
+            ),
+            mock.patch.object(installer, "require_supported_python"),
+            mock.patch.object(installer, "install") as install,
+        ):
+            result = installer.main()
+
+        self.assertEqual(result, 0)
+        install.assert_called_once_with(
+            Path("/tmp/host-skills"), include_setup_helper=False
+        )
+
+    def test_main_passes_the_setup_helper_opt_in(self) -> None:
+        with (
+            mock.patch.object(
+                sys,
+                "argv",
+                [
+                    str(SCRIPT),
+                    "--skills-root",
+                    "/tmp/host-skills",
+                    "--include-setup-helper",
+                ],
+            ),
+            mock.patch.object(installer, "require_supported_python"),
+            mock.patch.object(installer, "install") as install,
+        ):
+            result = installer.main()
+
+        self.assertEqual(result, 0)
+        install.assert_called_once_with(
+            Path("/tmp/host-skills"), include_setup_helper=True
+        )
+
+
 class BundleInstallationTests(unittest.TestCase):
-    def run_install(self, sources: dict[str, Path], skills_root: Path) -> str:
+    def run_install(
+        self,
+        sources: dict[str, Path],
+        skills_root: Path,
+        *,
+        include_setup_helper: bool = False,
+    ) -> str:
         output = io.StringIO()
         source_digests = {
             skill: installer.tree_digest(source) for skill, source in sources.items()
@@ -279,7 +327,9 @@ class BundleInstallationTests(unittest.TestCase):
             mock.patch.object(installer.shutil, "which", return_value="/usr/bin/git"),
         ):
             with contextlib.redirect_stdout(output):
-                installer.install(skills_root)
+                installer.install(
+                    skills_root, include_setup_helper=include_setup_helper
+                )
         return output.getvalue()
 
     def test_complete_bundle_install_is_idempotent(self) -> None:
@@ -291,7 +341,7 @@ class BundleInstallationTests(unittest.TestCase):
             first = self.run_install(sources, skills_root)
             digests = {
                 skill: installer.tree_digest(skills_root / skill)
-                for skill in installer.SUPPORT_SKILLS
+                for skill in installer.RUNTIME_SKILLS
             }
             source_digests = {
                 skill: installer.tree_digest(source)
@@ -307,16 +357,57 @@ class BundleInstallationTests(unittest.TestCase):
                 installer.install(skills_root)
             second = output.getvalue()
 
-            self.assertIn("Installed pinned Matt Skill bundle", first)
+            self.assertIn("Installed pinned DAG Runtime Skill Bundle", first)
             self.assertIn("already current", second)
             fetch.assert_not_called()
-            for skill in installer.SUPPORT_SKILLS:
+            for skill in installer.RUNTIME_SKILLS:
                 self.assertEqual(
                     installer.tree_digest(skills_root / skill), digests[skill]
                 )
                 self.assertTrue(
                     (skills_root / skill / "agents" / "openai.yaml").is_file()
                 )
+
+    def test_default_install_only_installs_runtime_skills(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            sources = create_sources(root / "sources")
+            skills_root = root / "skills"
+
+            self.run_install(sources, skills_root)
+
+            for skill in installer.RUNTIME_SKILLS:
+                self.assertTrue((skills_root / skill / "SKILL.md").is_file())
+            self.assertFalse((skills_root / installer.SETUP_SKILL).exists())
+
+    def test_default_install_ignores_a_conflicting_setup_helper(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            sources = create_sources(root / "sources")
+            skills_root = root / "skills"
+            helper = skills_root / installer.SETUP_SKILL
+            helper.mkdir(parents=True)
+            local_content = helper / "SKILL.md"
+            local_content.write_text("local helper\n", encoding="utf-8")
+
+            self.run_install(sources, skills_root)
+
+            for skill in installer.RUNTIME_SKILLS:
+                self.assertTrue((skills_root / skill / "SKILL.md").is_file())
+            self.assertEqual(
+                local_content.read_text(encoding="utf-8"), "local helper\n"
+            )
+
+    def test_opt_in_install_includes_the_setup_helper(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            sources = create_sources(root / "sources")
+            skills_root = root / "skills"
+
+            self.run_install(sources, skills_root, include_setup_helper=True)
+
+            for skill in installer.AVAILABLE_SKILLS:
+                self.assertTrue((skills_root / skill / "SKILL.md").is_file())
 
     def test_conflict_preflight_preserves_all_targets(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

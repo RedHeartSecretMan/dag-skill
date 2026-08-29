@@ -4,6 +4,17 @@
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-08-29
+
+### Changed
+
+- 每次开始或恢复 DAG 时只检查一次 `tdd`、`codebase-design` 和 `code-review`；无法解析或固定身份不一致时默认运行安装器，让 Agent Host 重新加载 Skill 列表并确认三项都能解析，后续 Tickets 不再重复检查。
+- 安装器默认只处理三个 Runtime Skills，继续保留冲突预检和不覆盖保证；`setup-matt-pocock-skills` 改为仅通过 `--include-setup-helper` 显式安装。
+- DAG 不再解释 `$code-review` 内部如何发现 Spec 或组织审查，只保存它返回的完整结果并绑定 Base、candidate commit/tree 和评估范围。
+- 本地 DAG 集成分支改为不签出到 worktree 的 ref，推广使用 Base 到 Candidate 的原子比较更新；换 Agent 时必须先确认原 Agent 已停止，再交接原 Ticket、branch、worktree 和 WIP。
+- 远端模式在首张 Ticket 前一次确定；新映射只初始化一次，恢复已有映射先只读对账；里程碑同步改为比较 Candidate、上次同步 commit 与远端 SHA，不再保留重发计数或额外自动 push 状态。
+- README 改用启动、派票、验收和远端处理的直白流程说明。
+
 ## [0.3.0] - 2026-08-29
 
 ### Changed
@@ -65,7 +76,8 @@
 - 提供固定 Skill Bundle 的 Python 3.12+ 安装器。
 - 提供项目使用指南、设计说明、领域词汇、可选宿主界面元数据和安装器回归测试。
 
-[Unreleased]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.1.1...v0.2.0
 [0.1.1]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.1.0...v0.1.1

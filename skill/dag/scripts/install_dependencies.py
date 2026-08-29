@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install the optional pinned DAG supporting Skills with conflict-safe preflight."""
+"""Install pinned DAG Runtime Skills with conflict-safe preflight."""
 
 from __future__ import annotations
 
@@ -15,9 +15,9 @@ from pathlib import Path, PurePath
 REPOSITORY = "https://github.com/mattpocock/skills.git"
 REVISION = "5b15a47f2d7150f545fbcacbfe381787fc0230dc"
 UPSTREAM_BUNDLE_ROOT = Path("skills/engineering")
-OPTIONAL_ENGINEERING_SKILLS = ("code-review", "tdd", "codebase-design")
+RUNTIME_SKILLS = ("code-review", "tdd", "codebase-design")
 SETUP_SKILL = "setup-matt-pocock-skills"
-SUPPORT_SKILLS = (*OPTIONAL_ENGINEERING_SKILLS, SETUP_SKILL)
+AVAILABLE_SKILLS = (*RUNTIME_SKILLS, SETUP_SKILL)
 MINIMUM_PYTHON = (3, 12)
 GIT_TIMEOUT_SECONDS = 120
 SAFE_GIT_ENVIRONMENT = {
@@ -173,7 +173,9 @@ def install_staged_skill(staged: Path, target: Path, expected_digest: str) -> No
         ) from error
 
 
-def fetch_pinned_source(workspace: Path) -> dict[str, Path]:
+def fetch_pinned_source(
+    workspace: Path, skills: tuple[str, ...] = RUNTIME_SKILLS
+) -> dict[str, Path]:
     checkout = workspace / "checkout"
     templates = workspace / "empty-git-templates"
     checkout.mkdir()
@@ -192,7 +194,7 @@ def fetch_pinned_source(workspace: Path) -> dict[str, Path]:
         )
 
     sources: dict[str, Path] = {}
-    for skill in SUPPORT_SKILLS:
+    for skill in skills:
         source = checkout / UPSTREAM_BUNDLE_ROOT / skill
         missing = [
             name for name in REQUIRED_FILES[skill] if not (source / name).is_file()
@@ -212,13 +214,15 @@ def fetch_pinned_source(workspace: Path) -> dict[str, Path]:
     return sources
 
 
-def inspect_targets(skills_root: Path) -> tuple[list[str], list[str], list[str]]:
+def inspect_targets(
+    skills_root: Path, skills: tuple[str, ...] = RUNTIME_SKILLS
+) -> tuple[list[str], list[str], list[str]]:
     """Classify every pinned target from local content alone."""
 
     missing: list[str] = []
     current: list[str] = []
     conflicts: list[str] = []
-    for skill in SUPPORT_SKILLS:
+    for skill in skills:
         target = skills_root / skill
         if not target.exists() and not target.is_symlink():
             missing.append(skill)
@@ -231,24 +235,32 @@ def inspect_targets(skills_root: Path) -> tuple[list[str], list[str], list[str]]
     return missing, current, conflicts
 
 
-def verify_complete_bundle(skills_root: Path) -> None:
-    """Verify all final targets against the pinned tree identities."""
+def verify_complete_bundle(
+    skills_root: Path, skills: tuple[str, ...] = RUNTIME_SKILLS
+) -> None:
+    """Verify all selected targets against the pinned tree identities."""
 
-    missing, _, conflicts = inspect_targets(skills_root)
+    missing, _, conflicts = inspect_targets(skills_root, skills)
     problems = [*(f"{skill}: target is missing" for skill in missing), *conflicts]
     if problems:
         details = "\n".join(f"  - {problem}" for problem in problems)
-        raise InstallError("Pinned Matt Skill bundle verification failed:\n" + details)
+        raise InstallError("Pinned Skill bundle verification failed:\n" + details)
 
 
-def install(skills_root: Path) -> None:
+def install(skills_root: Path, *, include_setup_helper: bool = False) -> None:
     skills_root = skills_root.expanduser().resolve(strict=False)
+    selected_skills = AVAILABLE_SKILLS if include_setup_helper else RUNTIME_SKILLS
+    bundle_name = (
+        "DAG Runtime Skills and setup helper"
+        if include_setup_helper
+        else "DAG Runtime Skill Bundle"
+    )
     if is_filesystem_root(skills_root):
         raise InstallError("Skills root must be a directory below the filesystem root")
     if skills_root.exists() and not skills_root.is_dir():
         raise InstallError(f"Skills root is not a directory: {skills_root}")
 
-    missing, current, conflicts = inspect_targets(skills_root)
+    missing, current, conflicts = inspect_targets(skills_root, selected_skills)
     if conflicts:
         details = "\n".join(f"  - {conflict}" for conflict in conflicts)
         raise InstallError(
@@ -257,17 +269,17 @@ def install(skills_root: Path) -> None:
         )
 
     if not missing:
-        verify_complete_bundle(skills_root)
-        print(f"Pinned Matt Skill bundle is already current at {skills_root}")
+        verify_complete_bundle(skills_root, selected_skills)
+        print(f"Pinned {bundle_name} is already current at {skills_root}")
         print(f"Revision: {REVISION}")
         return
 
     if shutil.which("git") is None:
-        raise InstallError("Git is required to fetch the pinned support bundle")
+        raise InstallError("Git is required to fetch the pinned Skill sources")
 
-    with tempfile.TemporaryDirectory(prefix="dag-skill-support-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="dag-skill-install-") as temporary:
         workspace = Path(temporary)
-        sources = fetch_pinned_source(workspace)
+        sources = fetch_pinned_source(workspace, selected_skills)
 
         skills_root.mkdir(parents=True, exist_ok=True)
         staging = workspace / "stage"
@@ -295,9 +307,9 @@ def install(skills_root: Path) -> None:
                 ) from error
             raise
 
-        verify_complete_bundle(skills_root)
+        verify_complete_bundle(skills_root, selected_skills)
 
-    print(f"Installed pinned Matt Skill bundle at {skills_root}")
+    print(f"Installed pinned {bundle_name} at {skills_root}")
     print(f"Revision: {REVISION}")
     print(f"Installed: {', '.join(missing)}")
     if current:
@@ -307,21 +319,29 @@ def install(skills_root: Path) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Install the DAG Skill's optional pinned supporting Skills into an "
-            "explicit host Skills root."
+            "Install the DAG Skill's pinned Runtime Skills into an explicit host "
+            "Skills root."
         )
     )
     parser.add_argument(
         "--skills-root",
         required=True,
         type=Path,
-        help="stable host Skills root; supporting Skills are installed directly beneath it",
+        help="stable host Skills root; selected Skills are installed directly beneath it",
+    )
+    parser.add_argument(
+        "--include-setup-helper",
+        action="store_true",
+        help="also install the optional setup-matt-pocock-skills helper",
     )
     arguments = parser.parse_args()
 
     try:
         require_supported_python(sys.version_info[:2])
-        install(arguments.skills_root)
+        install(
+            arguments.skills_root,
+            include_setup_helper=arguments.include_setup_helper,
+        )
     except (InstallError, OSError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1

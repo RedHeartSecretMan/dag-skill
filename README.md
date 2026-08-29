@@ -1,108 +1,144 @@
 # DAG Skill
 
-`dag-skill` 用来推进 Git-backed 目标项目中已经批准的多 Ticket 依赖图。它把调度保持得很薄：主 Agent 只处理图、授权、验收和集成；一张票内部的实现、测试、审查和 finding 修复由同一个执行责任闭环完成。
+`dag-skill` 用来推进 Git 项目中已经批准的多 Ticket 依赖图。主 Agent 负责看清现场、按依赖派票、验收结果并更新 DAG 集成分支；执行 Agent 一次只负责一张 Ticket，完成实现、测试、审查和 finding 修复。
 
 可复制的 Skill 位于 [`skill/dag/`](./skill/dag/)：
 
-- [`SKILL.md`](./skill/dag/SKILL.md) 是唯一的规范性运行契约；
-- [`CONTEXT.md`](./CONTEXT.md) 定义跨项目使用的正式术语；
-- [`docs/DESIGN.md`](./docs/DESIGN.md) 只解释设计取舍和不变量；
-- [`scripts/install_dependencies.py`](./skill/dag/scripts/install_dependencies.py) 是兼容保留的可选支持 Skill 安装器，不是开跑门禁。
+- [`SKILL.md`](./skill/dag/SKILL.md) 是运行规范；
+- [`CONTEXT.md`](./CONTEXT.md) 定义共用术语；
+- [`docs/DESIGN.md`](./docs/DESIGN.md) 解释设计理由和异常处理；
+- [`install_dependencies.py`](./skill/dag/scripts/install_dependencies.py) 安装缺失的 Runtime Skills。
 
-## 稳定推进路径
+它只执行已经批准的 DAG，不替代目标项目编写 Spec 或 Ticket。
 
-```mermaid
-flowchart TD
-    A["主 Agent：重建现场并创建或恢复本地 integration branch"] --> A1{"Integration Publication Mode"}
-    A1 -->|Local-only| B["从 live evidence 计算 Runnable Frontier"]
-    A1 -->|Remote-mirrored| A2["初始化或恢复远端对应分支并回读"]
-    A2 --> B
-    B --> B1["原子 claim：Ticket + Base + 独立工作区 + 一个写入者"]
-    B1 --> C["执行 Agent：实现、测试、final gates、提交候选"]
-    C --> D{"$code-review 找到 Spec 来源？"}
-    D -->|有| D1["独立 Standards + Spec 审查"]
-    D -->|确认无| D2["独立 Standards + no-Spec 记录"]
-    D1 --> E{"仍有可信的票内 finding？"}
-    D2 --> E
-    E -->|有| C
-    E -->|无| F["Ready for Acceptance"]
-    F --> G["主 Agent：核验候选身份和证据"]
-    G --> J["本地 integration ref fast-forward 到候选并回读"]
-    J --> H{"Integration Publication Mode"}
-    H -->|Remote-mirrored| I["普通 fast-forward push 并回读远端"]
-    H -->|Local-only| K["Accepted、关闭 claim、解锁后继"]
-    I --> K
-```
+## 开始 DAG 时做什么
 
-默认串行推进；只有硬依赖和写入边界都独立时才并行。所有推广仍经过一条串行集成通道。
+每次开始或恢复 DAG，主 Agent 按下面的顺序处理：
 
-本地 integration branch 创建或恢复时固定一次发布模式。选择 Remote-mirrored 时，同时选择一个已配置的 remote 和对应 branch；默认使用本地 integration branch 的同名远端分支。启动时执行一次普通 `git push -u`：远端分支不存在就创建，落后就快进，已经一致就确认 upstream；随后回读必须等于本地 tip。这个运行级选择同时授权后续每个里程碑对同一分支执行普通 fast-forward push 和 SHA 回读，不再逐票询问。只同步 integration branch，不自动发布 Ticket 分支、`main`、PR、tag 或 release。
+1. 只读检查目标项目当前的指令、Spec、Tickets、依赖、tracker、Git 状态、branches、worktrees、测试和已有证据。
+2. 检查 `tdd`、`codebase-design` 和 `code-review` 是否能从当前 Agent Host 解析，并且内容是否与 DAG 固定的版本一致。
+3. 如果有缺失或内容不匹配，运行安装器检查全部三项：预检没有冲突才补齐缺失项；预检发现任何已有目标冲突就不开始写入，原样保留并报告。安装成功后，让 Agent Host 重新加载 Skill 列表，确认三项 Skill 都能解析再继续。
+4. 创建或恢复一个本地 DAG 集成分支。这个分支只作为 Git ref 保存已验收结果，不签出到 worktree。
+5. 在派发首张 Ticket 前确定是否同步远端；首次使用一个远端映射时完成初始化和 SHA 回读，恢复已有映射时只读对账，不重复初始化。
+6. 计算当前可以执行的 Ticket，然后进入下面的 DAG 推进循环。
 
-Ticket 是验收工作单元，DAG Milestone 是它被接受后留下的 Git 集成状态。一个非空候选先 fast-forward 到本地 integration branch；Remote-mirrored 再同步到选定远端分支并回读。全部检查完成后，该 commit/tree 才成为新的 Milestone 和后继 Ticket Base。Ticket 分支候选、中间 commits、Zero-diff Accepted 和 Superseded 都不产生新 Milestone。
+Runtime Skills 只在这次启动或恢复时检查一次，不逐 Ticket 检查。DAG 已开始后，执行 Agent 正常调用需要的 Skill；如果运行环境中途发生变化，就按普通工具失败处理。
 
-Remote-mirrored 的恢复只有一个目标：让选定远端分支等于已经本地推广的候选。进程在 push 前中断、push 失败或响应丢失时，候选保持 `pending remote sync`，Ticket 不 Accepted、后继不解锁、下一张票不 claim。恢复时先回读：已经相等就直接完成验收；尚未发送就发送；响应丢失且仍未同步就重发一次；非快进就报告双方身份并等待对账；其他明确错误先修正原因。丢响应重发前先在 Run Receipt 关闭该 Candidate 的自动 push。只要远端仍不是 Candidate 且标记缺失、已关闭或不确定，就不再自动 push，立即记录 owner 与可观察的 recheck 条件；纠因重试同错也如此。始终使用同一条普通 fast-forward push，不 force push、不自动换分支，也不触发 DAG Revision。
+### 依赖未准备好时
 
-## 责任边界
-
-| 角色 | 负责 | 不负责 |
-| --- | --- | --- |
-| **Coordinator Agent** | live DAG、frontier、claim、Base/工作区分配、图与授权决策、推广、Accepted、后继解锁 | Ticket 实现、finding 修复、重复工程审查 |
-| **Execution Agent** | 一张 Ticket 的实现、TDD、门禁、提交、调用 `$code-review`、关闭票内 findings | 修改 DAG、写集成分支、标记 Accepted、远端发布、其他 Ticket |
-
-`$code-review` 创建的 Standards 及有权威来源时的 Spec 审查上下文是它的内部实现，不是第三种 DAG 角色。确认不存在 Spec 来源时，采用该 Skill 的 no-Spec 记录，而不是把票误判为缺少能力。DAG 保存的是一条候选审查记录：Base、候选 commit/tree、评估范围以及完整审查结果。审查文本本身不需要重复编码这些身份。
-
-执行 Agent 最终只通过三个接口结果与主 Agent 交互：
-
-| 结果 | 用途 |
-| --- | --- |
-| **Ready for Acceptance** | 已审查候选可精确推广，或已有规则明确接受完整的 baseline-satisfaction 证据 |
-| **Needs Coordinator Decision** | 需要一个依赖、验收归属、产品语义、scope、图或授权选择 |
-| **Externally Blocked** | 选择已经确定，但凭据、服务、硬件、宿主能力或授权条件尚未满足 |
-
-普通缺陷、测试失败、审查 finding、命令修正和多轮候选都留在同一 Ticket 执行闭环。没有固定修复次数；每一轮必须关闭 finding、针对具名 finding 或失败探针改变候选、修复必需门禁，或把剩余问题归结为一个具名决策/外部关闭条件。完全没有可观察进展时立即返回对应结果，不空转。
-
-## 关键推进规则
-
-| 情况 | 处理方式 |
-| --- | --- |
-| 并行推广使 Base 过期 | 主 Agent 显式签发等于最新 Accepted tip 的新 Base；原执行责任在原工作区刷新候选、门禁和完整审查。旧证据保留但不再用于推广 |
-| Ticket Base 已满足该票且 diff 为空 | 已有规则且证据完整时返回 Ready for Acceptance；转移前串行回读 commit/tree 和所选发布模式仍与审计 Base 一致，否则按漂移或远端分歧分别处理 |
-| 存在 remote，但发布模式尚未选择 | 在首张票 claim 前选择 Local-only 或 Remote-mirrored；remote 的存在本身不授权 push |
-| 没有 remote，但项目要求远端同步 | 等待配置并选择一个 remote/branch 后再派票 |
-| Remote-mirrored 初始化 | 普通 `git push -u` 创建或快进对齐远端 branch，回读等于本地 tip 后开始派票 |
-| 初始化 push 非快进或回读不一致 | 报告本地和远端 SHA，等待对账或选择新 branch；不 force push |
-| 里程碑 push 失败或响应丢失 | 保留本地候选为 pending remote sync；回读并完成同步后才 Accepted 和继续下一票 |
-| 里程碑 push 被非快进拒绝 | 报告双方 SHA，等待明确处理；不自动换 ref，也不触发 DAG Revision |
-| 恢复时无法确认旧写入者是否仍存活 | 保留 claim 和工作区，通过恢复联系、确认停止或获授权的宿主终止建立静止边界；在此之前只推进图独立工作，不从沉默推断死亡 |
-
-推广只接受从记录 Base 到已审查候选的 fast-forward。主 Agent 在推广前再次核对 Accepted tip、候选祖先关系、commit/tree、diff、final-byte gates、全部 finding 的证据化处置和候选审查记录；推广后回读精确身份并关闭 claim。任何对交付字节的修改都必须形成新候选并重新审查。
-
-Run Receipt 必须位于交付历史之外，例如目标项目 Tracker、独立 coordination ref/worktree 或明确的本地元数据位置。它不能通过“记录验收”再次改变刚完成审查和推广的 artifact identity。
-
-## 图变化和终态
-
-DAG Revision 只由真实图条件触发：缺失前置、错误依赖、验收义务分配给了错误 Ticket，或多个可独立验收的交付结果。候选数、审查数、diff 大小或工具错误本身不能触发修图。进入串行验收事务前，主 Agent 最后核对图、候选证据和 Base；进入后保持这些输入不变，完成本地推广、所选远端同步和 Accepted，再立即处理期间新到的图证据。其他已 claim Ticket 若需替换，则先确认原写入者停止并保留 worktree/WIP，再原子记录 Superseded 与 close claim，之后才能派发替代票。
-
-- **Complete**：所有有效 Ticket 都已 Accepted，被 Superseded 的票已妥善归属其验收义务，没有 active claim，且整图门禁、依赖消费和所选发布模式一致；Remote-mirrored 还要求本地 tip 与远端回读完全相等。
-- **Stalled**：写入者状态已查清、没有未决的 Needs Coordinator Decision，且未完成工作没有运行中 Agent、Runnable Ticket、获授权恢复、图修正、独立工作或当前可满足的外部关闭条件。待选择的问题保持 decision-needed，不伪装成 Stalled。
-
-## 授权
-
-执行 DAG 通常包含本地 claim、隔离工作区、派发、票内编辑、测试、提交、本地推广和本地证据。选择 Remote-mirrored 时，用户一次授权选定 integration ref 在本次运行中的创建、逐里程碑 fast-forward push 和回读，不再逐里程碑询问。其他 push、远端 Tracker/PR、tag、release、部署、远端 CI、外部写入、破坏性 Git、产品语义或验收变化仍需分别授权。
-
-## 可选安装器
-
-用户单独授权时，兼容安装器可以安装固定版本的 `tdd`、`code-review`、`codebase-design` 和 `setup-matt-pocock-skills`：
+主 Agent 默认在创建 DAG 分支和派票之前运行：
 
 ```bash
 python3 /path/to/dag/scripts/install_dependencies.py \
   --skills-root /path/to/agent-host/skills
 ```
 
-安装器要求 Python 3.12+，保留冲突预检和内容校验。运行 DAG 仍以当前宿主真正可用的目标项目工具和 `$code-review` 能力为准。
+安装器需要 Python 3.12+。它先检查全部 Runtime Skills；预检没有冲突才获取固定 revision、复用内容完全一致的目录、创建缺失目录，并在结束前校验安装结果。已有目标如果版本不同、内容不完整、是普通文件或符号链接，安装器不会开始写入，会原样保留并报告冲突。安装期间如果遇到并发占用、复制或校验失败，已经完成的目录和已经预留的现场也会保留供检查，不会被自动删除或覆盖。
+
+默认只检查和安装这三个 Runtime Skills：
+
+- `tdd`
+- `codebase-design`
+- `code-review`
+
+`setup-matt-pocock-skills` 是可选的项目配置工具，不是 DAG 的运行依赖，默认不会安装。只有目标项目确实需要使用它时，才显式安装；安装后不会自动运行，执行前需用户明确授权。
+
+## DAG 怎么推进
+
+```mermaid
+flowchart TD
+    A["回读当前 DAG、Git、worktrees 和证据"] --> B["启动时检查 Runtime Skills"]
+    B --> C{"依赖都已准备好？"}
+    C -->|否| C1["安装缺失项并让 Host 重新加载 Skill 列表"]
+    C1 --> C2{"三项 Skill 都能解析？"}
+    C2 -->|否| Z["不派票，报告需要解决的问题"]
+    C2 -->|是| D["准备本地 DAG 集成 ref 和远端模式"]
+    C -->|是| D
+    D --> E["选择可执行 Ticket"]
+    E --> F["创建 Ticket branch 和 worktree，并为该 Ticket 指派唯一的写入 Agent"]
+    F --> F1{"需要设计接口、模块边界或测试 seam？"}
+    F1 -->|是| F2["执行 Agent：使用 $codebase-design"]
+    F1 -->|否| G["执行 Agent：通过 $tdd 实现要求并验证行为，完成 final gates 并提交固定候选"]
+    F2 --> G
+    G --> H["执行 Agent：调用 $code-review 审查固定候选"]
+    H --> I{"存在需要处理的票内 finding？"}
+    I -->|有| I1["执行 Agent：修复 finding、验证并提交新候选"]
+    I1 --> H
+    I -->|无| J["主 Agent 核对 Base、候选、门禁和审查证据"]
+    J --> K["本地 DAG 集成 ref 精确快进并回读"]
+    K --> L{"需要远端镜像？"}
+    L -->|否| M["Accepted，关闭 claim，解锁后继"]
+    L -->|是| L1["同步远端并确认 SHA 相同"]
+    L1 --> M
+    M --> N["回读 live DAG 并重算可执行 Ticket"]
+    N --> E
+```
+
+默认一次推进一张 Ticket。只有 Ticket 之间没有硬依赖，而且写入范围确实独立时才并行；验收和集成始终串行。
+
+执行 Agent 只返回三种结果：
+
+| 结果                           | 直白含义                                                         |
+| ------------------------------ | ---------------------------------------------------------------- |
+| `Ready for Acceptance`       | 候选和证据已经齐全，主 Agent 可以按既有规则验收                  |
+| `Needs Coordinator Decision` | 还缺一个依赖、范围、产品含义、图结构、验收或授权决定             |
+| `Externally Blocked`         | 决定已经明确，但凭据、服务、硬件、宿主能力或已有授权条件尚未满足 |
+
+普通代码问题、失败测试、审查 finding、候选轮次和 diff 大小都由同一个执行 Agent 在当前 Ticket 内闭环处理，不会触发拆票或调整 DAG。
+
+只有现场证据证明 DAG 边界有误，才进入 DAG 修订。需要新建、替换或调整 Ticket 时，按目标项目已有规则处理；规则或授权不明确时，先请求决定。
+
+## 几条必须守住的规则
+
+- Ticket 的 Base、最终 candidate commit/tree、diff、final gates 和 `$code-review` 结果必须指向同一份代码。
+- 如果其他 Ticket 先被接受，导致 Base 过期，主 Agent 把最新 Accepted tip 作为新 Base 交回原 Ticket；执行 Agent 刷新候选、门禁和审查。
+- 本地 DAG 集成分支不签出到 worktree。主 Agent 只把它从准确的 Base 原子快进到准确的 Candidate，并回读 commit/tree；不会在审查后再 merge 或改写交付字节。
+- 如果 Base 已经满足 Ticket 且 diff 为空，只有目标项目已有明确的 baseline-satisfaction 规则并且证据完整时才能验收；否则请求决定，不制造空提交，也不对空 diff 调用 `$code-review`。
+- 一张 Ticket 同时只能有一个写入 Agent。如果需要换 Agent，先确认原 Agent 已停止，再把原 Ticket、branch、worktree 和 WIP 交给新 Agent 继续。
+- Run Receipt 保存在交付历史之外，只记录 Accepted tip、claims、Base/Candidate/Workspace、远端状态、结果和待解决条件；不能为了记一次验收而改变已审查的代码身份。
+
+## 远端怎么处理
+
+远端只镜像 DAG 集成分支；Ticket branches、`main`、PR、tag 和 release 都不会因此自动发布。
+
+主 Agent 在派发首张 Ticket 前一次处理好发布模式：
+
+| 当前情况                                             | 处理方式                                                                               |
+| ---------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| 目标项目或 Run Receipt 已记录模式                    | 继续使用原模式                                                                         |
+| 用户明确要求同步，且只有一个明确的 remote            | 选择 `Remote-mirrored`，不再重复询问                                                 |
+| 用户说“有 remote 就同步”                            | 恰好一个 remote 时同步；没有 remote 时使用 `Local-only`；多个 remote 时只问一次选哪个 |
+| 用户明确要求同步，但 remote 或 branch 有多个合理选择 | 只问一次缺少的选择                                                                     |
+| 已配置 remote，但用户和项目都没说是否同步            | 只问一次选择 `Local-only` 还是 `Remote-mirrored`                                     |
+| 没有 remote，也没有同步要求                          | 直接使用 `Local-only`，不询问地址                                                    |
+| 必须同步，但还没有 remote                            | 只问一次 remote 名称、URL 和执行`git remote add` 的授权；配置并初始化完成后才派票    |
+
+`Remote-mirrored` 默认使用与本地 DAG 集成分支同名的专用远端分支。写 `main`、默认分支或受保护分支需要单独明确授权；如果该分支只允许走 PR，DAG 会在派票前停下说明原因，不会擅自改成 PR 流程。
+
+只有当前运行第一次选择某个远端映射，而且现场和恢复记录都能证明它从未初始化时，主 Agent 才用普通 `git push -u` 创建或快进远端集成分支，然后读取完整远端 ref。不能只因为记录里缺少字段就把旧映射当成新映射。只有远端 SHA 与本地 tip 完全相同，才把它记为上次同步 commit 并开始派票。
+
+恢复已有映射时不再运行初始化 push。没有待同步 Candidate 时，本地 Accepted tip 和远端 SHA 都必须等于记录的上次同步 commit；有待同步 Candidate 时，直接使用下面的对账规则。远端 ref 消失、SHA 不同或记录不完整都先停止并报告，不会用初始化流程自动修复。
+
+后续每个候选先更新本地 DAG 集成 ref，再按下面的规则同步：
+
+1. 先读远端 ref；已经等于 Candidate 就直接完成。
+2. 远端仍等于上次同步的 commit，才执行普通 fast-forward push，再读一次。
+3. 远端 ref 消失或变成其他 SHA，视为远端漂移；不 push，报告三方身份并等待对账。
+4. push 或读取失败时保留 `pending remote sync`；恢复时重新从“先读远端 ref”开始。
+
+远端没有确认到 Candidate 前，这张 Ticket 不会 Accepted，不会解锁后继，也不会开始下一张 Ticket 或推广另一个候选。整个流程不用 force push，不自动换 branch。
+
+## 授权与结束条件
+
+一次 DAG 执行授权通常覆盖：安全补齐缺失 Runtime Skills、本地 claim、创建隔离 worktree、派发 Agent、票内编辑和测试、候选提交、本地集成与本地验收证据。
+
+替换已有 Skill、安装或运行可选的项目配置工具、执行 `git remote add`、写默认或受保护分支、其他 push、远端 tracker/PR、tag、release、部署、远端 CI、外部写入、破坏性 Git、修改产品含义或放宽门禁，都需要对应的明确授权。
+
+- `Complete`：所有有效 Ticket 都已 Accepted，被替换 Ticket 的验收责任已有归属，没有活动 claim，整图门禁和依赖消费一致；如果选择远端镜像，远端 SHA 也必须等于本地 Accepted tip。
+- `Stalled`：所有写入者状态都已查清，没有等待回答的决定，而且未完成工作确实没有运行中 Agent、可执行 Ticket、获授权恢复、图修正、独立工作或当前可满足的外部条件。
 
 ## 调用示例
 
 - “使用 dag Skill 执行 Spec 0008 已批准的 Ticket DAG。”
-- “继续推进这个 DAG；每张票由一个执行 Agent 闭环处理审查 finding。”
+- “继续推进这个 DAG；缺失的运行依赖按默认流程安装。”
 - “从最新的 Ticket、Git、worktree 和测试证据恢复 DAG。”

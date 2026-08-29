@@ -44,33 +44,33 @@ _Avoid_: implementer, duplicate reviewer
 The Agent responsible for one Ticket through implementation, verification, review finding closure, and one stable Execution Outcome.
 _Avoid_: Ticket scheduler, acceptance authority
 
+**Runtime Skill Bundle**:
+The pinned `tdd`, `codebase-design`, and `code-review` capabilities checked once at each DAG start or resume and installed when missing before the first claim.
+_Avoid_: file presence alone, per-Ticket checking or installation, automatic project configuration
+
 **Ticket Base**:
 The Accepted Git commit against which one Promotion Candidate is built and evaluated; it stays fixed for that candidate.
 _Avoid_: moving branch name, latest review summary
 
 **DAG Integration Branch**:
-The run-scoped local Git branch that serializes reviewed candidates into the Accepted delivery baseline from which Tickets start and successors unlock.
-_Avoid_: Ticket branch, default branch, scheduler database
+The run-scoped local Git branch, kept as a ref that is not checked out in any worktree, that serializes reviewed candidates into the Accepted delivery baseline from which Tickets start and successors unlock.
+_Avoid_: checked-out integration worktree, Ticket branch, default branch, scheduler database
 
 **DAG Milestone**:
 The exact commit and tree established as the new Accepted DAG Integration Branch tip after one non-empty Promotion Candidate clears the serialized acceptance lane.
 _Avoid_: Ticket-branch candidate, intermediate commit, zero-diff acceptance
 
 **Integration Publication Mode**:
-The run-level choice made when the DAG Integration Branch is created or resumed: Local-only, or Remote-mirrored to one selected remote integration branch synchronized before each new milestone is Accepted.
+The run-level choice resolved before the first Ticket claim: Local-only, or Remote-mirrored to one selected remote integration branch synchronized before each new milestone is Accepted.
 _Avoid_: incidental remote configuration, per-Ticket push choice
 
 **Promotion Candidate**:
 A fixed Git commit and tree whose delivery bytes, required gates, and Candidate Review Record agree.
 _Avoid_: working tree, latest files
 
-**Two-axis Review**:
-Independent Standards evidence plus either independent Spec evidence or a confirmed no-Spec record for one fixed Promotion Candidate.
-_Avoid_: scheduling role, self-review
-
 **Candidate Review Record**:
-Evidence that binds one Ticket Base, one Promotion Candidate identity, the evaluated range, and the complete Two-axis Review result.
-_Avoid_: unbound review text, reviewer identity
+Evidence that binds one Ticket Base, one Promotion Candidate identity, the evaluated range, and the complete result returned by `$code-review`.
+_Avoid_: a DAG-defined review process, unbound review text, reviewer identity
 
 **Execution Outcome**:
 One of three reports from an Execution Agent: Ready for Acceptance, Needs Coordinator Decision, or Externally Blocked.

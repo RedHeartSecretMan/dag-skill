@@ -14,7 +14,8 @@ Use two DAG roles:
 ```text
 Coordinator Agent
 `-- Execution Agent for one Ticket
-    `-- $code-review (internal Standards and available Spec review contexts)
+    |-- $tdd and $codebase-design when applicable
+    `-- $code-review
 ```
 
 - The **Coordinator Agent** owns live reconciliation, the Runnable Frontier, claims, Base and workspace assignment, graph and authority decisions, promotion, acceptance, and successor unlocking.
@@ -22,7 +23,7 @@ Coordinator Agent
 
 The Coordinator does not take over implementation or repeat an equivalent engineering review after handoff. The Execution Agent does not alter the DAG integration branch, accept a Ticket, unlock successors, write remote state, or work on another Ticket.
 
-The independent Standards context and, when an authoritative Spec source exists, Spec context created by `$code-review` are internal to that Skill, not DAG roles. When no Spec source exists and that absence is confirmed, `$code-review` records the skipped Spec axis instead of creating a Spec sub-agent. The Execution Agent invokes and consumes `$code-review`; the DAG retains the resulting candidate-bound review record.
+`$code-review` owns its review process. The Execution Agent invokes it and handles its findings; the DAG only binds the complete result to the reviewed candidate.
 
 ## Reconstruct the live run
 
@@ -31,17 +32,36 @@ Before scheduling:
 1. Resolve the Target Project, effective Approved DAG, in-scope Tickets, dependency carrier, any governing Spec, and the user's authority to execute or continue. Ask only when ambiguity would change scope, product meaning, dependencies, acceptance, or authority.
 2. Reread the live instruction hierarchy, domain and engineering documents, Tickets, tracker state, repository status, branches and worktrees, tests, and existing acceptance or review evidence. Preserve unrelated work and existing Ticket workspaces.
 3. Reconstruct the effective graph. An edge `prerequisite -> dependent` is hard only when the dependent consumes an Accepted output from the prerequisite. Validate unique Ticket identities, hard predecessors, acyclicity, blockers, and acceptance evidence.
-4. Resolve the delivery Git repository and create or resume one run-scoped local DAG integration branch. Before the first claim, establish its Integration Publication Mode under the rules below. Reconcile existing Ticket workspaces and WIP; create or resume an isolated Ticket worktree only when claiming that Ticket.
-5. Before claim, verify that the selected Execution Agent can use the Target Project's required tools and invoke `$code-review` with its project prerequisites, independent Standards context, and Spec-source discovery. An available Spec source receives an independent Spec context; confirmed absence follows `$code-review`'s no-Spec path and is not a capability failure. If invocation itself is unavailable, leave the Ticket unclaimed and record the unavailable capability, owner, and observable closing condition. A pinned bundle identity, installer, model metadata field, or unused optional Skill is not a global scheduling gate.
-6. Treat exact model, Agent, reasoning, and tool requirements stated by the user or Target Project as constraints. Otherwise choose a capable available Agent without adding a profile-approval ceremony.
+4. Treat exact model, Agent, reasoning, and tool requirements stated by the user or Target Project as constraints. Otherwise choose a capable available Agent without adding a profile-approval ceremony.
+5. Resolve the active Agent Host and prepare the Runtime Skill Bundle under the rules below. Complete this host check before changing Git refs.
+6. Create or resume one run-scoped local DAG integration branch as a ref that is not checked out in any worktree, then establish its Integration Publication Mode before the first claim. Each claimed Ticket receives its own branch and worktree. If the integration branch is already checked out, do not claim or promote work until that worktree is reconciled; never move its ref behind the checked-out branch.
 
-Use the Target Project's tracker or an off-delivery coordination store as the recovery store. Keep a compact Run Receipt containing the accepted integration tip; Integration Publication Mode; the local integration ref; the selected remote name, full remote branch ref, and last synchronized commit when applicable; claims; active Ticket/Base/Candidate/Workspace identities; any pending remote synchronization and its Candidate-bound automatic-push-closed marker; execution outcomes; and unresolved decisions or external closing conditions. For an in-flight promotion, persist its exact Base and Candidate before updating the integration ref, then record the verified local and remote identities. Link reports instead of copying them. Never commit the receipt to a Ticket candidate or the integration delivery history, or otherwise let it change an Accepted artifact identity. If the Target Project requires an in-history acceptance record, hold promotion until that project defines its distinct reviewed checkpoint and downstream Base contract.
+Use the Target Project's tracker or an off-delivery coordination store as the recovery store. Keep a compact Run Receipt containing the accepted integration tip; the verified Runtime Skill Bundle host, Skills root, revision, and tree identities; Integration Publication Mode; the local integration ref; the selected remote name, full remote branch ref, and last synchronized commit when applicable; claims; active Ticket/Base/Candidate/Workspace identities; any pending remote synchronization; execution outcomes; and unresolved decisions or external closing conditions. For an in-flight promotion, persist its exact Base and Candidate before updating the integration ref, then record the verified local and remote identities. Link reports instead of copying them. Never commit the receipt to a Ticket candidate or the integration delivery history, or otherwise let it change an Accepted artifact identity. If the Target Project requires an in-history acceptance record, hold promotion until that project defines its distinct reviewed checkpoint and downstream Base contract.
+
+## Bootstrap the Runtime Skill Bundle
+
+The Runtime Skill Bundle contains `code-review`, `tdd`, and `codebase-design` from the revision pinned by `scripts/install_dependencies.py`. On each DAG start or resume, resolve the active Agent Host and stable Skills root, then check once that all three Skills resolve through that Host and that their entrypoints, referenced resources, revision, and tree identities match. Do not run a review or other real Skill workflow as a startup probe.
+
+If any bundle member cannot be resolved through the active Agent Host or does not match its pinned identity during bootstrap, run the bundled installer by default before the first Ticket claim:
+
+```bash
+python3 <dag-skill-root>/scripts/install_dependencies.py \
+  --skills-root <resolved-host-skills-root>
+```
+
+Resolve the stable host Skills root from host configuration or an already resolved sibling Skill. Do not guess a location. The DAG execution request authorizes this conflict-safe creation of missing pinned Skill directories; satisfy any host-enforced filesystem or network approval at the tool boundary. Installer preflight classifies every target as current, missing, or conflicting. It may reuse exact pinned copies and create missing directories, but it preserves and reports every unreadable, incomplete, differently versioned, or otherwise conflicting existing target instead of updating or overwriting it.
+
+After the installer succeeds, make the Agent Host reload its Skill list and confirm that all three Runtime Skills resolve. A successful file copy alone is not readiness. If the Host requires a reload or new task, leave Tickets unclaimed and report that requirement. Do the same when Python 3.12+, Git/network access, the Skills root, write permission, or a conflict prevents installation.
+
+Once the startup check succeeds, every Ticket in that run uses the verified bundle without another dependency preflight. A later DAG start or resume repeats the one startup check. Execution Agents invoke Skills normally when needed; ordinary tool-failure handling applies if the Host changes during a run.
+
+The optional `setup-matt-pocock-skills` helper is not part of the Runtime Skill Bundle. Install it only with `--include-setup-helper`, and invoke it only when the Target Project needs that setup and the user authorizes the configuration change.
 
 ## Stay within authority
 
-DAG execution authorization normally covers locally auditable work needed for the approved graph: local claims, isolated workspaces, Agent dispatch, ticket-scoped edits, tests, commits, local promotion, acceptance evidence, and successor unlocking.
+DAG execution authorization normally covers locally auditable work needed for the approved graph: conflict-safe bootstrap of missing Runtime Skill Bundle directories in the resolved host Skills root, local claims, isolated workspaces, Agent dispatch, ticket-scoped edits, tests, commits, local promotion, acceptance evidence, and successor unlocking. It does not cover replacing an existing Skill or automatically changing Target Project configuration.
 
-Selecting Remote-mirrored mode must explicitly include run-scoped authority to create and fast-forward one integration branch on one selected Git remote, and to read that branch back after each milestone push. That one selection covers those updates for the run; do not request per-milestone approval. Obtain separate authority for every other push, remote tracker write, pull request, tag, release, deployment, state-changing remote CI, external API or database write, destructive Git action, approved product or acceptance change, and gate weakening.
+Selecting Remote-mirrored mode must explicitly include run-scoped authority to create and fast-forward one integration branch on one selected Git remote, and to read that branch back after each milestone push. An explicit user or Target Project instruction to mirror or push that branch supplies this authority to the extent it names an unambiguous remote and ref; do not ask again at each milestone. Obtain separate authority for `git remote add`, for writing a default or protected branch, and for every other push, remote tracker write, pull request, tag, release, deployment, state-changing remote CI, external API or database write, destructive Git action, approved product or acceptance change, and gate weakening.
 
 ## Choose one integration publication mode
 
@@ -52,9 +72,19 @@ Create or resume the local integration branch with exactly one run-level mode:
 
 A **DAG Milestone** is the exact commit and tree established at the local integration tip when one non-empty Promotion Candidate clears the serialized acceptance lane. Once its Ticket is Accepted, that milestone is the Accepted integration tip and Ticket Base for later claims. A Ticket-branch candidate, its intermediate commits, a Baseline Satisfaction transition that leaves the integration tip unchanged, and a Superseded transition are not new DAG Milestones.
 
-Use a mode already fixed by the Target Project or recoverable Run Receipt. Otherwise, before the first Ticket claim, ask once for Local-only or Remote-mirrored and, for Remote-mirrored, the configured remote and remote branch. If no remote is configured, use Local-only unless remote synchronization is required; when it is required, wait for one configured remote to be selected. Record the choice in the Run Receipt and keep it unchanged for the run.
+Use a mode already fixed by the Target Project or recoverable Run Receipt. Otherwise resolve it once before the first Ticket claim:
 
-Initialize Remote-mirrored mode by running ordinary `git push -u <remote> <local-integration-branch>:<remote-branch>` from the current local integration tip, then query that remote and full branch ref for its exact SHA. This creates an absent branch, fast-forwards a branch that is behind, or confirms an already aligned branch. Initialization succeeds only when the remote SHA equals the local tip. If the ordinary push is rejected or the SHAs differ, stop before claiming a Ticket and report both identities so the user or Target Project can reconcile them or select another branch. Do not force-push or switch refs automatically.
+- An explicit instruction to mirror or push the DAG integration branch selects Remote-mirrored. An instruction such as “if a remote exists, synchronize it” selects Remote-mirrored when exactly one configured remote exists, selects Local-only when none exists, and requires one remote selection when several exist; it does not authorize inventing or adding a remote.
+- If no remote is configured and synchronization is not required, select Local-only without asking.
+- If configured remotes exist but neither the user nor the Target Project has chosen local-only or synchronization, ask once whether to use Local-only or Remote-mirrored. Ask for the remote or branch in the same decision only when more than one choice is plausible.
+- If synchronization is required but no remote is configured, ask once for the remote name and URL and for authority to run `git remote add`. Configure and initialize it before claiming a Ticket. Never invent a URL.
+- If synchronization is required and the configured remote or branch is ambiguous, ask once for the missing selection.
+
+Use a dedicated remote integration branch. Do not select the remote's default branch, `main`, or another protected branch unless the user or Target Project names it and separately authorizes that write. If the selected branch permits only a pull request or rejects direct fast-forward updates, stop before the first claim and report the constraint; do not substitute a pull-request workflow. Record the resolved mode and mapping in the Run Receipt and keep them unchanged for the run.
+
+Only when the current run selects a Remote-mirrored mapping for the first time and live recovery evidence shows that mapping has never been initialized, initialize it by running ordinary `git push -u <remote> <local-integration-ref>:<remote-integration-ref>` from the current local integration tip, then query that remote and full branch ref for its exact SHA. This creates an absent branch, fast-forwards a branch that is behind, or confirms an already aligned branch. Initialization succeeds only when the remote SHA equals the local tip; record that SHA as the last synchronized commit. If the ordinary push is rejected or the SHAs differ, stop before claiming a Ticket and report both identities so the user or Target Project can reconcile them or select another dedicated branch. Do not infer a new mapping merely from a missing receipt field. Do not force-push, switch refs automatically, or fall back to a pull request.
+
+When resuming a mapping that already has a last synchronized commit, never run initialization again. Query the selected remote ref before claiming work. If there is a pending Candidate, reconcile it with the five-step algorithm below. Otherwise require both the local Accepted integration tip and the remote SHA to equal the recorded last synchronized commit. An absent ref, a different SHA, or an incomplete receipt is drift or unresolved recovery state: do not push, and wait for explicit reconciliation.
 
 Only the integration branch is mirrored. Ticket branches and worktrees remain local unless separately authorized for another purpose. Changing the mode or its ref mapping later is an explicit run-level authority and reconciliation decision made before further claims or promotions.
 
@@ -92,7 +122,7 @@ It returns one of three outcomes.
 
 Identify exactly one evidence path:
 
-- **Promotion Candidate**: Ticket and Base commit identities; final candidate commit and tree; exact diff command and commit list; changed scope and files; focused and final gates; the complete `$code-review` result with Standards findings plus either Spec findings or an explicit confirmed no-Spec record, all in a record that binds the Base, candidate, tree, and evaluated range; and an evidence-backed disposition for every finding.
+- **Promotion Candidate**: Ticket and Base commit identities; final candidate commit and tree; exact diff command and commit list; changed scope and files; focused and final gates; the complete `$code-review` result exactly as returned, wrapped by a record that binds the Base, candidate, tree, and evaluated range; and an evidence-backed disposition for every finding.
 - **Baseline Satisfaction**: Ticket, Base commit, and tree identities; a clean empty delivery diff; focused and final gates; the existing Target Project rule that recognizes baseline satisfaction; complete evidence required by that rule; and whether the rule yields Accepted or Superseded.
 
 For either path, include remaining risks and omitted verification. Return this outcome only when the named acceptance path is fully evidenced without a new product, scope, graph, or authority choice.
@@ -119,7 +149,7 @@ After returning an outcome, the Execution Agent stops writing to the Ticket work
 Within the Ticket workspace, the Execution Agent:
 
 1. Rereads the live Ticket, Accepted inputs, project instructions, current branch, and existing WIP before editing. It preserves valid work already present.
-2. Implements and verifies the Ticket. It uses causal RED-to-GREEN evidence for changed behavior where applicable, focused checks while iterating, and project-required final gates before review.
+2. Implements and verifies the Ticket. It invokes `$tdd` for changed behavior and uses causal RED-to-GREEN evidence where applicable. It invokes `$codebase-design` when the Ticket requires an interface, module-boundary, seam, or testability decision. It runs focused checks while iterating and project-required final gates before review.
 3. For a non-empty delivery diff, commits a clean candidate that descends from the fixed Base, records its Base, commit, tree, exact diff command, and commit list, and invokes `$code-review` for that range. It stores the complete result beside those identities. Any later delivery edit creates a new candidate and invalidates the prior review for promotion.
 4. Fixes every supported in-scope blocking finding, reruns affected checks and all invalidated final gates, commits a new candidate, and invokes `$code-review` again. It may dismiss a finding only with concrete Target Project, Spec, test, or code evidence recorded in its disposition.
 5. Continues when a completed cycle has an observable change: it closes a finding, changes the candidate to address a named finding or failed acceptance probe, makes a required failing check pass, or produces new evidence that maps the remaining issue to a named decision or external closing condition. If a cycle changes none of these, it returns the applicable outcome with the evidence already obtained.
@@ -136,7 +166,7 @@ If the Ticket Base already satisfies the Ticket, the workspace is clean, and the
 
 Return `Ready for Acceptance` through the Baseline Satisfaction path only when an existing Ticket or Target Project rule explicitly recognizes that result and every required audit and gate is present. Otherwise return `Needs Coordinator Decision` with the exact missing rule, current-state audit, or acceptance choice. Do not create an empty commit or treat a non-existent diff as a `$code-review` candidate.
 
-For an evidence-complete Baseline Satisfaction outcome, the Coordinator locks the acceptance lane and rereads the current Accepted integration commit and tree. They must still equal the audited Base identities. In Remote-mirrored mode, the Coordinator also reads the selected remote branch and requires it to equal the same Base because the integration tip will not move. On a local mismatch, do not transition: preserve the identities, assign the current Accepted tip as the new Ticket Base, and return the same worktree to the same Ticket execution ownership to refresh its audit and gates. If the local Base is unchanged but the remote branch differs or cannot be read, leave the Ticket unaccepted and report the synchronization failure; do not turn it into a DAG Revision.
+For an evidence-complete Baseline Satisfaction outcome, the Coordinator locks the acceptance lane and rereads the current Accepted integration commit and tree. They must still equal the audited Base identities. In Remote-mirrored mode, the Coordinator also reads the selected remote branch and requires it to equal the same Base because the integration tip will not move. On a local mismatch, do not transition: preserve the identities, assign the current Accepted tip as the new Ticket Base, and return the same worktree to the same Ticket execution ownership to refresh its audit and gates. If the local Base is unchanged but the remote branch differs or cannot be read, leave the Ticket unaccepted and report the synchronization failure.
 
 When those identities agree, verify the named rule and evidence. If the rule yields Accepted, record acceptance and close the claim in the off-delivery recovery store, confirm the required output is available, unlock successors, and recompute the frontier without moving the integration tip. If it yields Superseded, record that transition and close the claim in the same store, then recompute the effective graph; unlock work only from its effective Accepted dependencies. Do not use Superseded as proof that a missing output exists.
 
@@ -148,7 +178,7 @@ For `Ready for Acceptance` through the Promotion Candidate path, the Coordinator
 - the candidate descends from that Base and the recorded range resolves to the candidate's exact commit and tree;
 - the candidate workspace is clean and the diff is within the approved Ticket scope;
 - required gates are current for the candidate's final bytes;
-- the review record binds the complete Standards result and either the Spec result or confirmed no-Spec record to that Base, candidate, tree, and range;
+- the review record binds the complete `$code-review` result exactly as returned to that Base, candidate, tree, and range;
 - every review finding and declared omission has an evidence-backed disposition, and no supported blocking finding remains.
 
 Do not reinterpret the implementation or repeat equivalent review. Return missing or inconsistent evidence to the same Ticket execution ownership with one precise condition.
@@ -161,13 +191,21 @@ If another acceptance changed the integration tip, or live recovery proves the a
 
 Lock the acceptance lane and reread the integration tip, effective graph, and candidate evidence immediately before promotion. The tip must still equal the exact Base, and the Ticket must still be acceptable under that graph and evidence. Once these checks pass, hold the graph and acceptance lane unchanged through local promotion, any required remote synchronization, and the Accepted transition. Record graph evidence that arrives later and process it immediately after this transaction; do not revise the in-flight Ticket.
 
-Persist the in-flight Base and Candidate, then advance the local integration ref from the exact Base to the exact Candidate with a fast-forward-only compare-and-swap. Read back its commit and tree; if the ref has a worktree, verify that it is clean and at the same identity. Never merge, recreate, or amend delivery bytes after review.
+Persist the in-flight Base and Candidate, verify once more that the Candidate descends from the Base, then advance the full local integration ref from the exact Base to the exact Candidate with an atomic compare-and-swap such as `git update-ref <integration-ref> <Candidate> <Base>`. Read back its commit and tree. The integration ref must not be checked out in a worktree; if it is, stop and reconcile instead of updating it. Never merge, recreate, or amend delivery bytes after review.
 
-In Remote-mirrored mode, mark the Candidate as pending remote synchronization with automatic push still open, push the local integration branch to the selected remote branch with an ordinary fast-forward push, then query that remote and full branch ref for its exact SHA. Only a remote SHA equal to the Candidate completes synchronization. Do not use force push.
+In Remote-mirrored mode, record the Candidate as pending remote synchronization, then reconcile the selected remote integration ref using the algorithm below. Only a remote SHA equal to the Candidate completes synchronization. Do not use force push.
 
 Only after every check required by the selected Integration Publication Mode agrees, record the Ticket as Accepted in the off-delivery recovery store; the exact Candidate is now the DAG Milestone and Accepted integration tip. Record the last synchronized commit when applicable, close the claim, unlock successors, and recompute the frontier.
 
-If the run stops before the Remote-mirrored push, the push fails, its response is lost, or the run resumes with pending synchronization, keep the local Candidate and do not accept the Ticket, unlock successors, claim the next Ticket, or promote another Candidate. Read the selected remote branch; if it equals the Candidate, finish acceptance without another push. Perform another automatic push only when the Candidate-bound automatic-push-closed marker is explicitly open: send an original push known not to have started; before one repeat after a lost response, persist the marker as closed; after any explicit error other than non-fast-forward, correct that cause before retrying. Always use the same ordinary fast-forward push and read the remote branch again afterward. If Git reported non-fast-forward, report the exact local and remote identities and wait for reconciliation. Whenever the remote SHA is not the Candidate and the marker is missing, closed, or uncertain, issue no automatic push and immediately record the responsible owner and observable event for a new read or explicit decision. Do the same when an explicit error cannot be corrected now or a corrected retry returns the same error. Never force-push or switch to another ref automatically. A synchronization failure is not a DAG Revision.
+If the run stops before synchronization, a push or read fails, its response is lost, or the run resumes with pending synchronization, keep the local Candidate and do not accept the Ticket, unlock successors, claim the next Ticket, or promote another Candidate. Reconcile as follows:
+
+1. Query the selected remote and full integration ref.
+2. If its SHA equals the Candidate, synchronization is complete; finish acceptance without pushing.
+3. If its SHA equals the recorded last synchronized commit, send the same ordinary fast-forward push from the local integration ref to the selected remote ref, then query again. Only a readback equal to the Candidate succeeds.
+4. If the remote ref is absent or has any other SHA, treat it as remote drift. Report the local Candidate, last synchronized commit, and observed remote identity; do not push until the user or Target Project reconciles the mapping.
+5. If a push or read fails, preserve pending synchronization and the exact error. On resume, start again at step 1. This safely resolves both an unsent push and a lost response without a retry counter or extra push state.
+
+Never force-push or switch to another ref automatically.
 
 ## Escalate only boundary changes
 
@@ -175,9 +213,9 @@ Keep implementation defects, tests, review findings, probes, command corrections
 
 The Coordinator handles a missing or unaccepted predecessor output, an incorrect dependency, an Acceptance Obligation assigned to the wrong Ticket, work that belongs to another Ticket, a required change to approved semantics or gates, an authority decision, an external scheduling or promotion condition, or a cross-Ticket contract conflict exposed by integration.
 
-Revise the DAG only when live evidence establishes a graph condition: a missing prerequisite, invalid edge, an Acceptance Obligation assigned to the wrong Ticket, or multiple independently acceptable delivery results. Follow the Target Project's authoring process, preserve replaced Tickets as provenance, map every unresolved acceptance obligation to an effective Ticket, and revalidate identities, acyclicity, and hard dependencies.
+Revise the DAG only when live evidence establishes a graph condition: a missing prerequisite, invalid edge, an Acceptance Obligation assigned to the wrong Ticket, or multiple independently acceptable delivery results. When Tickets must be created, replaced, or changed, apply the Target Project's existing rules; if those rules or the authority to use them are unclear, request a decision. Preserve replaced Tickets as provenance, map every unresolved acceptance obligation to an effective Ticket, and revalidate identities, acyclicity, and hard dependencies.
 
-This graph-replacement rule applies only before a Ticket enters the locked acceptance transaction. A Candidate pending remote synchronization stays assigned to its original Ticket until synchronization and acceptance finish. Then recompute the graph with any evidence queued during the transaction. The remote failure itself cannot revise or replace that Ticket.
+This graph-replacement rule applies only before a Ticket enters the locked acceptance transaction. A Candidate pending remote synchronization stays assigned to its original Ticket until synchronization and acceptance finish. Then recompute the graph with any evidence queued during the transaction.
 
 When a revision removes any other claimed Ticket, first establish that its writer has stopped and its worktree is quiescent. Preserve its worktree, candidate, review, and outcome evidence; then atomically record the Ticket as Superseded and close its claim in the off-delivery recovery store before dispatching any replacement Ticket. If the writer is still live or uncertain, use the recovery boundary below and do not start a replacement writer.
 
@@ -187,7 +225,7 @@ On resume, reread the tracker, repository, refs, workspaces, candidate and revie
 
 If writer liveness is uncertain, preserve the claim and workspace and do not dispatch. The Coordinator must establish one observable boundary: resume/contact the existing task, obtain an acknowledged stop, or use an authorized host-level termination and then verify the workspace is quiescent. Until then, record the liveness owner and recheck event as an external closing condition and continue only graph-independent work. Never infer writer death from silence or elapsed time.
 
-After a verified stop, resume the existing workspace and evidence with one writer. A replacement Execution Agent receives an explicit handoff and must reread the live state; it does not reset or recreate WIP.
+After a verified stop, resume the existing workspace and evidence with one writer. If the Agent must change, first confirm that the original Agent has stopped, then hand the original Ticket, branch, worktree, and WIP to the replacement Agent. The replacement rereads the live state and continues it without resetting or recreating WIP.
 
 Report **Complete** only when every effective Ticket is Accepted, every Superseded Ticket's acceptance obligation is accounted for, no active claim remains, whole-DAG gates and dependency consumption agree, and the selected Integration Publication Mode is satisfied. In Remote-mirrored mode, the local integration tip and readback of the selected remote branch must agree.
 
