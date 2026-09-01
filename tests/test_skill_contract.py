@@ -111,6 +111,37 @@ class SkillContractTests(unittest.TestCase):
         self.assertNotIn("首次 acceptance 前且无 pending", context)
         self.assertNotIn("pending Integration Transition 不会提前改变它", context)
 
+    def test_readme_single_ticket_sequence_preserves_acceptance_order(self) -> None:
+        readme = README.read_text(encoding="utf-8")
+
+        self.assertIn("sequenceDiagram", readme)
+        self.assertIn("以零历史或最小历史派发固定 Ticket contract", readme)
+        self.assertIn("重新执行 candidate-bound review", readme)
+        ticket_loop = readme.index("单票执行默认在 Ticket 内闭环")
+        outcomes = readme.index("| `Ready for Acceptance`")
+        handoff_ownership = readme.index("交接结果，不是 Ticket 状态")
+        sequence = readme.index("sequenceDiagram")
+        self.assertLess(ticket_loop, outcomes)
+        self.assertLess(outcomes, handoff_ownership)
+        self.assertLess(handoff_ownership, sequence)
+        sequence_intro = readme[handoff_ownership:sequence]
+        self.assertIn("`Ready for Acceptance`", sequence_intro)
+        self.assertIn("`Promotion Candidate`", sequence_intro)
+        self.assertIn(
+            "`Promotion Candidate` 或 `Baseline Satisfaction` 的证据已完整",
+            readme,
+        )
+        self.assertIn("只有 `Coordinator Agent` 负责记录验收和图状态变更", readme)
+        self.assertIn(
+            "才由 `Coordinator Agent` 按 `Target Project` 的规则发起 `DAG Revision`",
+            readme,
+        )
+        local_cas = readme.index("C->>I: 原子 CAS 推进 integration ref")
+        remote_readback = readme.index("M-->>C: 回读精确 candidate SHA")
+        accepted = readme.index("C->>C: 记录 Accepted Ticket、关闭 claim")
+        self.assertLess(local_cas, remote_readback)
+        self.assertLess(remote_readback, accepted)
+
 
 if __name__ == "__main__":
     unittest.main()

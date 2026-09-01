@@ -54,15 +54,64 @@ flowchart TD
 
 ### 逐票推进
 
-`Execution Agent` 只返回三种 `Execution Outcome`：
+单票执行默认在 Ticket 内闭环：普通代码缺陷、失败测试、审查 finding 和 `Promotion Candidate` 迭代，均由同一 `Execution Agent` 持续处理。只有现场证据表明需要改变有效 Ticket、`Hard Dependency` 或 `Acceptance Obligation` 时，才由 `Coordinator Agent` 按 `Target Project` 的规则发起 `DAG Revision`。
 
-| Execution Outcome | 含义 |
-| --- | --- |
-| `Ready for Acceptance` | 既有规则已经决定成功路径，只剩 `Coordinator Agent` 的验收或集成动作 |
-| `Needs Coordinator Decision` | 还缺 `Hard Dependency`、范围、产品含义、图结构、验收或授权决定 |
-| `Externally Blocked` | 决定已经明确，但凭据、服务、硬件或宿主能力尚未满足 |
+当 Ticket 工作可以稳定交接时，`Execution Agent` 只返回以下三种 `Execution Outcome` 之一：
 
-普通代码缺陷、失败测试、审查 finding 和 `Promotion Candidate` 轮次始终由同一 `Execution Agent` 在 Ticket 内闭环。只有现场证据要求改变 Ticket、`Hard Dependency` 或 `Acceptance Obligation` 时，才进入 `DAG Revision`。
+| Execution Outcome              | 含义                                                                                                                                                               |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `Ready for Acceptance`       | `Promotion Candidate` 或 `Baseline Satisfaction` 的证据已完整，无需新的产品、范围、图结构或授权选择；只剩 `Coordinator Agent` 核验并执行适用的验收或集成动作 |
+| `Needs Coordinator Decision` | Ticket 内无法确定`Hard Dependency`、验收责任、产品语义、范围、图结构或授权，需要 `Coordinator Agent` 或用户作出决定                                            |
+| `Externally Blocked`         | 所需决定已经明确，但仍缺少继续执行所需的外部条件，例如凭据、服务、硬件、`Agent Host` 能力或已要求的授权                                                          |
+
+这些 `Execution Outcome` 是 `Execution Agent` 与 `Coordinator Agent` 之间的交接结果，不是 Ticket 状态；只有 `Coordinator Agent` 负责记录验收和图状态变更。其中 `Ready for Acceptance` 的 `Promotion Candidate` 路径时序：
+
+```mermaid
+sequenceDiagram
+    participant C as Coordinator Agent
+    participant E as Execution Agent / Ticket-02
+    participant R as code-review
+    participant I as DAG Integration Branch
+    participant M as Remote integration ref
+
+    C->>C: 核对 Ticket-02 的依赖、Ticket Base 和 Runnable Frontier
+    C->>C: 创建 branch/worktree 并记录 claim
+    C->>E: 以零历史或最小历史派发固定 Ticket contract
+
+    E->>E: 回读 Ticket、Spec、Accepted inputs、worktree 和 WIP
+    E->>E: 通过 tdd 实现并完成 final gates
+    E->>E: 提交固定 Promotion Candidate
+    E->>R: 对 Base...candidate 调用 code-review
+    R-->>E: 返回 Standards/Spec findings
+
+    loop 仍有成立的 Ticket 内 finding
+        E->>E: 修复并重跑受影响门禁
+        E->>E: 提交新的固定 candidate
+        E->>R: 重新执行 candidate-bound review
+        R-->>E: 返回新的 Standards/Spec findings
+    end
+
+    E-->>C: 返回 Ready for Acceptance 和 Candidate Review Record
+    C->>C: 回读当前 Accepted Integration Tip
+
+    opt Ticket Base 已过期
+        C-->>E: 分配新的 Ticket Base，返回同一 workspace
+        E->>E: 重新应用改动、运行门禁并重复 candidate/review 闭环
+        E-->>C: 返回刷新后的 Ready for Acceptance
+    end
+
+    C->>C: 核对 Base、candidate、tree、gates 和 findings
+    C->>I: 原子 CAS 推进 integration ref
+    I-->>C: 回读 candidate commit/tree
+
+    opt Remote-mirrored
+        C->>M: fast-forward selected remote ref
+        M-->>C: 回读精确 candidate SHA
+    end
+
+    C->>C: 记录 Accepted Ticket、关闭 claim
+    C->>C: 解锁后继并重算 Runnable Frontier
+```
 
 ## 核心契约
 

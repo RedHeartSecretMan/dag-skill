@@ -4,6 +4,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- README 的逐票推进章节先明确 Ticket 内闭环与 DAG Revision 边界，再定义三种稳定 Execution Outcomes 及状态所有权，并以 sequence diagram 展示 Promotion Candidate 的单票上下文、candidate-bound review、本地 CAS 和 Remote-mirrored 回读时序。
+
 ## [0.4.0] - 2026-09-01
 
 ### Added
