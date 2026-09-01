@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.12"
+          - "3.14"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install validation tools
+        run: python -m pip install --disable-pip-version-check ruff==0.16.4 rumdl==0.2.62
+
+      - name: Run unit and contract tests
+        env:
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: python -m unittest discover -s tests -p 'test_*.py' -v
+
+      - name: Check Python
+        run: |
+          ruff check .
+          ruff format --check .
+
+      - name: Check Markdown
+        run: >-
+          rumdl check --disable MD013
+          README.md CHANGELOG.md CONTEXT.md docs/DESIGN.md
+          skill/dag/SKILL.md
+          skill/dag/references/definition-binding.md
+          skill/dag/references/integration-transitions.md
+
+      - name: Check command interfaces
+        run: |
+          python skill/dag/scripts/install_runtime_skills.py --help
+          python skill/dag/scripts/validate_definition_index.py --help

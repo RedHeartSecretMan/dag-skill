@@ -17,9 +17,9 @@ SCRIPT = (
     / "skill"
     / "dag"
     / "scripts"
-    / "install_dependencies.py"
+    / "install_runtime_skills.py"
 )
-SPEC = importlib.util.spec_from_file_location("dag_install_dependencies", SCRIPT)
+SPEC = importlib.util.spec_from_file_location("dag_install_runtime_skills", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None
 installer = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(installer)

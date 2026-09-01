@@ -4,6 +4,30 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-01
+
+### Added
+
+- 首张 Ticket 前绑定 DAG Definition：项目内 Spec/Tickets 进入集成历史，外部 tracker 使用包含完整计划内容和来源身份的规范化快照，固定的 `.dag/definition-index.json` 作为唯一 DAG Definition Index；Starting Base 或当前 Accepted Integration Tip 已包含相同定义和等价 index 时只验证身份。
+- DAG Definition Checkpoint 作为非 Ticket 的受审查 commit/tree，通过 Integration Transition 复用串行 CAS、Remote-mirrored 同步和 SHA 回读，并在成功后成为后续 Ticket Base。
+- 新增只读 `validate_definition_index.py`：只使用指定 commit 的本地 Git objects，禁用 replace refs 和 partial-clone lazy fetch，验证 canonical JSON、NFC 安全路径、UTF-8 字节序、Git blob 身份与模式，并准确拒绝 canonical/legacy Git LFS pointer、symlink 和 gitlink；新增对应 integration tests。
+- 新增 Definition binding 与 Integration Transition branch references，让主 SKILL 保留常规步骤和完成条件，按运行分支披露 schema、publication 与 recovery 细节。
+- 新增只读 GitHub Actions CI，在 Python 3.12/3.14 上运行完整 tests、Ruff、Markdown lint 和两个 CLI help，并以精确 commit 固定官方 checkout/setup-python Actions。
+
+### Changed
+
+- 将计划与运行状态显式分离：Run Receipt、claim、Agent、worktree、liveness 和 pending sync 保持 off-delivery；混合路径必须拆分或生成排除运行状态的规范化快照。
+- 开始或恢复时以 Run Receipt 对账本地 DAG Integration Branch ref；Promotion Candidate 必须保持已绑定的 DAG Definition 字节不变并排除瞬态运行状态，计划变更只通过 DAG Definition Checkpoint 进入历史。
+- DAG Revision 必须重新处置受影响的 Accepted Ticket 和 Superseded Ticket 证据：fresh audit 证明新 Acceptance Obligation 仍满足，或按 Target Project 规则重开/转交给有效 Ticket；旧证据不能自动沿用。
+- DAG Definition Checkpoint 的 acceptance-impact dispositions 与 audit 身份在本地 CAS 前随 typed pending Integration Transition 一起冻结；崩溃恢复只能采用同一证据集，CAS 前证据变化必须显式取消旧 Transition 并新建。
+- Remote-mirrored 的运行级授权和恢复对账同时覆盖 DAG Milestones 与 DAG Definition Checkpoints；普通运行状态变化不会创建 DAG Definition Checkpoint，也不改变 Execution Agent 的接口。
+- README、SKILL 和 DESIGN 统一使用 CONTEXT 中的 canonical terms；CONTEXT 新增 Agent Host，删除与 Integration Transition 重叠的串行验收别名，并保留英文术语配中文定义。
+- Coordinator 自身发现的未决选择不再冒充 Execution Outcome；Checkpoint 候选完成前不再成为 Ticket Base；pending Transition 的冻结证据变化改为 CAS 前显式取消并新建，禁止原地替换。
+- Runtime Skill Bundle 的 README 恢复条件覆盖无法解析、缺失和固定身份不一致；安装器示例统一以 `<this-skill-root>` 指向实际复制目录。
+- 将公开安装入口从 `scripts/install_dependencies.py` 重命名为 `scripts/install_runtime_skills.py`，直接表达其默认只安装 Runtime Skills，同时保留显式 opt-in setup helper；旧路径不再保留。
+- Execution Agent 派发改为 Agent Host 中立的零历史契约；不支持零历史时仅继承排除无关 Ticket、Run Receipt 和既有工具输出的最小窗口。
+- Definition Index validator 先定点读取 index，再批量查询其选择的路径，不再枚举整个 commit tree。
+
 ## [0.3.1] - 2026-08-29
 
 ### Changed
@@ -31,9 +55,9 @@
 - 本地 integration branch 创建或恢复时固定 Local-only 或 Remote-mirrored；选择远端同步时一次确定 configured remote 与 branch，启动时用普通 `git push -u` 从本地 tip 创建或快进对齐远端分支并回读。
 - Remote-mirrored 的运行级授权覆盖该 integration branch 的创建、每个里程碑的普通 fast-forward push 和 SHA 回读；不逐票询问，也不扩展到 Ticket branch、`main`、PR、tag 或 release。
 - 每个非空候选先推广到本地 integration branch，再同步远端；push 失败时保留 `pending remote sync`，完成同步前不 Accepted、不解锁后继、不开始下一票。丢响应最多自动重发一次并在重发前持久关闭自动 push；非快进只报告并等待对账，不 force push、不自动换 ref，也不触发 DAG Revision。
-- DAG Milestone 明确定义为非空候选通过串行验收通道后形成的新 Accepted integration commit/tree；Ticket 候选、中间 commits、zero-diff Accepted 和 Superseded 都不产生新 Milestone。
+- DAG Milestone 明确定义为非空候选串行完成本地推广、所选远端同步和 Accepted 后形成的新 integration commit/tree；Ticket 候选、中间 commits、zero-diff Accepted 和 Superseded 都不产生新 Milestone。
 - 恢复时对存活状态不明的旧写入者保留 claim 和工作区，以具名 owner 和可观察 recheck event 建立关闭条件；未形成静止交接前不派发替代写入者。
-- 串行验收事务在入口最后核对图、候选证据和 Base，之后固定这些输入直至完成本地推广、所选远端同步和 Accepted；期间新到的图证据在事务后处理，不引入候选回滚或 force-push 分支。事务外替换已 claim Ticket 时，先确认写入者停止并保留证据，再原子记录 Superseded 与 close claim。
+- 候选在串行推广入口最后核对图、候选证据和 Base，之后固定这些输入直至完成本地推广、所选远端同步和 Accepted；期间新到的图证据在完成后处理，不引入候选回滚或 force-push 分支。推广前替换已 claim Ticket 时，先确认写入者停止并保留证据，再原子记录 Superseded 与 close claim。
 - 未决的 Needs Coordinator Decision 明确阻止 Stalled；完成选择后若只剩不可用的外部条件，才转换为带 owner 和 closing event 的 Externally Blocked。
 - Run Receipt 必须保存在交付 ref 之外，避免验收记录制造未经候选审查的新提交或改变下一张票的 Base。
 - `code-review` 能力改为 Ticket 派发时检查；有 Spec 来源时创建独立 Spec 上下文，确认无 Spec 时记录 skip 而不误判为能力缺失。固定支持包安装器保留为可选兼容工具。
@@ -76,7 +100,8 @@
 - 提供固定 Skill Bundle 的 Python 3.12+ 安装器。
 - 提供项目使用指南、设计说明、领域词汇、可选宿主界面元数据和安装器回归测试。
 
-[Unreleased]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.1.1...v0.2.0
