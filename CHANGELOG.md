@@ -4,9 +4,17 @@
 
 ## [Unreleased]
 
-### Added
+## [0.4.1] - 2026-09-02
 
-- README 的逐票推进章节先明确 Ticket 内闭环与 DAG Revision 边界，再定义三种稳定 Execution Outcomes 及状态所有权，并以 sequence diagram 展示 Promotion Candidate 的单票上下文、candidate-bound review、本地 CAS 和 Remote-mirrored 回读时序。
+### Changed
+
+- README 只保留一张逐票 sequence diagram，按实际时序展示最小 Ticket context、Ticket 内 candidate/review 闭环、串行 promotion、可选 tracker checkpoint 和后继解锁。
+
+### Fixed
+
+- `Execution Agent` 派发现在显式使用 `Agent Host` 的零历史能力，不支持时采用排除无关 Ticket、`Run Receipt` 和既有工具输出的最小历史窗口。
+- Git-tracked tracker 更新现在先结束当前验收或 `Integration Transition`，再以 pending update 和下一次 typed `DAG Definition Checkpoint` Transition 恢复；只有未选中的稳定审计路径可以保持 Definition identities，selected path 变化必须重绑 index 并完成验收影响审计。
+- 项目没有规定 `Accepted`、`Superseded` 或 `PASS`/`FAIL`/`BLOCKED` 到 tracker 字段的映射时，Coordinator 保留未决决定；必需更新完成前不解锁依赖工作，也不报告 `Complete`。
 
 ## [0.4.0] - 2026-09-01
 
@@ -104,7 +112,8 @@
 - 提供固定 Skill Bundle 的 Python 3.12+ 安装器。
 - 提供项目使用指南、设计说明、领域词汇、可选宿主界面元数据和安装器回归测试。
 
-[Unreleased]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.4.0...HEAD
+[Unreleased]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.4.1...HEAD
+[0.4.1]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.2.0...v0.3.0

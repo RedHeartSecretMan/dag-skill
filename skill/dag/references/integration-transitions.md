@@ -84,7 +84,9 @@ Never force-push, switch refs, invent a retry state, or substitute a pull-reques
 
 After publication agrees, complete exactly one candidate kind:
 
-- **Promotion Candidate**: record an Accepted Ticket, make the candidate the DAG Milestone and Accepted Integration Tip, record last synchronization when applicable, close the claim, unlock successors, and recompute the Runnable Frontier.
-- **DAG Definition Checkpoint**: record the same frozen index result, selected inputs, acceptance-impact dispositions, and audit identities; make the candidate the Accepted Integration Tip and downstream Ticket Base; accept no Ticket, apply the dispositions, and recompute the graph and Runnable Frontier.
+- **Promotion Candidate**: record an Accepted Ticket, make the candidate the DAG Milestone and Accepted Integration Tip, record last synchronization when applicable, and close the claim.
+- **DAG Definition Checkpoint**: record the same frozen index result, selected inputs, acceptance-impact dispositions, audit identities, and any completed Target Project-required stable tracker/evidence update; make the candidate the Accepted Integration Tip and downstream Ticket Base; accept no Ticket and apply the dispositions.
 
-Until completion, do not accept the Ticket, unlock successors, claim the next Ticket, or start another Integration Transition.
+This completes and clears the typed pending Integration Transition. Only after that completion, apply the Target Project-required tracker/evidence rule in `SKILL.md`. If it requires another DAG Definition Checkpoint, start it as the next serialized Integration Transition; do not nest it inside the completed Transition. Recompute the graph and Runnable Frontier, unlock successors, or claim another Ticket only after any required per-Ticket update completes.
+
+Until the current Transition completes, do not accept the Ticket, unlock successors, claim the next Ticket, or start another Integration Transition.

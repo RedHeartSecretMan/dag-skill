@@ -36,6 +36,17 @@ If the Target Project forbids the canonical selector, record a Coordinator-owned
 
 When a source mixes Definition and run state, use the Target Project's existing definition-only paths or snapshot format. If no safe rule preserves the complete approved plan without persisting sensitive or unauthorized content, record the exact Coordinator-owned unresolved classification, persistence, or layout decision and stop binding.
 
+## Persist required stable tracker state
+
+When the Target Project requires stable tracker state or acceptance evidence in history, freeze the affected Accepted or Superseded Tickets, their verdict and evidence identities, and the governing Target Project rule before creating the candidate. Classify every changed path against the currently validated DAG Definition Index:
+
+- A state/evidence-only checkpoint may change only project-authorized stable audit paths that the index does not select. It preserves the validated index, selected path set, and every selected blob identity.
+- A change to `.dag/definition-index.json` or any selected path is a DAG Definition change, even when the edit looks like status or evidence. Update the index to the new blob identities and perform the complete Definition and acceptance-impact audit; do not label it state/evidence-only.
+
+If one tracked path mixes Definition with run state, use the split or normalized snapshot rule above before either path. Every checkpoint excludes the Run Receipt and all transient run state.
+
+Apply the Target Project's exact rules for status, checklist, verdict, comments, and evidence. If those rules do not say how the frozen Accepted, Superseded, PASS, FAIL, or BLOCKED state determines a field, record a Coordinator-owned unresolved decision instead of inferring status or checklist changes. Run the applicable tracker integrity, scope, sensitive-data, documentation, review, and publication gates on the exact candidate. Complete it through the ordinary DAG Definition Checkpoint and Integration Transition rules below; it accepts no Ticket and does not replace the Ticket's delivery evidence.
+
 ## Complete a DAG Definition Checkpoint
 
 Create an isolated checkpoint from Starting Base before the first Accepted Integration Tip, or from the current Accepted Integration Tip later. The checkpoint:

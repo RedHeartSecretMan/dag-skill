@@ -97,8 +97,8 @@ _Avoid_: Ticket 分支、默认分支、调度数据库
 _Avoid_: Promotion Candidate、中间 commit、Baseline Satisfaction
 
 **DAG Definition Checkpoint**:
-把 DAG Definition 或已批准 DAG Revision 绑定到集成历史的精确受审查 commit/tree；它通过 Integration Transition 成为 Accepted Integration Tip，但不验收 Ticket，也不形成 DAG Milestone。
-_Avoid_: Promotion Candidate、Run Receipt commit、未经审查的 tracker 更新
+把 DAG Definition、已批准 DAG Revision，或 Target Project 要求且不改变 Definition 的稳定 tracker/acceptance evidence 绑定到集成历史的精确受审查 commit/tree；它通过 Integration Transition 成为 Accepted Integration Tip，但不验收 Ticket，也不形成 DAG Milestone。
+_Avoid_: 尚无 candidate 的 pending update、Promotion Candidate、Run Receipt commit、未经审查的 tracker 更新
 
 **Integration Publication Mode**:
 一次运行对 Accepted Integration Tip 的发布要求，只能是 Local-only 或映射到一个专用远端分支的 Remote-mirrored。

@@ -13,33 +13,11 @@
 
 ## 执行 DAG
 
-```mermaid
-flowchart TD
-    A["回读 Target Project 和 Approved DAG"] --> B["验证 Runtime Skill Bundle"]
-    B --> C["对账 DAG Integration Branch 和 Run Receipt"]
-    C --> D["绑定 DAG Definition；必要时完成 DAG Definition Checkpoint"]
-    D --> E["计算 Runnable Frontier"]
-    E --> F["创建 Ticket branch/worktree，并指派唯一 Execution Agent"]
-    F --> G{"需要接口、seam 或测试设计？"}
-    G -->|是| G1["Execution Agent 使用 $codebase-design"]
-    G -->|否| H["Execution Agent 通过 $tdd 实现并完成最终门禁"]
-    G1 --> H
-    H --> I["提交固定 candidate commit 并调用 $code-review"]
-    I --> J{"存在成立的 Ticket 内 finding？"}
-    J -->|是| J1["同一 Execution Agent 修复 finding 并完成验证"]
-    J1 --> I
-    J -->|否| K["形成 Promotion Candidate 并返回 Ready for Acceptance"]
-    K --> L["Coordinator Agent 核对 Ticket Base、Promotion Candidate、门禁和审查证据"]
-    L --> M["串行完成 Integration Transition"]
-    M --> N["记录 Accepted Ticket 并重算 Runnable Frontier"]
-    N --> E
-```
-
 ### 启动与恢复
 
 进入 `Runnable Frontier` 前，`Coordinator Agent` 按顺序完成：
 
-1. 回读 `Target Project` 的指令、Spec、Tickets、tracker、Git、worktrees、测试和已有证据，重建有效 `Approved DAG`。
+1. 回读 `Target Project` 的指令、Spec、Tickets、tracker、Git、worktrees、测试和已有证据，重建有效 `Approved DAG`。如果项目要求更新 Git-tracked tracker，则确认在 Ticket 成为 `Accepted Ticket` 或 `Superseded Ticket` 后何时更新、更新什么，以及是否具备写入权限。
 2. 验证 `Agent Host` 能解析由 `tdd`、`codebase-design` 和 `code-review` 组成的 `Runtime Skill Bundle`；无法解析、缺失或固定身份不一致时运行安装器：
 
    ```bash
@@ -58,11 +36,11 @@ flowchart TD
 
 当 Ticket 工作可以稳定交接时，`Execution Agent` 只返回以下三种 `Execution Outcome` 之一：
 
-| Execution Outcome              | 含义                                                                                                                                                               |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `Ready for Acceptance`       | `Promotion Candidate` 或 `Baseline Satisfaction` 的证据已完整，无需新的产品、范围、图结构或授权选择；只剩 `Coordinator Agent` 核验并执行适用的验收或集成动作 |
-| `Needs Coordinator Decision` | Ticket 内无法确定`Hard Dependency`、验收责任、产品语义、范围、图结构或授权，需要 `Coordinator Agent` 或用户作出决定                                            |
-| `Externally Blocked`         | 所需决定已经明确，但仍缺少继续执行所需的外部条件，例如凭据、服务、硬件、`Agent Host` 能力或已要求的授权                                                          |
+| Execution Outcome | 含义 |
+| --- | --- |
+| `Ready for Acceptance` | `Promotion Candidate` 或 `Baseline Satisfaction` 的证据已完整，无需新的产品、范围、图结构或授权选择；只剩 `Coordinator Agent` 核验并执行适用的验收或集成动作 |
+| `Needs Coordinator Decision` | Ticket 内无法确定 `Hard Dependency`、验收责任、产品语义、范围、图结构或授权，需要 `Coordinator Agent` 或用户作出决定 |
+| `Externally Blocked` | 所需决定已经明确，但仍缺少继续执行所需的外部条件，例如凭据、服务、硬件、`Agent Host` 能力或已要求的授权 |
 
 这些 `Execution Outcome` 是 `Execution Agent` 与 `Coordinator Agent` 之间的交接结果，不是 Ticket 状态；只有 `Coordinator Agent` 负责记录验收和图状态变更。其中 `Ready for Acceptance` 的 `Promotion Candidate` 路径时序：
 
@@ -79,9 +57,9 @@ sequenceDiagram
     C->>E: 以零历史或最小历史派发固定 Ticket contract
 
     E->>E: 回读 Ticket、Spec、Accepted inputs、worktree 和 WIP
-    E->>E: 通过 tdd 实现并完成 final gates
+    E->>E: 通过 $tdd 实现并完成 final gates
     E->>E: 提交固定 Promotion Candidate
-    E->>R: 对 Base...candidate 调用 code-review
+    E->>R: 对 Base...candidate 调用 $code-review
     R-->>E: 返回 Standards/Spec findings
 
     loop 仍有成立的 Ticket 内 finding
@@ -109,7 +87,13 @@ sequenceDiagram
         M-->>C: 回读精确 candidate SHA
     end
 
-    C->>C: 记录 Accepted Ticket、关闭 claim
+    C->>C: 记录 Accepted Ticket、关闭 claim；完成 Integration Transition
+
+    opt 项目规定每张 Ticket 稳定验收后更新 Git-tracked tracker
+        C->>C: 记录 pending required tracker update
+        C->>C: 以 DAG Definition Checkpoint 完成下一次 Integration Transition
+    end
+
     C->>C: 解锁后继并重算 Runnable Frontier
 ```
 
@@ -123,6 +107,7 @@ sequenceDiagram
 - 派发 `Execution Agent` 时只传固定单票契约，并使用 `Agent Host` 的零历史设置；不支持时采用排除无关 Ticket、Run Receipt 和既有工具输出的最小历史窗口。
 - `Baseline Satisfaction` 只有在 `Target Project` 已有明确规则且证据完整时才能形成成功结果；不制造空提交，也不对空 diff 调用 `$code-review`。
 - `Run Receipt` 保存在交付历史之外，并按 `integration-transitions.md` 保存 pending `Integration Transition` 的冻结证据；`DAG Definition Checkpoint` 还要绑定验收影响处置和审计身份。
+- 如果 `Target Project` 规定更新 Git-tracked tracker，先完整结束当前验收或 `Integration Transition`，再把尚无 candidate 的工作记录为 pending required tracker update；candidate 形成后只使用 typed `DAG Definition Checkpoint` Transition。更新触及已选中的 Definition input 时必须重绑 index 并审计验收影响，不能冒充 state-only update。
 
 ## 集成发布
 
@@ -146,7 +131,7 @@ sequenceDiagram
 
 `Terminal Outcome` 只能是：
 
-- `Complete`：最终 `DAG Definition` 已绑定，所有有效 Ticket 均已成为 `Accepted Ticket`，所有 `Superseded Ticket` 的责任已处置，没有活动认领，整图门禁和依赖消费一致，并满足 `Integration Publication Mode`。
+- `Complete`：最终 `DAG Definition` 已绑定，所有有效 Ticket 均已成为 `Accepted Ticket`，所有 `Superseded Ticket` 的责任已处置，没有活动认领，整图门禁和依赖消费一致，满足 `Integration Publication Mode`，并且项目要求的 Git-tracked tracker 已与最终 DAG 状态一致。
 - `Stalled`：所有写入者状态和未决决定都已解决，但未完成工作仍没有运行中 `Execution Agent`、`Runnable Frontier`、获授权恢复、`DAG Revision` 或可满足的外部条件。
 
 ## 调用示例
