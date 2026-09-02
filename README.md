@@ -39,10 +39,10 @@
 | Execution Outcome | 含义 |
 | --- | --- |
 | `Ready for Acceptance` | `Promotion Candidate` 或 `Baseline Satisfaction` 的证据已完整，无需新的产品、范围、图结构或授权选择；只剩 `Coordinator Agent` 核验并执行适用的验收或集成动作 |
-| `Needs Coordinator Decision` | Ticket 内无法确定 `Hard Dependency`、验收责任、产品语义、范围、图结构或授权，需要 `Coordinator Agent` 或用户作出决定 |
+| `Needs Decision` | Ticket 内仍有关于 `Hard Dependency`、验收责任、产品语义、范围、图结构或授权的明确选择；由 `Coordinator Agent` 在现有权限内处理，否则交由用户决定 |
 | `Externally Blocked` | 所需决定已经明确，但仍缺少继续执行所需的外部条件，例如凭据、服务、硬件、`Agent Host` 能力或已要求的授权 |
 
-这些 `Execution Outcome` 是 `Execution Agent` 与 `Coordinator Agent` 之间的交接结果，不是 Ticket 状态；只有 `Coordinator Agent` 负责记录验收和图状态变更。其中 `Ready for Acceptance` 的 `Promotion Candidate` 路径时序：
+这些 `Execution Outcome` 只是 `Execution Agent` 的交接结果，不是 Ticket 状态；验收和图状态仍由 `Coordinator Agent` 记录。下图展示 `Promotion Candidate` 路径的正常时序：单票执行完成后以 `Ready for Acceptance` 交接，再由 `Coordinator Agent` 完成 Ticket 验收。
 
 ```mermaid
 sequenceDiagram

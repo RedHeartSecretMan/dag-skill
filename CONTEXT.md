@@ -67,7 +67,7 @@ DAG 运行固定依赖的 `tdd`、`codebase-design` 和 `code-review` 三项能�
 _Avoid_: 可选安装辅助 Skill、每个 Ticket 各自安装的依赖
 
 **Execution Outcome**:
-Execution Agent 返回给 Coordinator Agent 的结果，只能是 Ready for Acceptance、Needs Coordinator Decision 或 Externally Blocked。Coordinator Agent 在自身流程中发现的未决决定不是 Execution Outcome。
+Execution Agent 返回给 Coordinator Agent 的结果，只能是 Ready for Acceptance、Needs Decision 或 Externally Blocked；Needs Decision 由 Coordinator Agent 在现有权限内处理，超出权限时交由用户决定。Coordinator Agent 在自身流程中发现的未决决定不是 Execution Outcome。
 _Avoid_: Ticket 状态、验收决定
 
 **Baseline Satisfaction**:

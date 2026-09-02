@@ -24,12 +24,18 @@ class SkillContractTests(unittest.TestCase):
         skill = SKILL.read_text(encoding="utf-8")
         context = CONTEXT.read_text(encoding="utf-8")
 
-        self.assertEqual(skill.count("return `Needs Coordinator Decision`"), 1)
+        self.assertEqual(skill.count("return `Needs Decision`"), 1)
         self.assertIn("record a Coordinator-owned unresolved decision", skill)
         self.assertIn(
             "Coordinator Agent 在自身流程中发现的未决决定不是 Execution Outcome",
             context,
         )
+        for document in (SKILL, README, DESIGN, CONTEXT):
+            with self.subTest(document=document):
+                self.assertNotIn(
+                    "Needs Coordinator Decision",
+                    document.read_text(encoding="utf-8"),
+                )
 
     def test_pending_transition_evidence_is_reused_or_explicitly_replaced(self) -> None:
         skill = SKILL.read_text(encoding="utf-8")
@@ -120,7 +126,9 @@ class SkillContractTests(unittest.TestCase):
         self.assertIn("重新执行 candidate-bound review", readme)
         ticket_loop = readme.index("单票执行默认在 Ticket 内闭环")
         outcomes = readme.index("| `Ready for Acceptance`")
-        handoff_ownership = readme.index("交接结果，不是 Ticket 状态")
+        handoff_ownership = readme.index(
+            "只是 `Execution Agent` 的交接结果，不是 Ticket 状态"
+        )
         sequence = readme.index("sequenceDiagram")
         self.assertLess(ticket_loop, outcomes)
         self.assertLess(outcomes, handoff_ownership)
@@ -128,11 +136,12 @@ class SkillContractTests(unittest.TestCase):
         sequence_intro = readme[handoff_ownership:sequence]
         self.assertIn("`Ready for Acceptance`", sequence_intro)
         self.assertIn("`Promotion Candidate`", sequence_intro)
+        self.assertIn("Ticket 验收", sequence_intro)
         self.assertIn(
             "`Promotion Candidate` 或 `Baseline Satisfaction` 的证据已完整",
             readme,
         )
-        self.assertIn("只有 `Coordinator Agent` 负责记录验收和图状态变更", readme)
+        self.assertIn("验收和图状态仍由 `Coordinator Agent` 记录", readme)
         self.assertIn(
             "才由 `Coordinator Agent` 按 `Target Project` 的规则发起 `DAG Revision`",
             readme,

@@ -8,6 +8,8 @@
 
 ### Changed
 
+- 将 `Needs Coordinator Decision` Execution Outcome 重命名为 `Needs Decision`，不保留旧名称；`Coordinator Agent` 仍负责在现有权限内处理，超出权限时交由用户决定。
+- README 直接说明 `Promotion Candidate` 正常时序覆盖单票执行、`Ready for Acceptance` 交接和 Ticket 验收。
 - README 只保留一张逐票 sequence diagram，按实际时序展示最小 Ticket context、Ticket 内 candidate/review 闭环、串行 promotion、可选 tracker checkpoint 和后继解锁。
 
 ### Fixed

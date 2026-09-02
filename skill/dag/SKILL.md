@@ -129,7 +129,7 @@ Identify exactly one evidence path:
 
 For either path, include remaining risks and omitted verification. Return this outcome only when the named acceptance path is fully evidenced without a new product, scope, graph, or authority choice.
 
-### Needs Coordinator Decision
+### Needs Decision
 
 - the dependency, acceptance ownership, product-semantic, scope, graph, or authority choice that the Coordinator Agent or user can make;
 - evidence showing why it cannot be resolved inside the approved Ticket;
@@ -142,7 +142,7 @@ For either path, include remaining risks and omitted verification. Return this o
 
 Both non-success outcomes include the latest clean candidate and completed verification, if any.
 
-These are Execution Outcomes, not Ticket states. `Ready for Acceptance` means an existing rule determines the successful transition and only verification or promotion owned by the Coordinator Agent remains. `Needs Coordinator Decision` means an explicit choice can unblock the work. `Externally Blocked` means the choice is settled and an external condition remains. Only the Coordinator Agent records graph transitions and acceptance.
+These are Execution Outcomes, not Ticket states. `Ready for Acceptance` means an existing rule determines the successful transition and only verification or promotion owned by the Coordinator Agent remains. `Needs Decision` means an explicit choice can unblock the work; the Coordinator Agent resolves it within existing authority or asks the user. `Externally Blocked` means the choice is settled and an external condition remains. Only the Coordinator Agent records graph transitions and acceptance.
 
 After returning an outcome, the Execution Agent stops writing to the Ticket workspace until the Coordinator Agent explicitly resumes it.
 
@@ -166,7 +166,7 @@ Retry a failed Ticket-local tool action only after correcting its command, input
 
 If the Ticket Base already satisfies the Ticket, the workspace is clean, and the delivery diff is empty, run the applicable final gates and collect the exact artifact identity, acceptance-obligation coverage, and evidence that no delivery bytes are required.
 
-Return `Ready for Acceptance` through the Baseline Satisfaction path only when an existing Ticket or Target Project rule explicitly recognizes that result and every required audit and gate is present. Otherwise return `Needs Coordinator Decision` with the exact missing rule, current-state audit, or acceptance choice. Do not create an empty commit or treat a non-existent diff as a `$code-review` candidate.
+Return `Ready for Acceptance` through the Baseline Satisfaction path only when an existing Ticket or Target Project rule explicitly recognizes that result and every required audit and gate is present. Otherwise return `Needs Decision` with the exact missing rule, current-state audit, or acceptance choice. Do not create an empty commit or treat a non-existent diff as a `$code-review` candidate.
 
 For an evidence-complete Baseline Satisfaction outcome, the Coordinator Agent serializes the decision against all Integration Transitions and rereads the Accepted Integration Tip commit and tree. They must still equal the audited Ticket Base identities. In Remote-mirrored mode, the Coordinator Agent also reads the selected remote branch and requires it to equal the same Ticket Base because the Accepted Integration Tip will not move. On a local mismatch, do not transition: preserve the identities, assign the current Accepted Integration Tip as the new Ticket Base, and return the same worktree to the same Ticket execution ownership to refresh its audit and gates. If the local Ticket Base is unchanged but the remote branch differs or cannot be read, leave the Ticket unaccepted and report the synchronization failure.
 
@@ -224,8 +224,8 @@ After a verified stop, resume the existing workspace and evidence with one write
 
 Report a **Complete** Terminal Outcome only when the final DAG Definition Index and selected inputs are bound to the Accepted Integration Tip, every effective Ticket is an Accepted Ticket with evidence bound to that DAG Definition, every Superseded Ticket's current Acceptance Obligation is accounted for, no active claim remains, whole-DAG gates and dependency consumption agree, the selected Integration Publication Mode is satisfied, Target Project-required stable tracker and acceptance evidence are current, and no required tracker update remains pending. In Remote-mirrored mode, the local Accepted Integration Tip and readback of the selected remote branch must agree.
 
-Resolve every Coordinator-owned unresolved decision and every `Needs Coordinator Decision` Execution Outcome before evaluating a Terminal Outcome. While an actionable choice is unanswered, retain its owner and required decision in the Run Receipt and report the applicable decision evidence; do not relabel it Stalled. If a completed decision leaves only an unavailable external condition, record its owner and closing event as `Externally Blocked` when an Execution Agent owns that outcome, or as an external closing condition otherwise.
+Resolve every Coordinator-owned unresolved decision and every `Needs Decision` Execution Outcome before evaluating a Terminal Outcome. While an actionable choice is unanswered, retain its owner and required decision in the Run Receipt and report the applicable decision evidence; do not relabel it Stalled. If a completed decision leaves only an unavailable external condition, record its owner and closing event as `Externally Blocked` when an Execution Agent owns that outcome, or as an external closing condition otherwise.
 
-Report a **Stalled** Terminal Outcome only after writer liveness is resolved, no Coordinator-owned unresolved decision or `Needs Coordinator Decision` Execution Outcome remains, and unfinished Tickets have no running Execution Agent, Runnable Frontier entry, authorized ticket-local recovery, graph correction, independent work, or currently satisfiable external closing condition. A still-running Execution Agent prevents Stalled, and an ordinary in-scope finding stays ticket-local.
+Report a **Stalled** Terminal Outcome only after writer liveness is resolved, no Coordinator-owned unresolved decision or `Needs Decision` Execution Outcome remains, and unfinished Tickets have no running Execution Agent, Runnable Frontier entry, authorized ticket-local recovery, graph correction, independent work, or currently satisfiable external closing condition. A still-running Execution Agent prevents Stalled, and an ordinary in-scope finding stays ticket-local.
 
 Return an evidence-backed summary of the Terminal Outcome; DAG Definition Index, selected inputs, and latest DAG Definition Checkpoint; Accepted Tickets, Superseded Tickets, active Tickets, decision-needed and externally blocked Execution Outcomes, acceptance-impact dispositions, and any pending required tracker update; the Accepted Integration Tip and selected Integration Publication Mode; the selected remote, remote branch, and exact readback when applicable; verification and review performed or omitted; graph decisions; and liveness conditions.

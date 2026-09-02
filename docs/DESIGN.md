@@ -91,7 +91,7 @@ Recovery first resolves writer ownership. If liveness is uncertain, the existing
 
 Graph replacement uses the same boundary. Before a Ticket enters an active Integration Transition, it becomes a Superseded Ticket and closes its claim only after its writer is stopped and evidence is preserved; replacement work cannot begin while the old writer may still mutate the workspace. Once the Integration Transition begins, the Ticket finishes local promotion, any selected remote synchronization, and Accepted under the graph and evidence checked at entry. Evidence arriving later participates in the next graph recomputation.
 
-An unresolved `Needs Coordinator Decision` Execution Outcome is itself a live progression path, so it prevents a **Stalled** Terminal Outcome. Only after the choice is made may any remaining unavailable condition be represented as an owned external block and participate in the whole-DAG terminal check.
+An unresolved `Needs Decision` Execution Outcome is itself a live progression path, so it prevents a **Stalled** Terminal Outcome. The Coordinator Agent resolves it within existing authority or asks the user; only after the choice is made may any remaining unavailable condition be represented as an owned external block and participate in the whole-DAG terminal check.
 
 ## Runtime dependency bootstrap
 
