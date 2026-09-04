@@ -1,6 +1,6 @@
 # DAG Skill
 
-[简体中文](./README.md) | English
+[中文](./README.md) | English
 
 `dag-skill` coordinates the execution of approved Ticket dependency graphs in Git projects. The `Coordinator Agent` reconciles live state and owns scheduling, acceptance, and integration. Each `Execution Agent` handles one Ticket at a time, from implementation and validation through review and resolution of findings.
 
