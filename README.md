@@ -1,5 +1,7 @@
 # DAG Skill
 
+简体中文 | [English](./README_EN.md)
+
 `dag-skill` 用于推进 Git 项目中已经批准的多 Ticket 依赖图。`Coordinator Agent` 负责现场对账、调度、验收和集成；`Execution Agent` 一次负责一个 Ticket，持续完成实现、验证、审查和 finding 闭环。
 
 可复制的 Skill 位于 [`skill/dag/`](./skill/dag/)：
