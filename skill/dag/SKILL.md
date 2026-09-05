@@ -62,7 +62,9 @@ After the installer succeeds, make the Agent Host reload its Skill list and conf
 
 Once the startup check succeeds, every Ticket in that run uses the verified bundle without another dependency preflight. A later DAG start or resume repeats the one startup check. Execution Agents invoke Skills normally when needed; ordinary tool-failure handling applies if the Agent Host changes during a run.
 
-The optional `setup-matt-pocock-skills` helper is not part of the Runtime Skill Bundle. Install it only with `--include-setup-helper`, and invoke it only when the Target Project needs that setup and the user authorizes the configuration change.
+Supply each Runtime Skill with the applicable Target Project instructions and authoritative inputs. For `$code-review`, include the fixed review Base, candidate range and commit list, scope and governing Spec pointers, and the project's existing tracker workflow. Project-provided instructions take precedence over a dependency's conventional discovery paths, including `docs/agents/issue-tracker.md`. A missing conventional file alone does not require project setup when equivalent authoritative context is supplied. When necessary context is actually missing, resolve that specific gap within existing authority or report the required decision. Reuse existing test-seam approvals within their scope.
+
+The optional `setup-matt-pocock-skills` helper is not part of the Runtime Skill Bundle. Install it only when the user explicitly requests its installation or when it is needed to carry out project configuration already authorized through this helper. In either case, the Coordinator Agent installs a missing helper by adding `--include-setup-helper` to the bundled installer, using the same conflict-preservation and Agent Host reload checks. Reuse existing authorization within its scope rather than requesting it again. Invoke the helper only for authorized configuration changes; an installation-only request leaves project configuration unchanged.
 
 ## Stay within authority
 
@@ -114,7 +116,10 @@ Give the Execution Agent only the context needed for one Ticket:
 - the assigned Ticket Base identity;
 - assigned branch and isolated workspace;
 - scope, acceptance, and required-gate pointers;
+- applicable user and Target Project constraints for this Agent and its downstream Agents, with pointers to existing approvals;
 - local and external authority boundaries.
+
+Carry these constraints into Runtime Skill invocations and downstream dispatches. Reuse existing approvals within their scope; if an explicit constraint cannot be met, report the limitation instead of silently substituting another configuration.
 
 Scope inherited history as part of dispatch. Use the Agent Host's zero-history dispatch setting and provide the explicit Ticket contract above. When zero-history dispatch is unavailable, use the smallest available history window that excludes unrelated Tickets, Run Receipt state, and prior tool output. Do not rely on default full-history inheritance. The Execution Agent reconstructs implementation context from the assigned live workspace and authoritative pointers.
 
@@ -154,13 +159,11 @@ Within the Ticket workspace, the Execution Agent:
 2. Implements and verifies the Ticket. It invokes `$tdd` for changed behavior and uses causal RED-to-GREEN evidence where applicable. It invokes `$codebase-design` when the Ticket requires an interface, module-boundary, seam, or testability decision. It runs focused checks while iterating and project-required final gates before review.
 3. For a non-empty delivery diff, ensures the diff preserves the bound DAG Definition Index, selected path set, and content identities and excludes transient run state, then commits a clean candidate that descends from the fixed Ticket Base. It records the Ticket Base, commit, tree, exact diff command, and commit list and invokes `$code-review` for that range. It stores the complete result and Candidate Review Record beside those identities. If approved Ticket work requires a DAG Definition change, it reports that exact change to the Coordinator Agent for a DAG Definition Checkpoint instead of including it in the Promotion Candidate; after the DAG Definition Checkpoint, the same Ticket ownership continues from the new Ticket Base. Any later delivery edit creates a new candidate and invalidates the prior Candidate Review Record for promotion.
 4. Fixes every supported in-scope blocking finding, reruns affected checks and all invalidated final gates, commits a new candidate, and invokes `$code-review` again. It may dismiss a finding only with concrete Target Project, Spec, test, or code evidence recorded in its disposition.
-5. Continues when a completed cycle has an observable change: it closes a finding, changes the candidate to address a named finding or failed acceptance probe, makes a required failing check pass, or produces new evidence that maps the remaining issue to a named decision or external closing condition. If a cycle changes none of these, it returns the applicable outcome with the evidence already obtained.
+5. Uses the evidence from each cycle to choose the next authorized diagnostic or repair action. A failed attempt may eliminate a hypothesis even when no delivery bytes change. Stop repeating a failed action under unchanged conditions; continue when another authorized path remains. Return a non-success Execution Outcome only when evidence establishes the decision or external closing condition required by that outcome.
 
 There is no fixed review or repair count. Ticket-local defects, additional probes, corrected commands, and new candidates remain in this loop while the Ticket objective, approved scope, Accepted inputs, and acceptance obligation remain unchanged.
 
 A finding remains blocking when it cites an applicable Spec or documented standard, or demonstrates failing acceptance behavior, and its response does not disprove it with stronger project evidence. Do not return a successful outcome while such a finding remains.
-
-Retry a failed Ticket-local tool action only after correcting its command, input, path, environment, or another evidenced cause. If it fails again under the same relevant conditions, stop retrying and return the applicable decision or external-block outcome.
 
 ### Handle a zero-diff Ticket explicitly
 

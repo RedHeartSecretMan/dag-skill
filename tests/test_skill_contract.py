@@ -1,3 +1,5 @@
+"""Static documentation regression guards, not Agent Host execution tests."""
+
 from __future__ import annotations
 
 import unittest

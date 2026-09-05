@@ -28,6 +28,10 @@ Before scheduling Tickets from the `Runnable Frontier`, the `Coordinator Agent` 
    ```
 
    The installer adds missing Skills only when there are no conflicts. If it finds an existing installation with a different version or incomplete contents, it leaves it unchanged and reports the conflict. After installation succeeds, have the `Agent Host` reload its Skill list, then confirm that all three Skills resolve.
+
+   Supply Runtime Skills with authoritative `Target Project` instructions and inputs. Reviews can use the project's existing tracker workflow; a missing dependency-specific documentation path alone does not require project setup. Resolve actual context gaps specifically, and keep configuration changes within existing authorization boundaries.
+
+   `setup-matt-pocock-skills` is an optional configuration helper. The `Coordinator Agent` installs a missing copy with `--include-setup-helper` only when the user explicitly requests installation or when it is needed for project configuration already authorized through the helper. Existing authorization applies within its scope; an installation-only request does not authorize project configuration.
 3. Create or restore the `DAG Integration Branch`. For a new run, create it from the `Starting Base` authorized by the `Target Project`. When resuming, use the `Run Receipt` to reconcile the branch's local ref, `Starting Base`, `Accepted Integration Tip`, and any pending `Integration Transition`.
 4. Use the bundled validator to deterministically verify `.dag/definition-index.json`, input blobs, and object types at the specified commit, and bind the complete `DAG Definition`. For an external tracker, first create a normalized snapshot containing the complete plan and its source identities. If the `Starting Base` or current `Accepted Integration Tip` does not yet contain the exact inputs and an equivalent index, create and review a `DAG Definition Checkpoint`.
 5. Meet the requirements of the `Integration Publication Mode` and compute the `Runnable Frontier`.
@@ -35,6 +39,8 @@ Before scheduling Tickets from the `Runnable Frontier`, the `Coordinator Agent` 
 ### Advance each Ticket
 
 By default, the same `Execution Agent` handles routine work within the Ticket: fixing code defects and failing tests, resolving review findings, and iterating on the `Promotion Candidate`. The `Coordinator Agent` initiates a `DAG Revision` under the `Target Project` rules only when live evidence shows that effective Tickets, a `Hard Dependency`, or an `Acceptance Obligation` must change.
+
+A diagnostic attempt may rule out a cause without changing the delivery. Stop repeating an action that fails under unchanged conditions, and continue within the Ticket while another authorized diagnostic or repair path remains. Return a non-success `Execution Outcome` only when evidence establishes the corresponding decision or external condition.
 
 When it can hand off a stable result, the `Execution Agent` returns exactly one of the following `Execution Outcome` values:
 
@@ -107,6 +113,7 @@ sequenceDiagram
 - When a `DAG Revision` changes the obligations of an `Accepted Ticket` or `Superseded Ticket`, the old evidence becomes invalid. Audit the affected obligations again, reopen the affected Tickets, or transfer their obligations to effective Tickets under the `Target Project` rules.
 - Each Ticket has at most one write-capable `Execution Agent` at a time. Before replacing an Agent, confirm that the previous Agent has stopped and hand over its branch, worktree, WIP, and evidence.
 - Dispatch an `Execution Agent` with only the fixed contract for one Ticket, using the `Agent Host`'s zero-history setting. If unavailable, use a minimal history window that excludes unrelated Tickets, the Run Receipt, and prior tool output.
+- Include user and project constraints that apply to the Agent and its downstream Agents, along with pointers to existing approvals. Preserve them in subsequent invocations and dispatches. If an explicit constraint cannot be met, report the limitation instead of silently substituting another configuration.
 - `Baseline Satisfaction` can produce a successful outcome only under explicit existing `Target Project` rules and with complete evidence. Do not create empty commits or invoke `$code-review` on an empty diff.
 - Keep the `Run Receipt` outside delivery history and preserve frozen evidence for any pending `Integration Transition` as required by `integration-transitions.md`. A `DAG Definition Checkpoint` must also bind acceptance-impact dispositions and audit identities.
 - If the `Target Project` requires updates to its Git-tracked tracker, complete the current acceptance or `Integration Transition` first. While the update has no candidate, record it as a pending required tracker update. Once a candidate exists, track it only as a typed `DAG Definition Checkpoint` Transition. If the update touches a selected Definition input, rebind the index and audit acceptance impact; it cannot be treated as a state-only update.

@@ -1,8 +1,19 @@
 # Changelog
 
-本文件记录每个已发布 tag 的用户可见变化，格式参考 Keep a Changelog。
+本文件记录每个已发布 tag 的用户可见变化，格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 
 ## [Unreleased]
+
+### Changed
+
+- 派发契约携带适用于当前及下游 Agent 的用户与项目约束，以及已有批准的指针；Runtime Skill 调用和后续派发继续遵守这些约束。
+- Runtime Skill 调用优先使用 Target Project 已有的权威 Ticket、Spec 和 tracker 流程；仅缺少依赖约定的文档路径不要求项目配置，已有测试 seam 批准在原范围内复用。
+- `setup-matt-pocock-skills` 仅由明确的安装请求或使用它完成已授权项目配置的需要触发安装；Coordinator 沿用已有授权补齐缺失副本，仅安装不授权执行配置。
+
+### Fixed
+
+- 单次诊断未取得交付变化时，只要还有获授权的诊断或修复路径，Execution Agent 就继续处理；停止重复失败操作不再自动触发不适用的 Execution Outcome。
+- Definition Index 中超出 Python 整数解析限制的 JSON 数值现在按约定返回 `error: ...` 和非零退出码，不再输出 traceback。
 
 ## [0.4.1] - 2026-09-02
 

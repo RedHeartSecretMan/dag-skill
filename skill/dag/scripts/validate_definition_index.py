@@ -199,7 +199,10 @@ def validate_definition_index(repository: Path, commit: str) -> dict[str, object
         index_text = index_bytes.decode("utf-8")
     except UnicodeDecodeError as error:
         raise ValidationError("index must be UTF-8 JSON") from error
-    payload = json.loads(index_text, object_pairs_hook=unique_json_object)
+    try:
+        payload = json.loads(index_text, object_pairs_hook=unique_json_object)
+    except ValueError as error:
+        raise ValidationError(f"index JSON could not be decoded: {error}") from error
     if not isinstance(payload, dict):
         raise ValidationError("index must be a JSON object")
     if set(payload) != {"schema_version", "inputs"}:
@@ -272,7 +275,6 @@ def main() -> int:
         OSError,
         ValidationError,
         UnicodeDecodeError,
-        json.JSONDecodeError,
         KeyError,
         TypeError,
     ) as error:

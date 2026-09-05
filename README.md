@@ -28,6 +28,10 @@
    ```
 
    安装器只创建缺失且无冲突的 Skill；发现不同版本或不完整目标时保留现场并报告。安装成功后让 `Agent Host` 重新加载 Skill 列表，确认三项 Skill 均可解析。
+
+   调用 Runtime Skills 时提供 `Target Project` 的权威指令和输入。审查可使用项目已有的 tracker 流程；仅缺少依赖约定的文档路径不要求项目配置。真正缺少上下文时补齐具体缺项，配置变更按既有授权边界处理。
+
+   `setup-matt-pocock-skills` 是可选配置辅助技能。用户明确要求安装，或使用它完成已授权的项目配置需要先安装时，`Coordinator Agent` 才通过 `--include-setup-helper` 补齐缺失副本，并沿用已有授权。仅要求安装不授权执行项目配置。
 3. 创建或恢复 `DAG Integration Branch`。新运行从 `Target Project` 授权的 `Starting Base` 创建；恢复时用 `Run Receipt` 对账该分支的本地 ref、`Starting Base`、`Accepted Integration Tip` 和 pending `Integration Transition`。
 4. 用内置 validator 对指定 commit 的 `.dag/definition-index.json`、输入 blob 和对象类型做确定性验证并绑定完整 `DAG Definition`。外部 tracker 必须先形成包含完整计划和来源身份的规范化快照；如果 `Starting Base` 或当前 `Accepted Integration Tip` 尚未包含精确输入与等价 index，创建并审查一个 `DAG Definition Checkpoint`。
 5. 满足 `Integration Publication Mode` 并计算 `Runnable Frontier`。
@@ -35,6 +39,8 @@
 ### 逐票推进
 
 单票执行默认在 Ticket 内闭环：普通代码缺陷、失败测试、审查 finding 和 `Promotion Candidate` 迭代，均由同一 `Execution Agent` 持续处理。只有现场证据表明需要改变有效 Ticket、`Hard Dependency` 或 `Acceptance Obligation` 时，才由 `Coordinator Agent` 按 `Target Project` 的规则发起 `DAG Revision`。
+
+诊断未改变交付内容时，仍可能排除一种原因。停止在相同条件下重复失败的操作；只要还有获授权的诊断或修复路径，就继续在 Ticket 内处理。只有证据确立了相应决定或外部条件，才返回非成功 `Execution Outcome`。
 
 当 Ticket 工作可以稳定交接时，`Execution Agent` 只返回以下三种 `Execution Outcome` 之一：
 
@@ -107,6 +113,7 @@ sequenceDiagram
 - `DAG Revision` 改变 `Accepted Ticket` 或 `Superseded Ticket` 的责任时，旧证据失效；必须重新审计，或按 `Target Project` 规则重新打开/转交给有效 Ticket。
 - 同一 Ticket 同时只有一个可写 `Execution Agent`。更换 Agent 前先确认原 Agent 已停止，并交接原 branch、worktree、WIP 和证据。
 - 派发 `Execution Agent` 时只传固定单票契约，并使用 `Agent Host` 的零历史设置；不支持时采用排除无关 Ticket、Run Receipt 和既有工具输出的最小历史窗口。
+- 派发契约携带适用于当前及下游 Agent 的用户与项目约束，以及已有批准的指针；后续调用和派发继续遵守，无法满足明确约束时说明限制，不擅自替换配置。
 - `Baseline Satisfaction` 只有在 `Target Project` 已有明确规则且证据完整时才能形成成功结果；不制造空提交，也不对空 diff 调用 `$code-review`。
 - `Run Receipt` 保存在交付历史之外，并按 `integration-transitions.md` 保存 pending `Integration Transition` 的冻结证据；`DAG Definition Checkpoint` 还要绑定验收影响处置和审计身份。
 - 如果 `Target Project` 规定更新 Git-tracked tracker，先完整结束当前验收或 `Integration Transition`，再把尚无 candidate 的工作记录为 pending required tracker update；candidate 形成后只使用 typed `DAG Definition Checkpoint` Transition。更新触及已选中的 Definition input 时必须重绑 index 并审计验收影响，不能冒充 state-only update。

@@ -17,7 +17,7 @@ thin Coordinator Agent
 
 This design exposes only graph-relevant outcomes to the Coordinator Agent. Test failures and ordinary review findings stay with the Ticket owner; acceptance and successor unlocking stay with the graph owner.
 
-Context isolation follows the same ownership split. The Coordinator Agent holds the whole-DAG state, while each Execution Agent starts from an explicit Ticket contract and the assigned live workspace rather than inherited Coordinator history. The Agent Host uses zero-history dispatch when available, otherwise its smallest history window. This keeps unrelated Tickets, Run Receipt state, and prior tool output outside the Ticket implementation context.
+Context isolation follows the same ownership split. The Coordinator Agent holds the whole-DAG state, while each Execution Agent starts from an explicit Ticket contract and the assigned live workspace rather than inherited Coordinator history. The Agent Host uses zero-history dispatch when available, otherwise its smallest history window. The contract carries applicable user and project constraints, including those for downstream Agents, and pointers to existing approvals. This preserves explicit requirements without bringing unrelated Tickets, Run Receipt state, or prior tool output into the Ticket implementation context.
 
 ## Why there is no DAG Review Agent
 
@@ -77,9 +77,9 @@ Remote-mirrored initialization starts only after the local DAG Definition bytes 
 
 ## Progress without retry states
 
-A fixed retry allowance is both too strict for difficult Tickets and too permissive for a loop doing the same ineffective work. The design instead uses observable progress: a cycle must close a finding, change the Promotion Candidate in response to a named finding or failed probe, repair a required gate, or produce new evidence that identifies a decision or external closing condition.
+A fixed retry allowance is both too strict for difficult Tickets and too permissive for a loop doing the same ineffective work. A diagnostic attempt may eliminate a hypothesis without changing a Promotion Candidate or making a test pass. The execution rule therefore distinguishes an exhausted action from an exhausted path: stop repeating an unchanged failing action and use the evidence to choose another authorized diagnostic or repair path when one remains.
 
-This yields one Ticket-local loop without scheduler-level “continuation” or “formal rework” states. A corrected command remains ordinary execution; repeating the same failed operation under the same conditions does not. The latter returns an evidenced decision or external block rather than consuming another arbitrary retry.
+This keeps diagnosis and repair within the Ticket. A non-success Execution Outcome still requires evidence of its actual decision or unavailable external condition; one unsuccessful cycle alone establishes neither. No scheduler-level continuation state or fixed retry allowance is needed.
 
 The graph changes only when the evidence changes a graph boundary: a prerequisite is missing, an edge is wrong, an Acceptance Obligation belongs to another Ticket, or the work has multiple independently acceptable results. Promotion Candidate count, diff size, and review count provide no such evidence.
 
@@ -97,9 +97,11 @@ An unresolved `Needs Decision` Execution Outcome is itself a live progression pa
 
 The Execution Agent depends on one pinned Runtime Skill Bundle: `tdd`, `codebase-design`, and `code-review`. Bootstrap is keyed by Agent Host, stable Skills root, and pinned revision/tree identities. A missing or mismatched member is a recoverable Agent Host condition, not a reason to claim a Ticket that cannot finish its contract. The Coordinator Agent therefore runs the bundled installer by default before the first claim whenever that bootstrap identity cannot resolve the complete pinned bundle.
 
-The installer is deterministic and conflict-safe: it reuses exact pinned Runtime Skill trees, creates missing directories, and refuses to replace any different existing target. The matching `setup-matt-pocock-skills` helper is not a runtime dependency and is installed only through the explicit `--include-setup-helper` option; project configuration remains a separate authorized mutation.
+The installer is deterministic and conflict-safe: it reuses exact pinned Runtime Skill trees, creates missing directories, and refuses to replace any different existing target. The matching `setup-matt-pocock-skills` helper is not a runtime dependency. An explicit installation request or an authorized configuration task that requires this helper triggers its installation with `--include-setup-helper`. The Coordinator Agent carries out that prerequisite under existing authorization; the user does not need to know the installer flag or approve the same work twice. A request to install the helper alone does not authorize project configuration.
 
 Installation completion and runtime readiness are separate checks. After file installation, the Agent Host reloads its Skill list and must resolve all three Runtime Skills. Startup does not run a real review or another Skill workflow as a probe. An Agent Host reload requirement, unresolved Skills root, incompatible existing target, unavailable Python/Git/network, or denied write leaves the Ticket unclaimed with one observable closing condition. This prevents a successful copy from being mistaken for an active capability.
+
+Runtime Skill invocations also need the Target Project's authoritative context. The fixed Ticket contract provides the Ticket, Spec, and candidate identities; the project's existing tracker workflow supplies source-discovery instructions, whether stored at a dependency's conventional path or supplied elsewhere. Project instructions govern that choice. Existing approvals remain valid within their scope, and missing context is resolved as a specific gap. This keeps setup optional without changing the dependency's review process or granting configuration authority.
 
 Each DAG start or resume performs this check once. After it succeeds, every Ticket in that run uses the same verified bundle without another preflight; the installer is not part of the per-Ticket loop. A later start or resume checks again and installs only when a Runtime Skill is missing or its pinned identity no longer matches.
 

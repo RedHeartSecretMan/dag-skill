@@ -329,6 +329,21 @@ class DefinitionIndexValidatorTests(unittest.TestCase):
         self.assertIn("path is not normalized and safe", result.stderr)
         self.assertNotIn("Traceback", result.stderr)
 
+    def test_rejects_an_oversized_json_integer_without_a_traceback(self) -> None:
+        self.write(
+            ".dag/definition-index.json",
+            '{"schema_version":' + "1" * 5000 + ',"inputs":[]}\n',
+        )
+        index_commit = commit(self.repository, "bind invalid definition")
+
+        with mock.patch.dict(os.environ, {"PYTHONINTMAXSTRDIGITS": "4300"}):
+            result = self.validate(index_commit)
+
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, "")
+        self.assertTrue(result.stderr.startswith("error: "), result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+
     def test_ignores_unselected_non_utf8_git_paths(self) -> None:
         spec_oid = run_git_with_input(
             self.repository,
