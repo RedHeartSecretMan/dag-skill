@@ -9,6 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SKILL = ROOT / "skill" / "dag" / "SKILL.md"
 CONTEXT = ROOT / "CONTEXT.md"
 README = ROOT / "README.md"
+README_ZH = ROOT / "README_ZH.md"
 DESIGN = ROOT / "docs" / "DESIGN.md"
 CI = ROOT / ".github" / "workflows" / "ci.yml"
 RUNTIME_SKILL_INSTALLER = (
@@ -32,7 +33,7 @@ class SkillContractTests(unittest.TestCase):
             "Coordinator Agent 在自身流程中发现的未决决定不是 Execution Outcome",
             context,
         )
-        for document in (SKILL, README, DESIGN, CONTEXT):
+        for document in (SKILL, README, README_ZH, DESIGN, CONTEXT):
             with self.subTest(document=document):
                 self.assertNotIn(
                     "Needs Coordinator Decision",
@@ -68,7 +69,7 @@ class SkillContractTests(unittest.TestCase):
 
     def test_bootstrap_docs_cover_all_recoverable_bundle_failures(self) -> None:
         skill = SKILL.read_text(encoding="utf-8")
-        readme = README.read_text(encoding="utf-8")
+        readme = README_ZH.read_text(encoding="utf-8")
 
         self.assertIn("无法解析、缺失或固定身份不一致时运行安装器", readme)
         self.assertIn(
@@ -83,7 +84,7 @@ class SkillContractTests(unittest.TestCase):
     def test_runtime_skill_installer_has_one_public_path(self) -> None:
         self.assertTrue(RUNTIME_SKILL_INSTALLER.is_file())
         self.assertFalse(LEGACY_INSTALLER.exists())
-        for document in (SKILL, README, DESIGN, CI):
+        for document in (SKILL, README, README_ZH, DESIGN, CI):
             with self.subTest(document=document):
                 self.assertNotIn(
                     "install_dependencies.py",
@@ -105,7 +106,7 @@ class SkillContractTests(unittest.TestCase):
     ) -> None:
         skill = SKILL.read_text(encoding="utf-8")
 
-        for document in (SKILL, README, DESIGN):
+        for document in (SKILL, README, README_ZH, DESIGN):
             content = document.read_text(encoding="utf-8")
             with self.subTest(document=document):
                 self.assertNotIn("fork_turns", content)
@@ -120,7 +121,7 @@ class SkillContractTests(unittest.TestCase):
         self.assertNotIn("pending Integration Transition 不会提前改变它", context)
 
     def test_readme_single_ticket_sequence_preserves_acceptance_order(self) -> None:
-        readme = README.read_text(encoding="utf-8")
+        readme = README_ZH.read_text(encoding="utf-8")
 
         self.assertEqual(readme.count("sequenceDiagram"), 1)
         self.assertNotIn("flowchart TD", readme)
@@ -214,7 +215,7 @@ class SkillContractTests(unittest.TestCase):
         self,
     ) -> None:
         skill = SKILL.read_text(encoding="utf-8")
-        readme = README.read_text(encoding="utf-8")
+        readme = README_ZH.read_text(encoding="utf-8")
 
         accepted = readme.index(
             "记录 Accepted Ticket、关闭 claim；完成 Integration Transition"

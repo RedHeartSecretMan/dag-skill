@@ -44,7 +44,7 @@ jobs:
       - name: Check Markdown
         run: >-
           rumdl check --disable MD013
-          README.md README_EN.md CHANGELOG.md CONTEXT.md docs/DESIGN.md
+          README.md README_ZH.md CHANGELOG.md CONTEXT.md docs/DESIGN.md
           skill/dag/SKILL.md
           skill/dag/references/definition-binding.md
           skill/dag/references/integration-transitions.md

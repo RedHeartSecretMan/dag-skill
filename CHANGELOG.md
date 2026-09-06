@@ -6,6 +6,7 @@
 
 ### Changed
 
+- 默认 `README.md` 改为英文，中文版移至 `README_ZH.md`，语言切换文字使用“简体中文”。
 - 派发契约携带适用于当前及下游 Agent 的用户与项目约束，以及已有批准的指针；Runtime Skill 调用和后续派发继续遵守这些约束。
 - Runtime Skill 调用优先使用 Target Project 已有的权威 Ticket、Spec 和 tracker 流程；仅缺少依赖约定的文档路径不要求项目配置，已有测试 seam 批准在原范围内复用。
 - `setup-matt-pocock-skills` 仅由明确的安装请求或使用它完成已授权项目配置的需要触发安装；Coordinator 沿用已有授权补齐缺失副本，仅安装不授权执行配置。
