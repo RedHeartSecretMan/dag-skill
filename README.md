@@ -20,14 +20,14 @@ It executes only an `Approved DAG`. The `Target Project` remains responsible for
 Before scheduling Tickets from the `Runnable Frontier`, the `Coordinator Agent` completes these steps in order:
 
 1. Reread the current `Target Project` instructions, Specs, Tickets, tracker, Git state, worktrees, tests, and evidence to reconstruct the effective `Approved DAG`. If the project requires updates to its Git-tracked tracker, confirm what must be updated, when the update is due after a Ticket becomes an `Accepted Ticket` or `Superseded Ticket`, and whether the necessary write authorization is in place.
-2. Verify that the `Agent Host` can resolve all three Skills in the `Runtime Skill Bundle`: `tdd`, `codebase-design`, and `code-review`. If any Skill cannot be resolved, is missing, or does not match its pinned identity, run the installer:
+2. Verify that the `Agent Host` can resolve all three Skills in the `Runtime Skill Bundle`: `tdd`, `codebase-design`, and `code-review`. The anchored commit is the minimum version: accept that version and descendant versions verified through Git ancestry and complete content checks. If any Skill cannot be resolved, is missing, or has not been verified against this version floor, run the installer:
 
    ```bash
    python3 <this-skill-root>/scripts/install_runtime_skills.py \
      --skills-root /path/to/agent-host/skills
    ```
 
-   The installer adds missing Skills only when there are no conflicts. If it finds an existing installation with a different version or incomplete contents, it leaves it unchanged and reports the conflict. After installation succeeds, have the `Agent Host` reload its Skill list, then confirm that all three Skills resolve.
+   The installer recognizes anchor copies offline. For different contents, it verifies descendant versions, including intermediate revisions, against upstream branch and tag history. It reuses verified newer copies and installs missing Skills from the anchor. Unverifiable, locally modified, or incomplete targets are preserved and reported. After installation succeeds, have the `Agent Host` reload its Skill list, then confirm that all three Skills resolve.
 
    Supply Runtime Skills with authoritative `Target Project` instructions and inputs. Reviews can use the project's existing tracker workflow; a missing dependency-specific documentation path alone does not require project setup. Resolve actual context gaps specifically, and keep configuration changes within existing authorization boundaries.
 

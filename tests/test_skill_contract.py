@@ -71,7 +71,7 @@ class SkillContractTests(unittest.TestCase):
         skill = SKILL.read_text(encoding="utf-8")
         readme = README_ZH.read_text(encoding="utf-8")
 
-        self.assertIn("无法解析、缺失或固定身份不一致时运行安装器", readme)
+        self.assertIn("无法解析、缺失或尚未确认满足最低版本时运行安装器", readme)
         self.assertIn(
             "python3 <this-skill-root>/scripts/install_runtime_skills.py",
             skill,

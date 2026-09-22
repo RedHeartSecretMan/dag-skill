@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Install pinned DAG Runtime Skills with conflict-safe preflight."""
+"""Install DAG Runtime Skills with a minimum revision and conflict-safe preflight."""
 
 from __future__ import annotations
 
@@ -13,6 +13,7 @@ import tempfile
 from pathlib import Path, PurePath
 
 REPOSITORY = "https://github.com/mattpocock/skills.git"
+# Minimum accepted upstream commit and the source for bootstrapping missing Skills.
 REVISION = "5b15a47f2d7150f545fbcacbfe381787fc0230dc"
 UPSTREAM_BUNDLE_ROOT = Path("skills/engineering")
 RUNTIME_SKILLS = ("code-review", "tdd", "codebase-design")
@@ -25,6 +26,7 @@ SAFE_GIT_ENVIRONMENT = {
     "GIT_CONFIG_GLOBAL": os.devnull,
     "GIT_CONFIG_NOSYSTEM": "1",
     "GIT_CONFIG_SYSTEM": os.devnull,
+    "GIT_NO_REPLACE_OBJECTS": "1",
     "GIT_TERMINAL_PROMPT": "0",
 }
 REQUIRED_FILES = {
@@ -215,10 +217,16 @@ def fetch_pinned_source(
 
 
 def inspect_targets(
-    skills_root: Path, skills: tuple[str, ...] = RUNTIME_SKILLS
+    skills_root: Path,
+    skills: tuple[str, ...] = RUNTIME_SKILLS,
+    *,
+    expected_digests: dict[str, str] | None = None,
 ) -> tuple[list[str], list[str], list[str]]:
-    """Classify every pinned target from local content alone."""
+    """Classify targets against the fixed content identities for this invocation."""
 
+    expected_digests = (
+        PINNED_TREE_DIGESTS if expected_digests is None else expected_digests
+    )
     missing: list[str] = []
     current: list[str] = []
     conflicts: list[str] = []
@@ -228,23 +236,82 @@ def inspect_targets(
             missing.append(skill)
         elif target.is_symlink() or not target.is_dir():
             conflicts.append(f"{skill}: target is not an ordinary directory")
-        elif tree_digest(target) == PINNED_TREE_DIGESTS[skill]:
+        elif tree_digest(target) == expected_digests[skill]:
             current.append(skill)
         else:
-            conflicts.append(f"{skill}: existing directory differs from pinned source")
+            conflicts.append(f"{skill}: existing directory has no verified source")
     return missing, current, conflicts
 
 
-def verify_complete_bundle(
-    skills_root: Path, skills: tuple[str, ...] = RUNTIME_SKILLS
-) -> None:
-    """Verify all selected targets against the pinned tree identities."""
+def match_descendant_sources(
+    workspace: Path, target_digests: dict[str, str]
+) -> dict[str, tuple[str, str]]:
+    """Match copied Skills to complete trees in upstream descendant commits."""
 
-    missing, _, conflicts = inspect_targets(skills_root, skills)
+    checkout = workspace / "checkout"
+    templates = workspace / "empty-git-templates"
+    checkout.mkdir()
+    templates.mkdir()
+    run_git(["init", "--quiet", f"--template={templates}"], checkout)
+    run_git(
+        [
+            "fetch",
+            "--quiet",
+            "--no-tags",
+            REPOSITORY,
+            "+refs/heads/*:refs/remotes/upstream/*",
+            "+refs/tags/*:refs/tags/*",
+        ],
+        checkout,
+    )
+    run_git(["rev-parse", "--verify", f"{REVISION}^{{commit}}"], checkout)
+    revisions = run_git(
+        ["rev-list", "--all", "--ancestry-path", f"^{REVISION}"], checkout
+    ).splitlines()
+    remaining = dict(target_digests)
+    matches: dict[str, tuple[str, str]] = {}
+    seen_trees: dict[str, set[str]] = {skill: set() for skill in remaining}
+    for revision in revisions:
+        for skill in list(remaining):
+            source_path = UPSTREAM_BUNDLE_ROOT / skill
+            entry = run_git(
+                ["ls-tree", "-d", revision, "--", source_path.as_posix()], checkout
+            )
+            if not entry:
+                continue
+            tree_oid = entry.split("\t", 1)[0].split()[2]
+            if tree_oid in seen_trees[skill]:
+                continue
+            seen_trees[skill].add(tree_oid)
+            run_git(["checkout", "--quiet", "--detach", revision], checkout)
+            source = checkout / source_path
+            if not (source / "SKILL.md").is_file():
+                continue
+            digest = tree_digest(source)
+            if digest == remaining[skill]:
+                run_git(["merge-base", "--is-ancestor", REVISION, revision], checkout)
+                matches[skill] = (digest, revision)
+                del remaining[skill]
+        if not remaining:
+            break
+    return matches
+
+
+def verify_complete_bundle(
+    skills_root: Path,
+    skills: tuple[str, ...] = RUNTIME_SKILLS,
+    *,
+    expected_digests: dict[str, str] | None = None,
+) -> None:
+    """Verify all selected targets still match their accepted source identities."""
+
+    missing, _, conflicts = inspect_targets(
+        skills_root, skills, expected_digests=expected_digests
+    )
     problems = [*(f"{skill}: target is missing" for skill in missing), *conflicts]
     if problems:
         details = "\n".join(f"  - {problem}" for problem in problems)
-        raise InstallError("Pinned Skill bundle verification failed:\n" + details)
+        raise InstallError("Skill bundle verification failed:\n" + details)
 
 
 def install(skills_root: Path, *, include_setup_helper: bool = False) -> None:
@@ -260,7 +327,26 @@ def install(skills_root: Path, *, include_setup_helper: bool = False) -> None:
     if skills_root.exists() and not skills_root.is_dir():
         raise InstallError(f"Skills root is not a directory: {skills_root}")
 
+    expected_digests = dict(PINNED_TREE_DIGESTS)
     missing, current, conflicts = inspect_targets(skills_root, selected_skills)
+    different = [skill for skill in selected_skills if skill not in missing + current]
+    matches: dict[str, tuple[str, str]] = {}
+    if different and all(
+        (skills_root / skill).is_dir() and not (skills_root / skill).is_symlink()
+        for skill in different
+    ):
+        if shutil.which("git") is None:
+            raise InstallError("Git is required to verify newer Skill sources")
+        target_digests = {
+            skill: tree_digest(skills_root / skill) for skill in different
+        }
+        with tempfile.TemporaryDirectory(prefix="dag-skill-verify-") as temporary:
+            matches = match_descendant_sources(Path(temporary), target_digests)
+        for skill, (digest, _) in matches.items():
+            expected_digests[skill] = digest
+        missing, current, conflicts = inspect_targets(
+            skills_root, selected_skills, expected_digests=expected_digests
+        )
     if conflicts:
         details = "\n".join(f"  - {conflict}" for conflict in conflicts)
         raise InstallError(
@@ -268,10 +354,17 @@ def install(skills_root: Path, *, include_setup_helper: bool = False) -> None:
             + details
         )
 
+    versions = [f"Minimum revision: {REVISION}"]
+    versions.extend(
+        f"Verified {skill} at descendant revision: {revision}"
+        for skill, (_, revision) in matches.items()
+    )
     if not missing:
-        verify_complete_bundle(skills_root, selected_skills)
-        print(f"Pinned {bundle_name} is already current at {skills_root}")
-        print(f"Revision: {REVISION}")
+        verify_complete_bundle(
+            skills_root, selected_skills, expected_digests=expected_digests
+        )
+        print(f"{bundle_name} is already current at {skills_root}")
+        print("\n".join(versions))
         return
 
     if shutil.which("git") is None:
@@ -307,10 +400,12 @@ def install(skills_root: Path, *, include_setup_helper: bool = False) -> None:
                 ) from error
             raise
 
-        verify_complete_bundle(skills_root, selected_skills)
+        verify_complete_bundle(
+            skills_root, selected_skills, expected_digests=expected_digests
+        )
 
-    print(f"Installed pinned {bundle_name} at {skills_root}")
-    print(f"Revision: {REVISION}")
+    print(f"Installed missing {bundle_name} members at {skills_root}")
+    print("\n".join(versions))
     print(f"Installed: {', '.join(missing)}")
     if current:
         print(f"Already current: {', '.join(current)}")
@@ -319,7 +414,7 @@ def install(skills_root: Path, *, include_setup_helper: bool = False) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Install the DAG Skill's pinned Runtime Skills into an explicit host "
+            "Install the DAG Skill's Runtime Skills at or after its minimum revision into an explicit host "
             "Skills root."
         )
     )

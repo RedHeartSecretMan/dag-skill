@@ -180,6 +180,213 @@ class GitIsolationTests(unittest.TestCase):
                 )
 
 
+class MinimumRevisionInstallationTests(unittest.TestCase):
+    def setUp(self) -> None:
+        if shutil.which("git") is None:
+            self.skipTest("Git is unavailable")
+        temporary = tempfile.TemporaryDirectory()
+        self.addCleanup(temporary.cleanup)
+        self.root = Path(temporary.name)
+        self.upstream = self.root / "upstream"
+        self.upstream.mkdir()
+        installer.run_git(["init", "--quiet", "--template="], self.upstream)
+        self.sources = create_sources(self.upstream / installer.UPSTREAM_BUNDLE_ROOT)
+        self.before = self.commit("before minimum")
+        self.review = self.sources["code-review"] / "SKILL.md"
+        self.review.write_text("minimum review\n", encoding="utf-8")
+        self.minimum = self.commit("minimum")
+        self.minimum_digests = {
+            name: installer.tree_digest(path) for name, path in self.sources.items()
+        }
+        self.skills_root = self.root / "host" / "skills"
+
+    def commit(self, message: str) -> str:
+        installer.run_git(["add", "."], self.upstream)
+        installer.run_git(
+            [
+                "-c",
+                "user.name=DAG Skill Tests",
+                "-c",
+                "user.email=dag-skill-tests@example.invalid",
+                "commit",
+                "--quiet",
+                "-m",
+                message,
+            ],
+            self.upstream,
+        )
+        return installer.run_git(["rev-parse", "HEAD"], self.upstream)
+
+    def install(self) -> str:
+        output = io.StringIO()
+        with (
+            mock.patch.object(installer, "REPOSITORY", str(self.upstream)),
+            mock.patch.object(installer, "REVISION", self.minimum),
+            mock.patch.object(installer, "PINNED_TREE_DIGESTS", self.minimum_digests),
+            contextlib.redirect_stdout(output),
+        ):
+            installer.install(self.skills_root)
+        return output.getvalue()
+
+    def test_reuses_an_intermediate_descendant_and_installs_missing_skills(
+        self,
+    ) -> None:
+        self.review.write_text("newer review\n", encoding="utf-8")
+        descendant = self.commit("newer review")
+        shutil.copytree(self.sources["code-review"], self.skills_root / "code-review")
+        self.review.write_text("latest review\n", encoding="utf-8")
+        self.commit("latest review")
+
+        output = self.install()
+
+        self.assertEqual(
+            (self.skills_root / "code-review" / "SKILL.md").read_text(),
+            "newer review\n",
+        )
+        self.assertIn(descendant, output)
+        for name in ("tdd", "codebase-design"):
+            self.assertEqual(
+                installer.tree_digest(self.skills_root / name),
+                self.minimum_digests[name],
+            )
+        self.assertFalse((self.skills_root / installer.SETUP_SKILL).exists())
+
+    def test_reuses_a_descendant_from_an_upstream_branch(self) -> None:
+        installer.run_git(["checkout", "--quiet", "-b", "newer"], self.upstream)
+        self.review.write_text("branch review\n", encoding="utf-8")
+        descendant = self.commit("branch review")
+        shutil.copytree(self.sources["code-review"], self.skills_root / "code-review")
+        installer.run_git(
+            ["checkout", "--quiet", "--detach", self.minimum], self.upstream
+        )
+
+        output = self.install()
+
+        self.assertIn(descendant, output)
+        self.assertEqual(
+            (self.skills_root / "code-review" / "SKILL.md").read_text(),
+            "branch review\n",
+        )
+
+    def test_reuses_a_complete_newer_bundle_without_reinstalling(self) -> None:
+        self.review.write_text("newer review\n", encoding="utf-8")
+        descendant = self.commit("newer bundle")
+        for skill in installer.RUNTIME_SKILLS:
+            shutil.copytree(self.sources[skill], self.skills_root / skill)
+        before = installer.tree_digest(self.skills_root)
+
+        output = self.install()
+
+        self.assertIn("already current", output)
+        self.assertIn(descendant, output)
+        self.assertEqual(installer.tree_digest(self.skills_root), before)
+
+    def test_reuses_a_descendant_reachable_only_from_a_tag(self) -> None:
+        branch = installer.run_git(["symbolic-ref", "HEAD"], self.upstream)
+        self.review.write_text("tagged review\n", encoding="utf-8")
+        descendant = self.commit("tagged review")
+        installer.run_git(["tag", "newer-release"], self.upstream)
+        shutil.copytree(self.sources["code-review"], self.skills_root / "code-review")
+        installer.run_git(
+            ["checkout", "--quiet", "--detach", self.minimum], self.upstream
+        )
+        installer.run_git(["update-ref", branch, self.minimum], self.upstream)
+
+        output = self.install()
+
+        self.assertIn(descendant, output)
+        self.assertEqual(
+            (self.skills_root / "code-review" / "SKILL.md").read_text(),
+            "tagged review\n",
+        )
+
+    def test_unavailable_source_preserves_newer_targets_without_writing(self) -> None:
+        self.review.write_text("newer review\n", encoding="utf-8")
+        self.commit("newer review")
+        shutil.copytree(self.sources["code-review"], self.skills_root / "code-review")
+        before = installer.tree_digest(self.skills_root)
+        self.upstream.rename(self.root / "unavailable-upstream")
+
+        with self.assertRaises(installer.InstallError):
+            self.install()
+
+        self.assertEqual(installer.tree_digest(self.skills_root), before)
+        self.assertFalse((self.skills_root / "tdd").exists())
+
+    def test_rejects_content_from_before_the_minimum_without_writing(self) -> None:
+        installer.run_git(
+            ["checkout", "--quiet", "--detach", self.before], self.upstream
+        )
+        shutil.copytree(self.sources["code-review"], self.skills_root / "code-review")
+        before = installer.tree_digest(self.skills_root / "code-review")
+        installer.run_git(
+            ["checkout", "--quiet", "--detach", self.minimum], self.upstream
+        )
+
+        with self.assertRaisesRegex(installer.InstallError, "code-review"):
+            self.install()
+
+        self.assertEqual(
+            installer.tree_digest(self.skills_root / "code-review"), before
+        )
+        self.assertFalse((self.skills_root / "tdd").exists())
+
+    def test_rejects_a_later_commit_without_minimum_ancestry(self) -> None:
+        installer.run_git(
+            ["checkout", "--quiet", "-b", "diverged", self.before], self.upstream
+        )
+        self.review.write_text("diverged review\n", encoding="utf-8")
+        self.commit("not a descendant")
+        shutil.copytree(self.sources["code-review"], self.skills_root / "code-review")
+        before = installer.tree_digest(self.skills_root / "code-review")
+
+        with self.assertRaisesRegex(installer.InstallError, "code-review"):
+            self.install()
+
+        self.assertEqual(
+            installer.tree_digest(self.skills_root / "code-review"), before
+        )
+        self.assertFalse((self.skills_root / "tdd").exists())
+
+    def test_preserves_local_edits_to_a_descendant(self) -> None:
+        self.review.write_text("newer review\n", encoding="utf-8")
+        self.commit("newer review")
+        shutil.copytree(self.sources["code-review"], self.skills_root / "code-review")
+        local = self.skills_root / "code-review" / "SKILL.md"
+        local.write_text("local edits\n", encoding="utf-8")
+
+        with self.assertRaisesRegex(installer.InstallError, "code-review"):
+            self.install()
+
+        self.assertEqual(local.read_text(), "local edits\n")
+        self.assertFalse((self.skills_root / "tdd").exists())
+
+    def test_final_verification_rejects_changes_to_a_reused_descendant(self) -> None:
+        self.review.write_text("newer review\n", encoding="utf-8")
+        self.commit("newer review")
+        shutil.copytree(self.sources["code-review"], self.skills_root / "code-review")
+        self.review.write_text("latest review\n", encoding="utf-8")
+        self.commit("latest review")
+        original = installer.install_staged_skill
+
+        def concurrent_update(staged: Path, target: Path, expected: str) -> None:
+            original(staged, target, expected)
+            (self.skills_root / "code-review" / "SKILL.md").write_text(
+                "latest review\n", encoding="utf-8"
+            )
+
+        with mock.patch.object(
+            installer, "install_staged_skill", side_effect=concurrent_update
+        ):
+            with self.assertRaisesRegex(installer.InstallError, "bundle verification"):
+                self.install()
+
+        self.assertEqual(
+            (self.skills_root / "code-review" / "SKILL.md").read_text(),
+            "latest review\n",
+        )
+
+
 class PathSafetyTests(unittest.TestCase):
     def test_python_runtime_floor_is_3_12(self) -> None:
         installer.require_supported_python((3, 12))
@@ -323,6 +530,7 @@ class BundleInstallationTests(unittest.TestCase):
         }
         with (
             mock.patch.object(installer, "fetch_pinned_source", return_value=sources),
+            mock.patch.object(installer, "match_descendant_sources", return_value={}),
             mock.patch.object(installer, "PINNED_TREE_DIGESTS", source_digests),
             mock.patch.object(installer.shutil, "which", return_value="/usr/bin/git"),
         ):
@@ -357,7 +565,7 @@ class BundleInstallationTests(unittest.TestCase):
                 installer.install(skills_root)
             second = output.getvalue()
 
-            self.assertIn("Installed pinned DAG Runtime Skill Bundle", first)
+            self.assertIn("Installed missing DAG Runtime Skill Bundle members", first)
             self.assertIn("already current", second)
             fetch.assert_not_called()
             for skill in installer.RUNTIME_SKILLS:

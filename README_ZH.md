@@ -20,14 +20,14 @@
 进入 `Runnable Frontier` 前，`Coordinator Agent` 按顺序完成：
 
 1. 回读 `Target Project` 的指令、Spec、Tickets、tracker、Git、worktrees、测试和已有证据，重建有效 `Approved DAG`。如果项目要求更新 Git-tracked tracker，则确认在 Ticket 成为 `Accepted Ticket` 或 `Superseded Ticket` 后何时更新、更新什么，以及是否具备写入权限。
-2. 验证 `Agent Host` 能解析由 `tdd`、`codebase-design` 和 `code-review` 组成的 `Runtime Skill Bundle`；无法解析、缺失或固定身份不一致时运行安装器：
+2. 验证 `Agent Host` 能解析由 `tdd`、`codebase-design` 和 `code-review` 组成的 `Runtime Skill Bundle`。锚定 commit 是最低版本：接受该版本，以及通过 Git 祖先关系和完整内容核验的后代版本。无法解析、缺失或尚未确认满足最低版本时运行安装器：
 
    ```bash
    python3 <this-skill-root>/scripts/install_runtime_skills.py \
      --skills-root /path/to/agent-host/skills
    ```
 
-   安装器只创建缺失且无冲突的 Skill；发现不同版本或不完整目标时保留现场并报告。安装成功后让 `Agent Host` 重新加载 Skill 列表，确认三项 Skill 均可解析。
+   安装器离线识别锚定副本；内容不同时从上游分支和 tag 历史核验后代版本，包括中间版本。已验证的较新副本直接复用，缺失项仍从锚点补齐；无法核验、有本地修改或不完整的目标保留现场并报告。安装成功后让 `Agent Host` 重新加载 Skill 列表，确认三项 Skill 均可解析。
 
    调用 Runtime Skills 时提供 `Target Project` 的权威指令和输入。审查可使用项目已有的 tracker 流程；仅缺少依赖约定的文档路径不要求项目配置。真正缺少上下文时补齐具体缺项，配置变更按既有授权边界处理。
 
