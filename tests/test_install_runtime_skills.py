@@ -85,27 +85,29 @@ class GitIsolationTests(unittest.TestCase):
         self.assertEqual(run.call_args.kwargs["timeout"], installer.GIT_TIMEOUT_SECONDS)
 
     def test_run_git_reports_the_bounded_timeout(self) -> None:
-        with mock.patch.object(
-            installer.subprocess,
-            "run",
-            side_effect=subprocess.TimeoutExpired(
-                ["git", "fetch"], installer.GIT_TIMEOUT_SECONDS
+        with (
+            mock.patch.object(
+                installer.subprocess,
+                "run",
+                side_effect=subprocess.TimeoutExpired(
+                    ["git", "fetch"], installer.GIT_TIMEOUT_SECONDS
+                ),
             ),
+            self.assertRaisesRegex(installer.InstallError, "installation bound"),
         ):
-            with self.assertRaisesRegex(installer.InstallError, "installation bound"):
-                installer.run_git(["fetch"], Path("/tmp"))
+            installer.run_git(["fetch"], Path("/tmp"))
 
     def test_fetch_uses_an_explicit_empty_template_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             workspace = Path(temporary)
 
-            with mock.patch.object(
-                installer, "run_git", side_effect=["", "", "", installer.REVISION]
-            ) as run:
-                with self.assertRaisesRegex(
-                    installer.InstallError, "source is missing"
-                ):
-                    installer.fetch_pinned_source(workspace)
+            with (
+                mock.patch.object(
+                    installer, "run_git", side_effect=["", "", "", installer.REVISION]
+                ) as run,
+                self.assertRaisesRegex(installer.InstallError, "source is missing"),
+            ):
+                installer.fetch_pinned_source(workspace)
 
             init_arguments = run.call_args_list[0].args[0]
             self.assertEqual(init_arguments[:2], ["init", "--quiet"])
@@ -128,9 +130,11 @@ class GitIsolationTests(unittest.TestCase):
                     return installer.REVISION
                 return ""
 
-            with mock.patch.object(installer, "run_git", side_effect=emulate_git):
-                with self.assertRaisesRegex(installer.InstallError, "source digest"):
-                    installer.fetch_pinned_source(workspace)
+            with (
+                mock.patch.object(installer, "run_git", side_effect=emulate_git),
+                self.assertRaisesRegex(installer.InstallError, "source digest"),
+            ):
+                installer.fetch_pinned_source(workspace)
 
     def test_fetch_checks_out_a_matching_local_revision(self) -> None:
         if shutil.which("git") is None:
@@ -375,11 +379,13 @@ class MinimumRevisionInstallationTests(unittest.TestCase):
                 "latest review\n", encoding="utf-8"
             )
 
-        with mock.patch.object(
-            installer, "install_staged_skill", side_effect=concurrent_update
+        with (
+            mock.patch.object(
+                installer, "install_staged_skill", side_effect=concurrent_update
+            ),
+            self.assertRaisesRegex(installer.InstallError, "bundle verification"),
         ):
-            with self.assertRaisesRegex(installer.InstallError, "bundle verification"):
-                self.install()
+            self.install()
 
         self.assertEqual(
             (self.skills_root / "code-review" / "SKILL.md").read_text(),
@@ -407,9 +413,11 @@ class PathSafetyTests(unittest.TestCase):
         self.assertFalse(installer.is_filesystem_root(PureWindowsPath("C:/skills")))
 
     def test_install_rejects_the_live_filesystem_root_before_fetch(self) -> None:
-        with mock.patch.object(installer, "fetch_pinned_source") as fetch:
-            with self.assertRaisesRegex(installer.InstallError, "filesystem root"):
-                installer.install(Path("/"))
+        with (
+            mock.patch.object(installer, "fetch_pinned_source") as fetch,
+            self.assertRaisesRegex(installer.InstallError, "filesystem root"),
+        ):
+            installer.install(Path("/"))
         fetch.assert_not_called()
 
     def test_tree_digest_frames_file_content_and_following_records(self) -> None:
@@ -533,11 +541,9 @@ class BundleInstallationTests(unittest.TestCase):
             mock.patch.object(installer, "match_descendant_sources", return_value={}),
             mock.patch.object(installer, "PINNED_TREE_DIGESTS", source_digests),
             mock.patch.object(installer.shutil, "which", return_value="/usr/bin/git"),
+            contextlib.redirect_stdout(output),
         ):
-            with contextlib.redirect_stdout(output):
-                installer.install(
-                    skills_root, include_setup_helper=include_setup_helper
-                )
+            installer.install(skills_root, include_setup_helper=include_setup_helper)
         return output.getvalue()
 
     def test_complete_bundle_install_is_idempotent(self) -> None:
@@ -684,9 +690,9 @@ class BundleInstallationTests(unittest.TestCase):
                 mock.patch.object(
                     installer, "install_staged_skill", side_effect=create_racing_target
                 ),
+                self.assertRaisesRegex(installer.InstallError, "Target appeared"),
             ):
-                with self.assertRaisesRegex(installer.InstallError, "Target appeared"):
-                    installer.install(skills_root)
+                installer.install(skills_root)
 
             self.assertEqual(
                 installer.tree_digest(skills_root / "code-review"),
@@ -734,11 +740,11 @@ class BundleInstallationTests(unittest.TestCase):
                     "install_staged_skill",
                     side_effect=mutate_current_target,
                 ),
-            ):
-                with self.assertRaisesRegex(
+                self.assertRaisesRegex(
                     installer.InstallError, "bundle verification failed"
-                ):
-                    installer.install(skills_root)
+                ),
+            ):
+                installer.install(skills_root)
 
             self.assertEqual(
                 (skills_root / "code-review" / "SKILL.md").read_text(encoding="utf-8"),
@@ -759,19 +765,21 @@ class BundleInstallationTests(unittest.TestCase):
                 )
                 original(source, destination)
 
-            with mock.patch.object(
-                installer,
-                "copy_directory_contents",
-                side_effect=create_racing_child,
-            ):
-                with self.assertRaisesRegex(
+            with (
+                mock.patch.object(
+                    installer,
+                    "copy_directory_contents",
+                    side_effect=create_racing_child,
+                ),
+                self.assertRaisesRegex(
                     installer.InstallError, "remains for inspection"
-                ):
-                    installer.install_staged_skill(
-                        sources["code-review"],
-                        target,
-                        installer.tree_digest(sources["code-review"]),
-                    )
+                ),
+            ):
+                installer.install_staged_skill(
+                    sources["code-review"],
+                    target,
+                    installer.tree_digest(sources["code-review"]),
+                )
 
             self.assertEqual(
                 (target / "SKILL.md").read_text(encoding="utf-8"),
@@ -790,19 +798,21 @@ class BundleInstallationTests(unittest.TestCase):
                 (destination / "partial.txt").write_text("partial\n", encoding="utf-8")
                 raise OSError("injected copy failure")
 
-            with mock.patch.object(
-                installer,
-                "copy_directory_contents",
-                side_effect=fail_after_partial_copy,
-            ):
-                with self.assertRaisesRegex(
+            with (
+                mock.patch.object(
+                    installer,
+                    "copy_directory_contents",
+                    side_effect=fail_after_partial_copy,
+                ),
+                self.assertRaisesRegex(
                     installer.InstallError, "remains for inspection"
-                ):
-                    installer.install_staged_skill(
-                        sources["code-review"],
-                        target,
-                        installer.tree_digest(sources["code-review"]),
-                    )
+                ),
+            ):
+                installer.install_staged_skill(
+                    sources["code-review"],
+                    target,
+                    installer.tree_digest(sources["code-review"]),
+                )
 
             self.assertEqual(
                 (target / "partial.txt").read_text(encoding="utf-8"), "partial\n"

@@ -148,9 +148,11 @@ def copy_directory_contents(source: Path, target: Path) -> None:
             destination.mkdir()
             copy_directory_contents(entry, destination)
         elif entry.is_file():
-            with entry.open("rb") as source_handle:
-                with destination.open("xb") as destination_handle:
-                    shutil.copyfileobj(source_handle, destination_handle)
+            with (
+                entry.open("rb") as source_handle,
+                destination.open("xb") as destination_handle,
+            ):
+                shutil.copyfileobj(source_handle, destination_handle)
             shutil.copystat(entry, destination, follow_symlinks=False)
         else:
             raise InstallError(f"Unsupported staged entry: {entry}")
