@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Validate the canonical DAG Definition Index at one Git commit."""
 
 from __future__ import annotations

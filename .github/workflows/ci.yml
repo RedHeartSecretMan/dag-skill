@@ -38,8 +38,9 @@ jobs:
 
       - name: Check Python
         run: |
-          ruff check .
-          ruff format --check .
+          # Keep the selected rules explicit across local and CI environments.
+          ruff check --isolated --select E4,E7,E9,F,I,B,SIM117,EXE001 .
+          ruff format --check --isolated .
 
       - name: Check Markdown
         run: >-
