@@ -59,7 +59,7 @@ _Avoid_: 实现者、重复 Coordinator Agent、审查者
 _Avoid_: DAG 调度者、验收决策者
 
 **Agent Host**:
-承载 Coordinator Agent 和 Execution Agent，并决定可解析 Skills 与可用运行能力的宿主环境。
+承载 Coordinator Agent、Execution Agent 及 Runtime Skills 的内部 Agents，并决定可解析 Skills、可用运行能力和并发容量的宿主环境。
 _Avoid_: Agent 实例、Target Project、Skills root
 
 **Runtime Skill Bundle**:
@@ -71,7 +71,7 @@ Execution Agent 返回给 Coordinator Agent 的结果，只能是 Ready for Acce
 _Avoid_: Ticket 状态、验收决定
 
 **Baseline Satisfaction**:
-Ticket Base 已满足 Acceptance Obligation、无需交付差异时使用的证据路径；只有 Target Project 的既有规则可以把它判定为 Accepted 或 Superseded。
+当前 Ticket Base 上无需产品交付差异、Acceptance Obligation 已由完整证据满足时使用的证据路径；Approved Ticket 明确规定的验证、审计或操作交付，以及 Target Project 的既有规则，可以决定其 Accepted 或 Superseded 结果。
 _Avoid_: 空提交、对空 diff 发起审查、默认验收
 
 ## 集成与证据
@@ -101,7 +101,7 @@ _Avoid_: Promotion Candidate、中间 commit、Baseline Satisfaction
 _Avoid_: 尚无 candidate 的 pending update、Promotion Candidate、Run Receipt commit、未经审查的 tracker 更新
 
 **Integration Publication Mode**:
-一次运行对 Accepted Integration Tip 的发布要求，只能是 Local-only 或映射到一个专用远端分支的 Remote-mirrored。
+一次运行对 Accepted Integration Tip 的发布要求，只能是 Local-only 或映射到一个专用远端分支的 Remote-mirrored；已有模式恢复后继续沿用，无同步意图时默认为 Local-only。
 _Avoid_: 每个 Ticket 单独选择、顺便同步 remote
 
 **Integration Transition**:
@@ -117,11 +117,11 @@ _Avoid_: working tree、最新文件、DAG Definition Checkpoint
 _Avoid_: 未绑定的审查文本、审查者身份
 
 **Run Receipt**:
-保存在交付历史之外、用于恢复 Accepted Integration Tip、DAG Definition、认领、候选、Integration Transitions 和未决条件的紧凑记录。
+保存在交付历史之外、用于恢复 Accepted Integration Tip、DAG Definition、认领、候选、Integration Transitions、未决条件，以及本次资源所有权、证据引用和处置的紧凑索引。
 _Avoid_: DAG Definition、已跟踪选择器、调度数据库
 
 ## 终态
 
 **Terminal Outcome**:
-只能是 Complete 或 Stalled；Complete 表示最终 DAG Definition 下的全部责任均已闭环，Stalled 表示当前没有任何获授权且可执行的推进路径。
+只能是 Complete 或 Stalled；Complete 表示最终 DAG Definition 下的全部责任均已闭环，Stalled 表示当前没有任何获授权且可执行的推进路径；本次资源的处置、保留或待处理情况与该产品结果分别报告。
 _Avoid_: 等待中、存在未决决定、未同步的 Remote-mirrored 运行

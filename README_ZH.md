@@ -9,6 +9,7 @@
 - [`SKILL.md`](./skill/dag/SKILL.md) 是运行规范；
 - [`references/`](./skill/dag/references/) 保存按运行分支读取的详细契约；
 - [`scripts/validate_definition_index.py`](./skill/dag/scripts/validate_definition_index.py) 验证 `DAG Definition Index`；
+- [`scripts/promote_local_transition.py`](./skill/dag/scripts/promote_local_transition.py) 核验冻结证据并推进本地集成 ref；
 - [`scripts/install_runtime_skills.py`](./skill/dag/scripts/install_runtime_skills.py) 安装 `Runtime Skill Bundle`。
 
 它只执行已经批准的 `Approved DAG`，不替代 `Target Project` 编写 Spec 或 Ticket。
@@ -42,6 +43,10 @@
 
 诊断未改变交付内容时，仍可能排除一种原因。停止在相同条件下重复失败的操作；只要还有获授权的诊断或修复路径，就继续在 Ticket 内处理。只有证据确立了相应决定或外部条件，才返回非成功 `Execution Outcome`。
 
+默认串行调度。确实独立的并行工作可由 `Execution Agent` 提前实现并运行 focused checks；待 `Coordinator Agent` 确认当前 `Ticket Base`、此前验收和项目要求的 tracker checkpoint 后，再完成最终门禁与审查。每张 Ticket 保持同一 owner 和 workspace，并为自行编排内部审查的 `Runtime Skill Bundle` 预留 `Agent Host` 容量；长期修复可让独立工作优先完成。等待确认 Base 属于调度，不新增 `Execution Outcome`。
+
+同一 `Acceptance Obligation` 下重复出现成立的 finding 时，`Execution Agent` 在再次提交前按同一约束检查与证据相关的相邻路径。审计保持在 Ticket 的批准范围内，并将证据与 finding 处置一起记录。
+
 当 Ticket 工作可以稳定交接时，`Execution Agent` 只返回以下三种 `Execution Outcome` 之一：
 
 | Execution Outcome | 含义 |
@@ -65,7 +70,9 @@ sequenceDiagram
     C->>E: 以零历史或最小历史派发固定 Ticket contract
 
     E->>E: 回读 Ticket、Spec、Accepted inputs、worktree 和 WIP
-    E->>E: 通过 $tdd 实现并完成 final gates
+    E->>E: 通过 $tdd 实现并运行 focused checks
+    C-->>E: 此前必需 tracker 更新完成后确认当前 Ticket Base
+    E->>E: 完成 final gates
     E->>E: 提交固定 Promotion Candidate
     E->>R: 对 Base...candidate 调用 $code-review
     R-->>E: 返回 Standards/Spec findings
@@ -87,7 +94,8 @@ sequenceDiagram
     end
 
     C->>C: 核对 Base、candidate、tree、gates 和 findings
-    C->>I: 原子 CAS 推进 integration ref
+    C->>C: 冻结并回读完整 pending Transition 证据
+    C->>I: CAS 推进 integration ref
     I-->>C: 回读 candidate commit/tree
 
     opt Remote-mirrored
@@ -114,23 +122,24 @@ sequenceDiagram
 - 同一 Ticket 同时只有一个可写 `Execution Agent`。更换 Agent 前先确认原 Agent 已停止，并交接原 branch、worktree、WIP 和证据。
 - 派发 `Execution Agent` 时只传固定单票契约，并使用 `Agent Host` 的零历史设置；不支持时采用排除无关 Ticket、Run Receipt 和既有工具输出的最小历史窗口。
 - 派发契约携带适用于当前及下游 Agent 的用户与项目约束，以及已有批准的指针；后续调用和派发继续遵守，无法满足明确约束时说明限制，不擅自替换配置。
-- `Baseline Satisfaction` 只有在 `Target Project` 已有明确规则且证据完整时才能形成成功结果；不制造空提交，也不对空 diff 调用 `$code-review`。
+- `Baseline Satisfaction` 要求 Approved Ticket 或 `Target Project` 已有明确规则，并具备逐项满足责任的完整证据。明确的验证、审计或操作交付可构成该规则，无需仅为空产品 diff 再次申请批准。测试通过本身不能满足实现 Ticket；当前 Base/tree、授权和实际交付仍须符合要求。不制造空提交，也不对空 diff 调用 `$code-review`。
+- 产品等价的元数据变化可以复用仍有效的产品门禁，保留原候选与 artifact 身份，补充新的等价与影响审计，并重跑全部失效检查。
 - `Run Receipt` 保存在交付历史之外，并按 `integration-transitions.md` 保存 pending `Integration Transition` 的冻结证据；`DAG Definition Checkpoint` 还要绑定验收影响处置和审计身份。
 - 如果 `Target Project` 规定更新 Git-tracked tracker，先完整结束当前验收或 `Integration Transition`，再把尚无 candidate 的工作记录为 pending required tracker update；candidate 形成后只使用 typed `DAG Definition Checkpoint` Transition。更新触及已选中的 Definition input 时必须重绑 index 并审计验收影响，不能冒充 state-only update。
+- 只有 index 与全部 selected inputs 完全不变时，state/evidence-only checkpoint 的新审查才可聚焦 tracker 映射、证据身份与链接、范围、安全和必需文档门禁。Definition 变化仍须完整绑定与验收影响审计。
 
 ## 集成发布
 
 每次运行只选择一次 `Integration Publication Mode`：
 
-- 已有可恢复模式时继续使用；
-- 用户明确要求同步时选择 `Remote-mirrored`，remote 或分支不明确时只询问缺少的选择；
-- 没有 remote 且未要求同步时直接选择 `Local-only`；
-- 已配置 remote 但没有同步意图时，询问使用 `Local-only` 还是 `Remote-mirrored`；
+- 已有可恢复模式或项目规则时继续使用；
+- 用户或项目明确要求同步时选择 `Remote-mirrored`，remote 或分支不明确时只询问缺少的选择；
+- 没有同步要求时直接选择 `Local-only`，已配置 remote 也遵循该默认值；
 - 必须同步但没有 remote 时，先取得 remote 名称、URL 和执行 `git remote add` 的授权。
 
 `Remote-mirrored` 只同步一个专用的 `DAG Integration Branch`。写默认或受保护分支、改用 PR、同步 Ticket 分支、force-push 或切换 ref 都不属于该模式的默认权限。
 
-每个 `Integration Transition` 都先原子推进 `DAG Integration Branch` 的本地 ref 并回读；`Remote-mirrored` 还必须同步固定远端 ref 并确认 SHA 相同。同步未完成时保持 pending，不验收 Ticket、不解锁后继，也不开始下一次 `Integration Transition`。完整恢复算法以 [`integration-transitions.md`](./skill/dag/references/integration-transitions.md) 为准。
+每个 `Integration Transition` 都先冻结并回读完整 pending 证据，再通过 compare-and-swap 推进 `DAG Integration Branch` 的本地 ref 并回读。`scripts/promote_local_transition.py` 只核验冻结请求并执行该本地步骤，契约见 [`integration-transitions.md`](./skill/dag/references/integration-transitions.md)。ref 变更、证据持久化和 receipt 完成是各自独立的操作。`Remote-mirrored` 还必须由 Coordinator 同步固定远端 ref 并确认 SHA 相同。同步未完成时保持 pending，不验收 Ticket、不解锁后继，也不开始下一次 `Integration Transition`。恢复沿用已记录的模式；发布 Ticket 的授权仍与集成镜像分开。
 
 ## 授权与终态
 
@@ -142,6 +151,8 @@ sequenceDiagram
 
 - `Complete`：最终 `DAG Definition` 已绑定，所有有效 Ticket 均已成为 `Accepted Ticket`，所有 `Superseded Ticket` 的责任已处置，没有活动认领，整图门禁和依赖消费一致，满足 `Integration Publication Mode`，并且项目要求的 Git-tracked tracker 已与最终 DAG 状态一致。
 - `Stalled`：所有写入者状态和未决决定都已解决，但未完成工作仍没有运行中 `Execution Agent`、`Runnable Frontier`、获授权恢复、`DAG Revision` 或可满足的外部条件。
+
+在交付历史之外的 `Run Receipt` 中索引本次拥有的资源、所有权、证据引用和恢复需求。按既有权限回收可再生且已停止使用的资源；保留活动写入者、用户或其他运行资源、唯一 WIP 与证据，以及必需恢复材料。移除承载证据的资源前核验保留 artifact 和引用。终态报告分别说明已处置、保留和待处理资源；资源处置不改变 `Complete` 或 `Stalled` 的含义，也不扩大破坏性操作权限。
 
 ## 调用示例
 

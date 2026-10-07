@@ -4,8 +4,20 @@
 
 ## [Unreleased]
 
+## [0.4.2] - 2026-10-07
+
+### Added
+
+- 新增 `promote_local_transition.py`，从已冻结的 pending Integration Transition 校验记录、证据摘要、Git 身份和工作树占用，再执行本地 CAS 与精确回读；失败保留恢复证据，不写远端或直接验收 Ticket。
+
 ### Changed
 
+- 已批准 Ticket 明确交付验证、审计或操作证据时，可作为既有 Baseline Satisfaction 规则，无需额外批准零差异术语；实际验收责任、当前 Base 核对及远端操作授权保持不变。
+- 没有明确同步要求时默认 Local-only，包括已配置 remote 的仓库；恢复已有运行时保持原模式，发布票的独立授权继续生效。
+- 并行工作优先提前实现和定点验证，在明确的当前 Base 上接续最终门禁、审查、集成及必需 tracker 更新，并为 Runtime Skills 保留宿主容量。
+- Run Receipt 记录本轮资源及证据去向，在已有权限内处置可重建且不再使用的资源；终态分别报告交付结果与资源处置，保留用户工作、恢复需要和唯一证据。
+- 纯稳定审计检查点以 Definition 身份不变证明收敛 fresh review 范围；元数据变化后的产品门禁复用保留原候选身份，并补充等价性与影响核对。
+- 同一验收责任反复出现成立的 finding 时，执行 Agent 在本票范围内检查有因果关联的相邻路径，再提交复审。
 - Runtime Skills 的锚定 commit 改为最低版本要求：复用完整内容对应锚点或其 Git 后代提交的副本，包括中间版本；缺失项仍从锚点补齐，无法核验或有本地修改的目标保留现场。
 - 默认 `README.md` 改为英文，中文版移至 `README_ZH.md`，语言切换文字使用“简体中文”。
 - 派发契约携带适用于当前及下游 Agent 的用户与项目约束，以及已有批准的指针；Runtime Skill 调用和后续派发继续遵守这些约束。
@@ -14,6 +26,8 @@
 
 ### Fixed
 
+- 集成明确采用前置校验、冻结记录持久化与回读、本地 CAS、分支回读的失败即停顺序；新增真实 Git 仓库回归覆盖拒绝写入及恢复路径。
+- CI 显式使用与本地约定一致的隔离 Ruff 规则选择，修复此前不一致的检查结果。
 - 单次诊断未取得交付变化时，只要还有获授权的诊断或修复路径，Execution Agent 就继续处理；停止重复失败操作不再自动触发不适用的 Execution Outcome。
 - Definition Index 中超出 Python 整数解析限制的 JSON 数值现在按约定返回 `error: ...` 和非零退出码，不再输出 traceback。
 
@@ -127,7 +141,8 @@
 - 提供固定 Skill Bundle 的 Python 3.12+ 安装器。
 - 提供项目使用指南、设计说明、领域词汇、可选宿主界面元数据和安装器回归测试。
 
-[Unreleased]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.4.1...HEAD
+[Unreleased]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.4.2...HEAD
+[0.4.2]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.3.1...v0.4.0
 [0.3.1]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.3.0...v0.3.1

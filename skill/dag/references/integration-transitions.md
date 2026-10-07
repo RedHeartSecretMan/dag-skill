@@ -11,12 +11,13 @@ Reuse a mode and mapping fixed by the Target Project or recoverable Run Receipt.
 
 - an explicit instruction to mirror or push the DAG Integration Branch selects Remote-mirrored when the remote and ref are unambiguous;
 - “if a remote exists, synchronize it” selects the only configured remote, selects Local-only when none exists, and requires a choice when several exist;
-- no configured remote and no synchronization requirement selects Local-only;
-- configured remotes without stated synchronization intent require one Local-only versus Remote-mirrored decision;
+- no stated synchronization requirement selects Local-only, whether or not remotes are configured; record the selection and continue local execution;
 - required synchronization without a configured remote requires the user to supply its name and URL and authorize `git remote add`;
 - an ambiguous remote or branch requires only the missing selection.
 
 Use a dedicated integration branch. A default or protected branch, pull-request-only path, alternate ref, Ticket branch, force-push, or mapping change needs separate authority and reconciliation before claims or promotion.
+
+Keep the recovered mode during failures: an unavailable remote does not turn Remote-mirrored into Local-only. A separately authorized release Ticket can perform its specified external operations in either mode; integration mirroring alone grants no release authority.
 
 ## Reconcile the local integration ref
 
@@ -56,17 +57,46 @@ Immediately before promotion:
 2. require the candidate to descend from Base and every frozen identity to match;
 3. for a Promotion Candidate, require its Ticket and Candidate Review Record to remain acceptable;
 4. for a DAG Definition Checkpoint, require the approved Definition source, validator result, review, and acceptance-impact evidence to remain current;
-5. persist the complete pending Transition before moving the ref.
+5. persist the complete pending Transition and reread its exact bytes and evidence identities before moving the ref.
 
 Hold that graph and evidence fixed until completion. Process later graph evidence afterward.
 
-Advance the full local ref with exact compare-and-swap, for example:
+Complete preparation, persistence/readback, local compare-and-swap, and ref readback as a fail-closed sequence. A nonzero exit, incomplete output, or identity mismatch stops the sequence. Preserve the pending evidence and repair the failed prerequisite before retrying; a later tool call must not skip directly to ref mutation.
+
+Use the bundled helper for the local compare-and-swap and readback:
 
 ```bash
-git update-ref <integration-ref> <candidate> <Base>
+python3 <this-skill-root>/scripts/promote_local_transition.py \
+  --repository <target-project-root> \
+  --transition <off-delivery-pending-record.json> \
+  --sha256 <verified-record-sha256>
 ```
 
-Read back the commit and tree. The ref must not be checked out. The reviewed bytes are promoted directly: no merge, recreation, amendment, or evidence substitution.
+Run the helper from an existing non-bare Target Project checkout. It advances only the exact un-checked-out local branch from Base to candidate and reads back its commit/tree, with Git hooks disabled for that ref update. The reviewed bytes are promoted directly: no merge, recreation, amendment, or evidence substitution. The Coordinator retains responsibility for the semantic checks above, publication authority, and eventual acceptance.
+
+### Frozen local promotion record
+
+The helper consumes one immutable JSON record for the existing pending Integration Transition. Store its path and SHA-256 in the Run Receipt as that Transition's reference, rather than maintaining another mutable copy of the pending state. After successfully preparing and persisting it, verify the record and retain its digest for both the initial call and recovery.
+
+```json
+{
+  "schema_version": 1,
+  "candidate_kind": "Promotion Candidate",
+  "integration_ref": "refs/heads/codex/example-integration",
+  "base": "<full-commit-object-id>",
+  "candidate": "<full-commit-object-id>",
+  "candidate_tree": "<full-tree-object-id>",
+  "evidence": [
+    {"path": "acceptance-audit.json", "sha256": "<file-sha256>"}
+  ]
+}
+```
+
+`candidate_kind` is `Promotion Candidate` or `DAG Definition Checkpoint`. The other fields are required exactly as shown; object IDs name full local objects and the candidate must be a descendant commit distinct from Base. Evidence paths resolve relative to the record's directory unless absolute. Include every artifact needed to verify the frozen gates, complete reviews, finding dispositions, and applicable Definition/acceptance-impact audits. A file containing unchecked pointers is not a substitute for binding its required artifacts. The helper verifies file bytes and Git identities; it does not infer whether project-specific evidence proves acceptance.
+
+Keep the record and evidence off-delivery and unchanged for the duration of the pending Transition. Run with one Coordinator and quiescent record, evidence, and integration-worktree ownership; this is a local Git CAS, not a transaction across arbitrary concurrent filesystem writers. The helper checks the record digest, evidence hashes, ancestry, candidate tree, direct branch identity, and worktree use before mutation. It leaves the record and evidence untouched and never writes a remote, completes the Run Receipt, or marks a Ticket Accepted.
+
+Exit `0` returns JSON with `status` equal to `local-promoted` or `local-already-promoted`, plus the frozen identities and record digest. The latter recognizes the same candidate during recovery after rechecking the same frozen evidence. Both are local readback results; Remote-mirrored still requires remote reconciliation. Errors return nonzero with `error: ...` on stderr. After an error, reread the ref: Base means promotion has not happened; candidate means preserve the pending Transition and resume readback/publication; any other SHA is drift. A post-CAS error never authorizes rollback or evidence replacement.
 
 ## Complete or recover the transition
 

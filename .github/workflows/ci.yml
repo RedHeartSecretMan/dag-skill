@@ -54,3 +54,4 @@ jobs:
         run: |
           python skill/dag/scripts/install_runtime_skills.py --help
           python skill/dag/scripts/validate_definition_index.py --help
+          python skill/dag/scripts/promote_local_transition.py --help

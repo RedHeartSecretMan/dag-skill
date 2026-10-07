@@ -9,6 +9,7 @@ The Skill is packaged in [`skill/dag/`](./skill/dag/):
 - [`SKILL.md`](./skill/dag/SKILL.md) defines the operating rules;
 - [`references/`](./skill/dag/references/) provides detailed contracts for specific workflow paths;
 - [`scripts/validate_definition_index.py`](./skill/dag/scripts/validate_definition_index.py) validates the `DAG Definition Index`;
+- [`scripts/promote_local_transition.py`](./skill/dag/scripts/promote_local_transition.py) verifies frozen evidence and advances a local integration ref;
 - [`scripts/install_runtime_skills.py`](./skill/dag/scripts/install_runtime_skills.py) installs the `Runtime Skill Bundle`.
 
 It executes only an `Approved DAG`. The `Target Project` remains responsible for authoring Specs and Tickets.
@@ -42,6 +43,10 @@ By default, the same `Execution Agent` handles routine work within the Ticket: f
 
 A diagnostic attempt may rule out a cause without changing the delivery. Stop repeating an action that fails under unchanged conditions, and continue within the Ticket while another authorized diagnostic or repair path remains. Return a non-success `Execution Outcome` only when evidence establishes the corresponding decision or external condition.
 
+Schedule serially by default. For genuinely independent parallel work, let the `Execution Agent` implement and run focused checks early; complete final gates and review after the `Coordinator Agent` confirms the current `Ticket Base`, preceding acceptance, and any required tracker checkpoint. Keep one owner and workspace per Ticket. Reserve `Agent Host` capacity for the `Runtime Skill Bundle`, which owns its internal review orchestration; long repairs may yield completion priority to independent work. Waiting for a confirmed Base is scheduling, not another `Execution Outcome`.
+
+When supported findings recur under one `Acceptance Obligation`, the `Execution Agent` checks the related neighboring paths against the same constraint before resubmitting. Keep that audit within the Ticket's approved scope and record its evidence with the finding dispositions.
+
 When it can hand off a stable result, the `Execution Agent` returns exactly one of the following `Execution Outcome` values:
 
 | Execution Outcome | Meaning |
@@ -65,7 +70,9 @@ sequenceDiagram
     C->>E: Dispatch fixed Ticket contract with zero or minimal history
 
     E->>E: Reread Ticket, Spec, Accepted inputs, worktree, and WIP
-    E->>E: Implement with $tdd and complete final gates
+    E->>E: Implement with $tdd and run focused checks
+    C-->>E: Confirm current Ticket Base after prior required tracker updates
+    E->>E: Complete final gates
     E->>E: Commit a fixed Promotion Candidate
     E->>R: Invoke $code-review on Base...candidate
     R-->>E: Return Standards/Spec findings
@@ -87,7 +94,8 @@ sequenceDiagram
     end
 
     C->>C: Verify Base, candidate, tree, gates, and findings
-    C->>I: Atomically advance integration ref with CAS
+    C->>C: Freeze and reread complete pending Transition evidence
+    C->>I: Advance integration ref with CAS
     I-->>C: Read back candidate commit/tree
 
     opt Remote-mirrored
@@ -114,23 +122,24 @@ sequenceDiagram
 - Each Ticket has at most one write-capable `Execution Agent` at a time. Before replacing an Agent, confirm that the previous Agent has stopped and hand over its branch, worktree, WIP, and evidence.
 - Dispatch an `Execution Agent` with only the fixed contract for one Ticket, using the `Agent Host`'s zero-history setting. If unavailable, use a minimal history window that excludes unrelated Tickets, the Run Receipt, and prior tool output.
 - Include user and project constraints that apply to the Agent and its downstream Agents, along with pointers to existing approvals. Preserve them in subsequent invocations and dispatches. If an explicit constraint cannot be met, report the limitation instead of silently substituting another configuration.
-- `Baseline Satisfaction` can produce a successful outcome only under explicit existing `Target Project` rules and with complete evidence. Do not create empty commits or invoke `$code-review` on an empty diff.
+- `Baseline Satisfaction` requires an explicit existing acceptance rule in the Approved Ticket or `Target Project` and complete evidence for every obligation. Verification, audit, or operational deliverables may supply that rule without another approval merely for an empty product diff. Green tests alone do not satisfy an implementation Ticket; current Base/tree, authority, and actual deliverables still govern. Do not create empty commits or invoke `$code-review` on an empty diff.
+- Product-equivalent metadata changes may reuse still-valid product gates with their original candidate and artifact identities, a fresh equivalence and impact audit, and every invalidated check rerun.
 - Keep the `Run Receipt` outside delivery history and preserve frozen evidence for any pending `Integration Transition` as required by `integration-transitions.md`. A `DAG Definition Checkpoint` must also bind acceptance-impact dispositions and audit identities.
 - If the `Target Project` requires updates to its Git-tracked tracker, complete the current acceptance or `Integration Transition` first. While the update has no candidate, record it as a pending required tracker update. Once a candidate exists, track it only as a typed `DAG Definition Checkpoint` Transition. If the update touches a selected Definition input, rebind the index and audit acceptance impact; it cannot be treated as a state-only update.
+- Fresh review of a state/evidence-only checkpoint may focus on tracker mappings, evidence identities and links, scope, security, and required documentation gates only when the index and every selected input are unchanged. Definition changes retain the complete binding and acceptance-impact audit.
 
 ## Integration and publication
 
 Choose an `Integration Publication Mode` once per run:
 
-- If the run's mode can be recovered from its records, continue using it.
-- Choose `Remote-mirrored` when the user explicitly requests synchronization. If the remote or branch is ambiguous, ask only for the missing choice.
-- Choose `Local-only` when no remote is configured and synchronization has not been requested.
-- If a remote is configured but synchronization has not been requested, ask whether to use `Local-only` or `Remote-mirrored`.
+- If the run's mode can be recovered from its records or project instructions, continue using it.
+- Choose `Remote-mirrored` when the user or project explicitly requires synchronization. If the remote or branch is ambiguous, ask only for the missing choice.
+- Choose `Local-only` when synchronization has not been requested, including when remotes are configured.
 - If synchronization is required but no remote exists, first obtain the remote name, URL, and authority to run `git remote add`.
 
 `Remote-mirrored` synchronizes only one dedicated `DAG Integration Branch`. The mode does not by itself authorize writing to default or protected branches, switching to a PR workflow, synchronizing Ticket branches, force-pushing, or changing refs.
 
-Every `Integration Transition` first atomically advances the local ref of the `DAG Integration Branch` and reads it back. In `Remote-mirrored` mode, it must also synchronize the fixed remote ref and verify that its SHA matches the local SHA. If synchronization is incomplete, keep the Transition pending and do not accept the Ticket, unlock successors, or start another `Integration Transition`. See [`integration-transitions.md`](./skill/dag/references/integration-transitions.md) for the complete recovery algorithm.
+Every `Integration Transition` freezes and rereads complete pending evidence before advancing the local ref of the `DAG Integration Branch` with compare-and-swap and reading it back. The narrow `scripts/promote_local_transition.py` helper validates the frozen request and performs only that local step; its contract is in [`integration-transitions.md`](./skill/dag/references/integration-transitions.md). Ref mutation, evidence persistence, and receipt completion remain separate operations. In `Remote-mirrored` mode, the Coordinator must also synchronize the fixed remote ref and verify that its SHA matches the local SHA. If synchronization is incomplete, keep the Transition pending and do not accept the Ticket, unlock successors, or start another `Integration Transition`. Recovery preserves the recorded mode; release Ticket authority remains separate from integration mirroring.
 
 ## Authorization and terminal outcomes
 
@@ -142,6 +151,8 @@ The only `Terminal Outcome` values are:
 
 - `Complete`: The final `DAG Definition` is bound. Every effective Ticket is an `Accepted Ticket`, all `Superseded Ticket` obligations are resolved, and no active claims remain. Whole-graph gates and dependency consumption are consistent, the requirements of the `Integration Publication Mode` are met, and any project-required Git-tracked tracker matches the final DAG state.
 - `Stalled`: The running status of every writer has been verified, and all pending decisions are resolved. No `Execution Agent` is working on the unfinished Tickets, none of those Tickets are in the `Runnable Frontier`, and no authorized recovery, `DAG Revision`, or currently satisfiable external condition can enable further progress.
+
+Index run-owned resources and their ownership, evidence references, and recovery needs in the off-delivery `Run Receipt`. Reclaim reproducible inactive resources within existing authority; preserve live writers, user and other-run resources, unique WIP and evidence, and required recovery material. Verify retained artifacts and references before removing evidence-bearing resources. Terminal reporting lists disposed, retained, and pending resources separately from `Complete` or `Stalled`; resource disposition neither changes those outcomes nor grants destructive authority.
 
 ## Example requests
 

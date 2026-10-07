@@ -47,16 +47,18 @@ If one tracked path mixes Definition with run state, use the split or normalized
 
 Apply the Target Project's exact rules for status, checklist, verdict, comments, and evidence. If those rules do not say how the frozen Accepted, Superseded, PASS, FAIL, or BLOCKED state determines a field, record a Coordinator-owned unresolved decision instead of inferring status or checklist changes. Run the applicable tracker integrity, scope, sensitive-data, documentation, review, and publication gates on the exact candidate. Complete it through the ordinary DAG Definition Checkpoint and Integration Transition rules below; it accepts no Ticket and does not replace the Ticket's delivery evidence.
 
+For a state/evidence-only checkpoint, compare the exact candidate's validator result with its Base and require an unchanged index blob identity, selected path set, and every selected blob identity. Use that invariance to preserve conclusions about unchanged graph identity, Hard Dependencies, and Acceptance Obligations. Bind a fresh tracker impact audit and independent Standards/Spec review to the checkpoint candidate, focused on the changed state mappings, verdicts, evidence identities and links, scope, sensitive data, tracker integrity, and required documentation gates. Existing Ticket delivery evidence keeps its original artifact identities; valid product gate reuse follows **Run the Ticket-local engineering loop** in [`SKILL.md`](../SKILL.md). An index or selected input change takes the full Definition and acceptance-impact audit path instead.
+
 ## Complete a DAG Definition Checkpoint
 
 Create an isolated checkpoint from Starting Base before the first Accepted Integration Tip, or from the current Accepted Integration Tip later. The checkpoint:
 
 1. changes only approved Definition inputs, `.dag/definition-index.json`, and Target Project-required stable audit evidence;
 2. excludes the Run Receipt, transient state, and its own completion record;
-3. passes the validator on its exact candidate commit plus graph identity, acyclicity, reference, scope, sensitive-data, acceptance-impact, and applicable documentation gates;
-4. receives fresh independent Standards/Spec review bound to its Base, candidate commit/tree, and evaluated range, with every finding disposition complete;
+3. passes the validator on its exact candidate commit and the gates for its classified scope above; a Definition change requires the full graph identity, acyclicity, reference, scope, sensitive-data, acceptance-impact, and applicable documentation checks;
+4. receives fresh independent Standards/Spec review for that scope, bound to its Base, candidate commit/tree, and evaluated range, with every finding disposition complete;
 5. freezes all candidate-bound evidence before local compare-and-swap and completes the applicable Integration Publication Mode.
 
-Any byte change invalidates prior gates and review. A completed checkpoint becomes the Accepted Integration Tip and downstream Ticket Base, accepts no Ticket, and creates no DAG Milestone.
+Any byte change invalidates the prior checkpoint review and affected gate evidence. Revalidate the exact candidate and rerun all invalidated or project-required candidate-specific checks; retain other gate results only with the original identities and a fresh equivalence and impact audit under the reuse rule above. A completed checkpoint becomes the Accepted Integration Tip and downstream Ticket Base, accepts no Ticket, and creates no DAG Milestone.
 
 For a DAG Revision, identify every affected active, Accepted, or Superseded Ticket before promotion. Preserve and pause affected active ownership; audit old evidence against the new obligations or use approved rules to reopen or reassign it. Freeze the complete disposition and audit set with the checkpoint. Only after the checkpoint completes may affected work receive its new Ticket Base and resume.

@@ -149,7 +149,8 @@ class SkillContractTests(unittest.TestCase):
             "才由 `Coordinator Agent` 按 `Target Project` 的规则发起 `DAG Revision`",
             readme,
         )
-        local_cas = readme.index("C->>I: 原子 CAS 推进 integration ref")
+        local_cas = readme.index("C->>I:")
+        self.assertIn("CAS", readme[local_cas:].splitlines()[0])
         remote_readback = readme.index("M-->>C: 回读精确 candidate SHA")
         accepted = readme.index(
             "C->>C: 记录 Accepted Ticket、关闭 claim；完成 Integration Transition"
