@@ -49,6 +49,7 @@ jobs:
           skill/dag/SKILL.md
           skill/dag/references/definition-binding.md
           skill/dag/references/integration-transitions.md
+          skill/dag/references/ticket-execution.md
 
       - name: Check command interfaces
         run: |

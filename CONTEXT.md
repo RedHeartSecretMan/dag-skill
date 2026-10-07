@@ -117,7 +117,7 @@ _Avoid_: working tree、最新文件、DAG Definition Checkpoint
 _Avoid_: 未绑定的审查文本、审查者身份
 
 **Run Receipt**:
-保存在交付历史之外、用于恢复 Accepted Integration Tip、DAG Definition、认领、候选、Integration Transitions、未决条件，以及本次资源所有权、证据引用和处置的紧凑索引。
+保存在交付历史之外、索引精确运行身份、认领、未决条件和资源证据的紧凑恢复记录；它引用 DAG Definition 绑定与 Integration Transition 证据，不替代这些事实来源。
 _Avoid_: DAG Definition、已跟踪选择器、调度数据库
 
 ## 终态

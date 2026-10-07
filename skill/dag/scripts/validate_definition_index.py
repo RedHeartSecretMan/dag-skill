@@ -175,7 +175,10 @@ def tree_entries_for_paths(
 
 
 def validate_definition_index(repository: Path, commit: str) -> dict[str, object]:
-    repository = repository.resolve(strict=True)
+    try:
+        repository = repository.resolve(strict=True)
+    except RuntimeError as error:
+        raise ValidationError(str(error)) from error
     commit_oid = (
         run_git(
             repository,
@@ -201,7 +204,7 @@ def validate_definition_index(repository: Path, commit: str) -> dict[str, object
         raise ValidationError("index must be UTF-8 JSON") from error
     try:
         payload = json.loads(index_text, object_pairs_hook=unique_json_object)
-    except ValueError as error:
+    except (ValueError, RecursionError) as error:
         raise ValidationError(f"index JSON could not be decoded: {error}") from error
     if not isinstance(payload, dict):
         raise ValidationError("index must be a JSON object")

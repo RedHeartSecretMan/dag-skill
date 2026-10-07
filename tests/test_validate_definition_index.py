@@ -232,6 +232,18 @@ class DefinitionIndexValidatorTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout)["commit"], validated_commit)
 
+    def test_rejects_a_cyclic_repository_path_without_a_traceback(self) -> None:
+        loop = self.repository.parent / "loop"
+        loop.symlink_to(loop.name)
+
+        result = self.validate("HEAD", loop)
+
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, "")
+        self.assertTrue(result.stderr.startswith("error: "), result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertEqual(loop.readlink(), Path(loop.name))
+
     def test_does_not_lazy_fetch_missing_definition_blobs(self) -> None:
         self.write("spec.md", "approved definition\n")
         commit(self.repository, "definition")
@@ -455,6 +467,21 @@ class DefinitionIndexValidatorTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 1)
         self.assertIn("index must be UTF-8 JSON", result.stderr)
+
+    def test_rejects_a_deeply_nested_index_without_a_traceback(self) -> None:
+        self.write(
+            ".dag/definition-index.json",
+            '{"schema_version":1,"inputs":' + "[" * 10000 + "0" + "]" * 10000 + "}\n",
+        )
+        index_commit = commit(self.repository, "deeply nested index")
+
+        result = self.validate(index_commit)
+
+        self.assertEqual(result.returncode, 1)
+        self.assertEqual(result.stdout, "")
+        self.assertTrue(result.stderr.startswith("error: "), result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertEqual(run_git(self.repository, "status", "--porcelain"), "")
 
     def test_rejects_inputs_not_sorted_by_utf8_path_bytes(self) -> None:
         self.write("a.md", "a\n")

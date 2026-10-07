@@ -114,8 +114,12 @@ def read_transition(path: Path, digest: str) -> tuple[bytes, dict[str, object]]:
 
 def evidence_paths(transition: Path, payload: dict[str, object]) -> list[Path]:
     paths = [transition.parent / item["path"] for item in payload["evidence"]]
-    resolved = [path.resolve(strict=True) for path in paths]
-    if len(resolved) != len(set(resolved)) or transition.resolve() in resolved:
+    try:
+        resolved = [path.resolve(strict=True) for path in paths]
+        record_path = transition.resolve()
+    except RuntimeError as error:
+        raise ValidationError(str(error)) from error
+    if len(resolved) != len(set(resolved)) or record_path in resolved:
         raise ValidationError(
             "evidence paths must be unique and distinct from the transition"
         )
@@ -259,7 +263,10 @@ def promote_local_transition(
 ) -> dict[str, object]:
     if SHA256.fullmatch(digest) is None:
         raise ValidationError("--sha256 must be 64 lowercase hex digits")
-    repository = repository.resolve(strict=True)
+    try:
+        repository = repository.resolve(strict=True)
+    except RuntimeError as error:
+        raise ValidationError(str(error)) from error
     # Keep the final path component unresolved so a symlink record is rejected.
     transition = transition.absolute()
     content, payload = read_transition(transition, digest)

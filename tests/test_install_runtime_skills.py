@@ -484,6 +484,39 @@ class BundleContractTests(unittest.TestCase):
 
 
 class CommandLineTests(unittest.TestCase):
+    def test_rejects_a_cyclic_skills_root_without_a_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            loop = root / "loop"
+            loop.symlink_to(loop.name)
+            empty_path = root / "empty-path"
+            empty_path.mkdir()
+
+            for skills_root in (loop, root / "missing" / ".." / loop.name):
+                with self.subTest(skills_root=skills_root):
+                    result = subprocess.run(
+                        [
+                            sys.executable,
+                            str(SCRIPT),
+                            "--skills-root",
+                            str(skills_root),
+                        ],
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                        env={**os.environ, "PATH": str(empty_path)},
+                    )
+
+                    self.assertEqual(result.returncode, 1)
+                    self.assertEqual(result.stdout, "")
+                    self.assertTrue(result.stderr.startswith("error: "), result.stderr)
+                    self.assertRegex(
+                        result.stderr, "Symlink loop|Too many levels of symbolic links"
+                    )
+                    self.assertNotIn("Traceback", result.stderr)
+                    self.assertEqual(loop.readlink(), Path(loop.name))
+                    self.assertEqual(set(root.iterdir()), {loop, empty_path})
+
     def test_main_installs_only_runtime_skills_by_default(self) -> None:
         with (
             mock.patch.object(

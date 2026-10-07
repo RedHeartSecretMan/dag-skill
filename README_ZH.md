@@ -7,7 +7,8 @@
 可复制的 Skill 位于 [`skill/dag/`](./skill/dag/)：
 
 - [`SKILL.md`](./skill/dag/SKILL.md) 是运行规范；
-- [`references/`](./skill/dag/references/) 保存按运行分支读取的详细契约；
+- [`references/ticket-execution.md`](./skill/dag/references/ticket-execution.md) 是每个 `Execution Agent` 接收的单票执行协议；
+- 其他 [`references/`](./skill/dag/references/) 定义 Definition 绑定和集成恢复契约；
 - [`scripts/validate_definition_index.py`](./skill/dag/scripts/validate_definition_index.py) 验证 `DAG Definition Index`；
 - [`scripts/promote_local_transition.py`](./skill/dag/scripts/promote_local_transition.py) 核验冻结证据并推进本地集成 ref；
 - [`scripts/install_runtime_skills.py`](./skill/dag/scripts/install_runtime_skills.py) 安装 `Runtime Skill Bundle`。
@@ -41,11 +42,9 @@
 
 单票执行默认在 Ticket 内闭环：普通代码缺陷、失败测试、审查 finding 和 `Promotion Candidate` 迭代，均由同一 `Execution Agent` 持续处理。只有现场证据表明需要改变有效 Ticket、`Hard Dependency` 或 `Acceptance Obligation` 时，才由 `Coordinator Agent` 按 `Target Project` 的规则发起 `DAG Revision`。
 
-诊断未改变交付内容时，仍可能排除一种原因。停止在相同条件下重复失败的操作；只要还有获授权的诊断或修复路径，就继续在 Ticket 内处理。只有证据确立了相应决定或外部条件，才返回非成功 `Execution Outcome`。
+Coordinator 以零历史或最小相关历史派发固定 Ticket contract、[单票执行协议](./skill/dag/references/ticket-execution.md)，以及明确的最终完成指令。协议规定工程闭环、Runtime Skill 输入与证据规则及交接要求；契约提供适用的用户与项目约束，以及已有批准的指针。Agent 从权威输入与分配的 workspace 重建上下文。
 
-默认串行调度。确实独立的并行工作可由 `Execution Agent` 提前实现并运行 focused checks；待 `Coordinator Agent` 确认当前 `Ticket Base`、此前验收和项目要求的 tracker checkpoint 后，再完成最终门禁与审查。每张 Ticket 保持同一 owner 和 workspace，并为自行编排内部审查的 `Runtime Skill Bundle` 预留 `Agent Host` 容量；长期修复可让独立工作优先完成。等待确认 Base 属于调度，不新增 `Execution Outcome`。
-
-同一 `Acceptance Obligation` 下重复出现成立的 finding 时，`Execution Agent` 在再次提交前按同一约束检查与证据相关的相邻路径。审计保持在 Ticket 的批准范围内，并将证据与 finding 处置一起记录。
+默认串行调度：派发即授权当前 Ticket 完成最终门禁和审查。独立 Ticket 可以并行实现并运行 focused checks；如果最终完成被延后，则由 Coordinator 在此前验收及必需 tracker checkpoint 完成后确认当前 `Ticket Base`，再恢复最终门禁与审查。每张 Ticket 保持同一 owner 和 workspace，为 Runtime Skills 的内部 Agents 预留容量，长期修复期间可让其他具备条件的工作继续。等待延后的最终完成属于调度，不新增 `Execution Outcome`。
 
 当 Ticket 工作可以稳定交接时，`Execution Agent` 只返回以下三种 `Execution Outcome` 之一：
 
@@ -67,11 +66,14 @@ sequenceDiagram
 
     C->>C: 核对 Ticket-02 的依赖、Ticket Base 和 Runnable Frontier
     C->>C: 创建 branch/worktree 并记录 claim
-    C->>E: 以零历史或最小历史派发固定 Ticket contract
+    C->>E: 以零历史或最小历史派发 Ticket contract、协议和最终完成指令
 
     E->>E: 回读 Ticket、Spec、Accepted inputs、worktree 和 WIP
     E->>E: 通过 $tdd 实现并运行 focused checks
-    C-->>E: 此前必需 tracker 更新完成后确认当前 Ticket Base
+    opt 并行工作延后了最终完成
+        E-->>C: 报告实现与 focused checks 进度
+        C-->>E: 此前验收及必需 tracker 更新后确认当前 Ticket Base 并恢复最终完成
+    end
     E->>E: 完成 final gates
     E->>E: 提交固定 Promotion Candidate
     E->>R: 对 Base...candidate 调用 $code-review
@@ -89,7 +91,7 @@ sequenceDiagram
 
     opt Ticket Base 已过期
         C-->>E: 分配新的 Ticket Base，返回同一 workspace
-        E->>E: 重新应用改动、运行门禁并重复 candidate/review 闭环
+        E->>E: 重新应用改动、刷新失效或必需检查、取得新的候选审查
         E-->>C: 返回刷新后的 Ready for Acceptance
     end
 
@@ -115,18 +117,13 @@ sequenceDiagram
 
 ## 核心契约
 
-- `Ticket Base`、最终 `Promotion Candidate`、最终门禁和 `Candidate Review Record` 必须绑定同一组 commit/tree 身份。
+- `Ticket Base`、最终 `Promotion Candidate`、有效门禁证据和 `Candidate Review Record` 必须与实际评估的 artifact 身份一致。复用未变化的产品门禁时保留原身份并补充新的等价与影响审计；重跑失效检查及项目要求的 candidate-specific checks。每个新 candidate 都接受新的审查。
 - `.dag/definition-index.json` 是唯一 `DAG Definition Index`。若 `Target Project` 禁止该路径，先请求兼容性决定，不创建另一套选择器。
 - 只有 `DAG Definition Checkpoint` 可以改变 `DAG Definition Index` 或其输入；`Promotion Candidate` 必须保持这些字节不变，并排除 `Run Receipt` 等运行状态。
 - `DAG Revision` 改变 `Accepted Ticket` 或 `Superseded Ticket` 的责任时，旧证据失效；必须重新审计，或按 `Target Project` 规则重新打开/转交给有效 Ticket。
 - 同一 Ticket 同时只有一个可写 `Execution Agent`。更换 Agent 前先确认原 Agent 已停止，并交接原 branch、worktree、WIP 和证据。
-- 派发 `Execution Agent` 时只传固定单票契约，并使用 `Agent Host` 的零历史设置；不支持时采用排除无关 Ticket、Run Receipt 和既有工具输出的最小历史窗口。
-- 派发契约携带适用于当前及下游 Agent 的用户与项目约束，以及已有批准的指针；后续调用和派发继续遵守，无法满足明确约束时说明限制，不擅自替换配置。
 - `Baseline Satisfaction` 要求 Approved Ticket 或 `Target Project` 已有明确规则，并具备逐项满足责任的完整证据。明确的验证、审计或操作交付可构成该规则，无需仅为空产品 diff 再次申请批准。测试通过本身不能满足实现 Ticket；当前 Base/tree、授权和实际交付仍须符合要求。不制造空提交，也不对空 diff 调用 `$code-review`。
-- 产品等价的元数据变化可以复用仍有效的产品门禁，保留原候选与 artifact 身份，补充新的等价与影响审计，并重跑全部失效检查。
-- `Run Receipt` 保存在交付历史之外，并按 `integration-transitions.md` 保存 pending `Integration Transition` 的冻结证据；`DAG Definition Checkpoint` 还要绑定验收影响处置和审计身份。
-- 如果 `Target Project` 规定更新 Git-tracked tracker，先完整结束当前验收或 `Integration Transition`，再把尚无 candidate 的工作记录为 pending required tracker update；candidate 形成后只使用 typed `DAG Definition Checkpoint` Transition。更新触及已选中的 Definition input 时必须重绑 index 并审计验收影响，不能冒充 state-only update。
-- 只有 index 与全部 selected inputs 完全不变时，state/evidence-only checkpoint 的新审查才可聚焦 tracker 映射、证据身份与链接、范围、安全和必需文档门禁。Definition 变化仍须完整绑定与验收影响审计。
+- 项目要求的稳定 tracker 更新按[写回顺序](./skill/dag/SKILL.md#persist-target-project-required-stable-tracker-evidence)通过 `DAG Definition Checkpoint` 完成。更新触及已选中的 Definition input 时必须完整重绑并审计验收影响；Definition 身份未变时，审查可以聚焦稳定审计内容的变化。
 
 ## 集成发布
 
@@ -139,7 +136,7 @@ sequenceDiagram
 
 `Remote-mirrored` 只同步一个专用的 `DAG Integration Branch`。写默认或受保护分支、改用 PR、同步 Ticket 分支、force-push 或切换 ref 都不属于该模式的默认权限。
 
-每个 `Integration Transition` 都先冻结并回读完整 pending 证据，再通过 compare-and-swap 推进 `DAG Integration Branch` 的本地 ref 并回读。`scripts/promote_local_transition.py` 只核验冻结请求并执行该本地步骤，契约见 [`integration-transitions.md`](./skill/dag/references/integration-transitions.md)。ref 变更、证据持久化和 receipt 完成是各自独立的操作。`Remote-mirrored` 还必须由 Coordinator 同步固定远端 ref 并确认 SHA 相同。同步未完成时保持 pending，不验收 Ticket、不解锁后继，也不开始下一次 `Integration Transition`。恢复沿用已记录的模式；发布 Ticket 的授权仍与集成镜像分开。
+[集成契约](./skill/dag/references/integration-transitions.md)集中定义交付历史之外的 `Run Receipt`、pending 冻结证据、compare-and-swap，以及本地和远端恢复。`scripts/promote_local_transition.py` 只核验并推进本地 ref；发布与验收仍由 Coordinator 负责。`Remote-mirrored` 必须精确回读远端 SHA 后才能验收 Ticket、解锁后继或启动下一次 `Integration Transition`。恢复沿用该模式，发布授权仍与集成镜像分开。
 
 ## 授权与终态
 
@@ -150,9 +147,9 @@ sequenceDiagram
 `Terminal Outcome` 只能是：
 
 - `Complete`：最终 `DAG Definition` 已绑定，所有有效 Ticket 均已成为 `Accepted Ticket`，所有 `Superseded Ticket` 的责任已处置，没有活动认领，整图门禁和依赖消费一致，满足 `Integration Publication Mode`，并且项目要求的 Git-tracked tracker 已与最终 DAG 状态一致。
-- `Stalled`：所有写入者状态和未决决定都已解决，但未完成工作仍没有运行中 `Execution Agent`、`Runnable Frontier`、获授权恢复、`DAG Revision` 或可满足的外部条件。
+- `Stalled`：所有写入者状态和影响 DAG 执行或验收的未决决定都已解决，但未完成工作仍没有运行中 `Execution Agent`、`Runnable Frontier`、获授权恢复、`DAG Revision` 或可满足的外部条件。
 
-在交付历史之外的 `Run Receipt` 中索引本次拥有的资源、所有权、证据引用和恢复需求。按既有权限回收可再生且已停止使用的资源；保留活动写入者、用户或其他运行资源、唯一 WIP 与证据，以及必需恢复材料。移除承载证据的资源前核验保留 artifact 和引用。终态报告分别说明已处置、保留和待处理资源；资源处置不改变 `Complete` 或 `Stalled` 的含义，也不扩大破坏性操作权限。
+本次资源的已处置、保留或待处理情况与 `Complete`、`Stalled` 分别报告。回收遵守既有授权，保留活动写入者、无关资源、唯一 WIP 及必需验收或恢复证据；待处理资源处置本身不改变 Terminal Outcome。
 
 ## 调用示例
 

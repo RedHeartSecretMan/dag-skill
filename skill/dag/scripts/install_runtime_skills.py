@@ -317,7 +317,15 @@ def verify_complete_bundle(
 
 
 def install(skills_root: Path, *, include_setup_helper: bool = False) -> None:
-    skills_root = skills_root.expanduser().resolve(strict=False)
+    skills_root = skills_root.expanduser()
+    try:
+        skills_root = skills_root.resolve(strict=False)
+        # Non-strict resolution suppresses symlink loops on Python 3.13+.
+        skills_root.stat()
+    except FileNotFoundError:
+        pass
+    except RuntimeError as error:
+        raise InstallError(str(error)) from error
     selected_skills = AVAILABLE_SKILLS if include_setup_helper else RUNTIME_SKILLS
     bundle_name = (
         "DAG Runtime Skills and setup helper"

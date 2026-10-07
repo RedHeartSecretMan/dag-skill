@@ -188,6 +188,23 @@ class LocalPromotionTests(unittest.TestCase):
         self.transition.unlink()
         self.assert_rejected(self.promote(), "No such file")
 
+    def test_rejects_a_cyclic_repository_path_without_a_traceback(self) -> None:
+        loop = self.root / "loop"
+        loop.symlink_to(loop.name)
+        repository = self.repository
+        before = self.transition.read_bytes(), self.evidence.read_bytes()
+        self.repository = loop
+        try:
+            result = self.promote()
+        finally:
+            self.repository = repository
+
+        self.assert_rejected(result, loop.name)
+        self.assertEqual(loop.readlink(), Path(loop.name))
+        self.assertEqual(
+            (self.transition.read_bytes(), self.evidence.read_bytes()), before
+        )
+
     def test_malformed_or_non_utf8_record_does_not_move_ref(self) -> None:
         for content in (b"not JSON", b"\xff", b"[]", b"{}"):
             with self.subTest(content=content):
@@ -263,6 +280,16 @@ class LocalPromotionTests(unittest.TestCase):
         self.evidence.rename(saved_evidence)
         self.evidence.symlink_to(saved_evidence)
         self.assert_rejected(self.promote(), "regular file, not a symlink")
+
+    def test_rejects_cyclic_evidence_without_a_traceback(self) -> None:
+        self.evidence.unlink()
+        self.evidence.symlink_to(self.evidence.name)
+        record_bytes = self.transition.read_bytes()
+
+        self.assert_rejected(self.promote(), self.evidence.name)
+
+        self.assertEqual(self.evidence.readlink(), Path(self.evidence.name))
+        self.assertEqual(self.transition.read_bytes(), record_bytes)
 
     def test_rejects_wrong_or_missing_objects(self) -> None:
         for field, oid, expected in (

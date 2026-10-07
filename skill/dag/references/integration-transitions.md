@@ -19,6 +19,23 @@ Use a dedicated integration branch. A default or protected branch, pull-request-
 
 Keep the recovered mode during failures: an unavailable remote does not turn Remote-mirrored into Local-only. A separately authorized release Ticket can perform its specified external operations in either mode; integration mirroring alone grants no release authority.
 
+## Run Receipt and frozen evidence
+
+Use the Target Project's tracker as the recovery store only when it remains off-delivery; otherwise use a separate off-delivery store. Keep the Run Receipt as a compact index of current identities and evidence pointers:
+
+| Concern | Required recoverable information |
+| --- | --- |
+| Integration | Starting Base; Accepted Integration Tip once established; local integration ref; publication mode; selected remote/ref and last synchronized commit when applicable |
+| Definition | Index identity and validated result; selected input identities; binding commit/tree and latest completed Definition checkpoint |
+| Capability | Verified Agent Host, stable Skills root, Runtime Skill source commits and content identities |
+| Ticket ownership | Claims, Agent liveness, Ticket Base, candidate, branch/worktree and WIP pointers; Execution Outcomes and their evidence |
+| Outstanding work | Pending tracker update or typed Integration Transition; decisions and external closing conditions with owners and next actions |
+| Resources | Run-owned resources, ownership, retained evidence and recovery pointers, and disposition |
+
+Link complete reports instead of copying them into the receipt. The receipt indexes the tracked Definition binding; it never replaces it or enters delivery history. Target Project-required stable tracker or acceptance evidence enters history through an authorized Definition checkpoint, whose own completion record remains off-delivery.
+
+Before moving the integration ref, freeze one pending Integration Transition with its candidate kind, Base, candidate commit/tree, and exact gate/review evidence. A Definition checkpoint also binds its validated index and inputs, acceptance-impact dispositions, and audit identities. The frozen local promotion record below can be that Transition's authoritative record, referenced by path and digest from the receipt. Record subsequent local/remote readbacks without replacing the frozen evidence. The receipt remains the compare source for reconciliation; ordinary claim or resource updates do not create checkpoints.
+
 ## Reconcile the local integration ref
 
 Select Starting Base only from a Target Project rule, explicit user instruction, or existing accepted integration evidence. Keep the full local DAG Integration Branch ref out of every worktree and use the Run Receipt as its compare source.
@@ -92,7 +109,7 @@ The helper consumes one immutable JSON record for the existing pending Integrati
 }
 ```
 
-`candidate_kind` is `Promotion Candidate` or `DAG Definition Checkpoint`. The other fields are required exactly as shown; object IDs name full local objects and the candidate must be a descendant commit distinct from Base. Evidence paths resolve relative to the record's directory unless absolute. Include every artifact needed to verify the frozen gates, complete reviews, finding dispositions, and applicable Definition/acceptance-impact audits. A file containing unchecked pointers is not a substitute for binding its required artifacts. The helper verifies file bytes and Git identities; it does not infer whether project-specific evidence proves acceptance.
+`candidate_kind` is `Promotion Candidate` or `DAG Definition Checkpoint`. The other fields are required exactly as shown; object IDs name full local objects and the candidate must be a descendant commit distinct from Base. Evidence paths resolve relative to the record's directory unless absolute. Bind the off-delivery reports and logs needed to verify frozen gates, complete reviews, finding dispositions, and applicable Definition/acceptance-impact audits. Source inputs already bound by Git retain their commit/blob identities in those reports; they need no duplicate filesystem copy. Unbound external artifacts need their own evidence entries. The helper verifies file bytes and Git identities; it does not infer whether project-specific evidence proves acceptance.
 
 Keep the record and evidence off-delivery and unchanged for the duration of the pending Transition. Run with one Coordinator and quiescent record, evidence, and integration-worktree ownership; this is a local Git CAS, not a transaction across arbitrary concurrent filesystem writers. The helper checks the record digest, evidence hashes, ancestry, candidate tree, direct branch identity, and worktree use before mutation. Git replace refs and grafts are disabled so ancestry comes from the actual commit objects. It leaves the record and evidence untouched and never writes a remote, completes the Run Receipt, or marks a Ticket Accepted.
 

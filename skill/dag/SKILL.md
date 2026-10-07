@@ -39,11 +39,7 @@ Before scheduling:
 
 During this reread, identify any Target Project rule that requires its Git-tracked tracker to be updated with stable Ticket state or acceptance evidence. Record when that update is required, which fields the project defines, and the authority to write them. Do not invent such a requirement when none exists.
 
-Use the Target Project's tracker as the off-delivery recovery store only when it remains off-delivery for the run; otherwise use a separate off-delivery recovery store. Keep a compact Run Receipt containing the Starting Base; the Accepted Integration Tip once established; the DAG Definition Index path and identity; the bound DAG Definition inputs and content identities; the binding commit/tree and latest completed DAG Definition Checkpoint; the verified Agent Host, Skills root, Runtime Skill Bundle revision and tree identities; Integration Publication Mode; the local DAG Integration Branch ref; the selected remote name, full remote branch ref, and last synchronized commit when applicable; claims; active Ticket, Ticket Base, Promotion Candidate, and workspace identities; run-owned resource identities, ownership, and retained evidence pointers; any pending required tracker update; any typed pending Integration Transition; Execution Outcomes; and unresolved decisions or external closing conditions. Before updating the DAG Integration Branch ref, persist an in-flight Integration Transition's candidate kind, Base, candidate commit/tree, and exact candidate-bound review and gate identities; for a DAG Definition Checkpoint also persist the selected DAG Definition Index and inputs plus every acceptance-impact disposition and audit identity. Then record verified local and remote identities without replacing that frozen evidence. Link reports instead of copying them. Keep the receipt off-delivery so recording the run never changes an Accepted artifact identity; it indexes the tracked DAG Definition binding but never replaces it. Stable tracker or acceptance evidence enters history only through a Target Project-authorized DAG Definition Checkpoint; that DAG Definition Checkpoint's own completion record remains off-delivery.
-
-Before a required tracker update has a candidate, record only the affected Tickets, governing rule, and stable state and evidence identities. Once its candidate exists, move those identities into one typed pending DAG Definition Checkpoint Integration Transition and clear the pre-candidate update entry; do not keep two pending states for the same work.
-
-The Run Receipt is the compare source for every local or remote reconciliation. Reconcile pending Integration Transitions only through the immutable-evidence recovery table in [`references/integration-transitions.md`](references/integration-transitions.md).
+Maintain the off-delivery Run Receipt under [Run Receipt and frozen evidence](references/integration-transitions.md#run-receipt-and-frozen-evidence). Read and follow that section before persisting run state or reconciling local or remote refs; it defines the recovery store, receipt identities, and immutable pending Integration Transition evidence. The required tracker update lifecycle is defined below.
 
 ## Bootstrap the Runtime Skill Bundle
 
@@ -62,7 +58,7 @@ After the installer succeeds, make the Agent Host reload its Skill list and conf
 
 Once the startup check succeeds, every Ticket in that run uses the verified bundle without another dependency preflight. A later DAG start or resume repeats the one startup check. Execution Agents invoke Skills normally when needed; ordinary tool-failure handling applies if the Agent Host changes during a run.
 
-Supply each Runtime Skill with the applicable Target Project instructions and authoritative inputs. For `$code-review`, include the fixed review Base, candidate range and commit list, scope and governing Spec pointers, and the project's existing tracker workflow. Project-provided instructions take precedence over a dependency's conventional discovery paths, including `docs/agents/issue-tracker.md`. A missing conventional file alone does not require project setup when equivalent authoritative context is supplied. When necessary context is actually missing, resolve that specific gap within existing authority or report the required decision. Reuse existing test-seam approvals within their scope.
+Supply Runtime Skills with authoritative project inputs and existing approvals under [Supply Runtime Skills](references/ticket-execution.md#supply-runtime-skills), including the project's existing tracker workflow.
 
 The optional `setup-matt-pocock-skills` helper is not part of the Runtime Skill Bundle. Install it only when the user explicitly requests its installation or when it is needed to carry out project configuration already authorized through this helper. In either case, the Coordinator Agent installs a missing helper by adding `--include-setup-helper` to the bundled installer, using the same conflict-preservation and Agent Host reload checks. Reuse existing authorization within its scope rather than requesting it again. Invoke the helper only for authorized configuration changes; an installation-only request leaves project configuration unchanged.
 
@@ -107,11 +103,11 @@ Claim atomically: record the Ticket, one write-capable Execution Agent, its work
 
 Schedule serially by default. Run Tickets concurrently only when no Hard Dependency orders them and their write boundaries are genuinely independent. Reserve Agent Host capacity for downstream Agents used by Runtime Skills, which retain their own orchestration. Serialize promotion through the DAG Integration Branch, and recompute the Runnable Frontier after every claim, acceptance, graph decision, external block, or recovered live-state change.
 
-For concurrent Tickets, prefer parallel implementation and focused checks, then give one Ticket completion priority from final gates and review through promotion and its required tracker checkpoint. Before that final work, the Coordinator Agent confirms a current Ticket Base after any preceding acceptance and required checkpoint; the same Execution Agent refreshes its candidate when necessary. Other Tickets retain their owner, workspace, and WIP while waiting; waiting is not an Execution Outcome. Long repair or blocking work may yield completion priority to another eligible Ticket instead of holding the whole frontier.
+For concurrent Tickets, prefer parallel implementation and focused checks, then give one Ticket completion priority from final gates and review through promotion and its required tracker checkpoint. For a deferred Ticket, confirm a current Ticket Base and authorize final work after any preceding acceptance and required checkpoint; the same Execution Agent refreshes its candidate when necessary. Other Tickets retain their owner, workspace, and WIP while waiting; waiting is not an Execution Outcome. Long repair or blocking work may yield completion priority to another eligible Ticket instead of holding the whole frontier.
 
 ## Dispatch the fixed Ticket contract
 
-Give the Execution Agent only the context needed for one Ticket:
+Before dispatching or resuming an Execution Agent, or accepting its handoff, read [`references/ticket-execution.md`](references/ticket-execution.md) completely. It is the Execution Agent's protocol for the engineering loop, gate evidence, zero-diff verification, three Execution Outcomes, and stop/resume boundary. Give the Agent only that protocol and the context needed for one Ticket:
 
 - Ticket identity, authoritative Ticket pointer, and any governing Spec pointer;
 - Accepted direct inputs and their identities;
@@ -119,63 +115,18 @@ Give the Execution Agent only the context needed for one Ticket:
 - assigned branch and isolated workspace;
 - scope, acceptance, and required-gate pointers;
 - applicable user and Target Project constraints for this Agent and its downstream Agents, with pointers to existing approvals;
-- local and external authority boundaries.
+- local and external authority boundaries;
+- the resolved execution-protocol pointer and a finalization instruction: a serial assignment permits work through final gates and review; a concurrent assignment either permits that work or explicitly defers it until current-Base confirmation and completion priority.
 
 Carry these constraints into Runtime Skill invocations and downstream dispatches. Reuse existing approvals within their scope; if an explicit constraint cannot be met, report the limitation instead of silently substituting another configuration.
 
 Scope inherited history as part of dispatch. Use the Agent Host's zero-history dispatch setting and provide the explicit Ticket contract above. When zero-history dispatch is unavailable, use the smallest available history window that excludes unrelated Tickets, Run Receipt state, and prior tool output. Do not rely on default full-history inheritance. The Execution Agent reconstructs implementation context from the assigned live workspace and authoritative pointers.
 
-It returns one of three Execution Outcomes.
+`Ready for Acceptance`, `Needs Decision`, and `Externally Blocked` are Execution Outcomes, not Ticket states. Apply the protocol's evidence requirements without repeating the engineering review. Resolve a `Needs Decision` choice within existing authority or ask the user; an `Externally Blocked` outcome has a settled choice and an owned external closing condition. Only the Coordinator Agent records graph transitions and acceptance.
 
-### Ready for Acceptance
+## Accept a Baseline Satisfaction outcome
 
-Identify exactly one evidence path:
-
-- **Promotion Candidate**: Ticket and Ticket Base commit identities; final candidate commit and tree; exact diff command and commit list; changed scope and files; focused and final gates; the complete `$code-review` result exactly as returned; the Candidate Review Record binding the Ticket Base, candidate, tree, and evaluated range; and an evidence-backed disposition for every finding.
-- **Baseline Satisfaction**: Ticket, Ticket Base commit, and tree identities; a clean empty delivery diff; focused and final gates; the existing Ticket or Target Project rule that recognizes Baseline Satisfaction; complete evidence required by that rule; and whether the rule yields Accepted or Superseded.
-
-For either path, include remaining risks and omitted verification. Return this outcome only when the named acceptance path is fully evidenced without a new product, scope, graph, or authority choice.
-
-### Needs Decision
-
-- the dependency, acceptance ownership, product-semantic, scope, graph, or authority choice that the Coordinator Agent or user can make;
-- evidence showing why it cannot be resolved inside the approved Ticket;
-- affected Tickets or edges and the exact decision needed.
-
-### Externally Blocked
-
-- the unavailable credential, service, hardware, host capability, or already-required authorization;
-- evidence, the owner of the closing condition, and the observable event that permits retry.
-
-Both non-success outcomes include the latest clean candidate and completed verification, if any.
-
-These are Execution Outcomes, not Ticket states. `Ready for Acceptance` means an existing rule determines the successful transition and only verification or promotion owned by the Coordinator Agent remains. `Needs Decision` means an explicit choice can unblock the work; the Coordinator Agent resolves it within existing authority or asks the user. `Externally Blocked` means the choice is settled and an external condition remains. Only the Coordinator Agent records graph transitions and acceptance.
-
-After returning an outcome, the Execution Agent stops writing to the Ticket workspace until the Coordinator Agent explicitly resumes it.
-
-## Run the Ticket-local engineering loop
-
-Within the Ticket workspace, the Execution Agent:
-
-1. Rereads the live Ticket, Accepted inputs, project instructions, current branch, and existing WIP before editing. It preserves valid work already present.
-2. Implements and verifies the Ticket. It invokes `$tdd` for changed behavior and uses causal RED-to-GREEN evidence where applicable. It invokes `$codebase-design` when the Ticket requires an interface, module-boundary, seam, or testability decision. It runs focused checks while iterating and project-required final gates before review.
-3. For a non-empty delivery diff, ensures the diff preserves the bound DAG Definition Index, selected path set, and content identities and excludes transient run state, then commits a clean candidate that descends from the fixed Ticket Base. It records the Ticket Base, commit, tree, exact diff command, and commit list and invokes `$code-review` for that range. It stores the complete result and Candidate Review Record beside those identities. If approved Ticket work requires a DAG Definition change, it reports that exact change to the Coordinator Agent for a DAG Definition Checkpoint instead of including it in the Promotion Candidate; after the DAG Definition Checkpoint, the same Ticket ownership continues from the new Ticket Base. Any later delivery edit creates a new candidate and invalidates the prior Candidate Review Record for promotion.
-4. Fixes every supported in-scope blocking finding, reruns affected checks and all invalidated final gates, commits a new candidate, and invokes `$code-review` again. When a supported finding recurs under the same Acceptance Obligation, it uses the finding evidence to check neighboring paths against the same invariant within Ticket scope before resubmission. It may dismiss a finding only with concrete Target Project, Spec, test, or code evidence recorded in its disposition.
-5. Uses the evidence from each cycle to choose the next authorized diagnostic or repair action. A failed attempt may eliminate a hypothesis even when no delivery bytes change. Stop repeating a failed action under unchanged conditions; continue when another authorized path remains. Return a non-success Execution Outcome only when evidence establishes the decision or external closing condition required by that outcome.
-
-There is no fixed review or repair count. Ticket-local defects, additional probes, corrected commands, and new candidates remain in this loop while the Ticket objective, approved scope, Accepted inputs, and acceptance obligation remain unchanged.
-
-A finding remains blocking when it cites an applicable Spec or documented standard, or demonstrates failing acceptance behavior, and its response does not disprove it with stronger project evidence. Do not return a successful outcome while such a finding remains.
-
-A metadata-only change may reuse still-valid product gate evidence only when a fresh equivalence and impact audit proves that the evaluated product bytes, relevant inputs, gate definitions, execution environment, and coverage are unchanged. Keep the original tested commit/tree identities and bind the new audit to the current candidate. Rerun invalidated gates and project-required candidate-specific checks, and bind a fresh review to each new candidate under its applicable review contract.
-
-### Handle a zero-diff Ticket explicitly
-
-If the Ticket Base already satisfies the Ticket, the workspace is clean, and the delivery diff is empty, run the applicable final gates and collect the exact artifact identity, acceptance-obligation coverage, and evidence that no delivery bytes are required.
-
-A Ticket whose approved contract explicitly defines verification, audit, or operational deliverables without requiring product-byte changes already supplies a Baseline Satisfaction rule when every obligation is satisfied and the required output is available. It need not name Baseline Satisfaction or obtain another approval merely because the delivery diff is empty. For operational deliverables, the Coordinator Agent performs specifically authorized remote operations while the Ticket remains claimed and records their actual result and readback identities; the Execution Agent verifies those results before returning a successful outcome. Apply the existing decision or external-blocking path until required authority, operations, and verification are complete. Green tests alone do not satisfy an implementation Ticket's unfulfilled deliverables.
-
-Return `Ready for Acceptance` through the Baseline Satisfaction path only when that Ticket contract or another existing Target Project rule recognizes the result and every required audit and gate is present. Otherwise return `Needs Decision` with the exact missing rule, current-state audit, or acceptance choice. Do not create an empty commit or treat a non-existent diff as a `$code-review` candidate.
+The Execution Agent gathers zero-diff evidence under the execution protocol. For an operational deliverable, the Coordinator Agent performs only the specifically authorized remote operations while the Ticket remains claimed and records actual results and readback identities for the Execution Agent to verify. Integration mirroring alone supplies no authority for these operations.
 
 For an evidence-complete Baseline Satisfaction outcome, the Coordinator Agent serializes the decision against all Integration Transitions and rereads the Accepted Integration Tip commit and tree. They must still equal the audited Ticket Base identities. In Remote-mirrored mode, the Coordinator Agent also reads the selected remote branch and requires it to equal the same Ticket Base because the Accepted Integration Tip will not move. On a local mismatch, do not transition: preserve the identities, assign the current Accepted Integration Tip as the new Ticket Base, and return the same worktree to the same Ticket execution ownership to refresh its audit and gates. If the local Ticket Base is unchanged but the remote branch differs or cannot be read, leave the Ticket unaccepted and report the synchronization failure.
 
@@ -183,7 +134,9 @@ When those identities agree, verify the named rule and evidence. If the rule yie
 
 ## Persist Target Project-required stable tracker evidence
 
-After an Accepted Ticket or Superseded Ticket result is recorded, finish and clear any active acceptance or Integration Transition before applying the stable tracker/evidence rule identified from the Target Project. If the completing DAG Definition Checkpoint already contains the exact required update, record that update complete instead of creating another checkpoint. Otherwise, when the rule requires an in-history update, persist a pending required tracker update in the Run Receipt, bound to the affected Tickets, exact stable state and evidence identities, and governing rule. Use the Target Project's exact field rules; when they do not determine a status, checklist, verdict, or evidence value, record a Coordinator-owned unresolved decision and leave that field unchanged.
+After an Accepted Ticket or Superseded Ticket result is recorded, finish and clear any active acceptance or Integration Transition before applying the stable tracker/evidence rule identified from the Target Project. If the completing DAG Definition Checkpoint already contains the exact required update, record that update complete instead of creating another checkpoint. Otherwise, when the rule requires an in-history update, persist a pending required tracker update in the Run Receipt. Use the Target Project's exact field rules; when they do not determine a status, checklist, verdict, or evidence value, record a Coordinator-owned unresolved decision and leave that field unchanged.
+
+Before a required tracker update has a candidate, record only the affected Tickets, governing rule, and exact stable state and evidence identities. Once its candidate exists, move those identities into one typed pending DAG Definition Checkpoint Integration Transition and clear the pre-candidate update entry; do not keep two pending states for the same work.
 
 With no Integration Transition active, complete the pending update through the DAG Definition Checkpoint rules in [`references/definition-binding.md`](references/definition-binding.md). A required per-Ticket update completes before successor unlocking or another claim. An explicitly batched rule may remain pending while graph-independent work proceeds, but it must complete before a DAG Revision, before another checkpoint consumes live tracker state, and before evaluating a Terminal Outcome. When the Target Project requires no stable tracker or acceptance evidence in history, continue without creating a checkpoint.
 
@@ -205,7 +158,7 @@ Do not reinterpret the implementation or repeat equivalent review. Return missin
 
 ### Refresh an outdated Ticket Base
 
-If another acceptance changed the Accepted Integration Tip, or live recovery proves the assigned Ticket Base wrong, do not promote or review against that Ticket Base. The Coordinator Agent records a corrected Ticket Base equal to the current Accepted Integration Tip and returns the same worktree to the same Ticket execution ownership. The Execution Agent applies the Ticket's delivery changes on top of that Ticket Base under the Target Project's safe policy, ensures the new candidate descends from it, reruns affected and final gates, and creates a new Candidate Review Record. Preserve the old record as superseded evidence.
+If another acceptance changed the Accepted Integration Tip, or live recovery proves the assigned Ticket Base wrong, do not promote or review against that Ticket Base. Record a corrected Ticket Base equal to the current Accepted Integration Tip and return the same worktree to the same Ticket execution ownership. The Execution Agent reapplies its changes safely and follows the [gate evidence validity rule](references/ticket-execution.md#keep-gate-evidence-valid): only proven valid product gates may be reused; affected, invalidated, and project-required candidate-specific checks run again. Every new candidate requires a fresh Candidate Review Record. Preserve the old record as superseded evidence.
 
 ### Serialize Integration Transitions
 
