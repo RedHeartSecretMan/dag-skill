@@ -99,11 +99,17 @@ A Ticket is Runnable when:
 
 Do not require a coordinator-authored exhaustive acceptance-to-probe map before claim. The Execution Agent may discover test cases, equivalence classes, and additional probes while implementing. Hold the Ticket only when missing information would change accepted meaning, dependency ownership, or authority.
 
+Choose scheduling from the current Runnable Frontier within applicable user and Target Project constraints. Before selecting concurrent Tickets, check the relevant live evidence:
+
+- **Delivery independence:** no Hard Dependency orders them. Inspect shared interfaces, configuration, and critical files for changes that could conflict or invalidate another Ticket's implementation or focused checks. Overlap needs a concrete isolation method; separate worktrees or filenames alone do not prove independence. Ordinary integration-tip changes are handled by the Base-refresh rules below and do not alone disqualify concurrency. A newly discovered prerequisite output follows the existing DAG Revision rules.
+- **Runtime isolation:** implementation and focused checks have isolated access to shared resources such as ports, devices, databases, and run directories, or do not contend for them. Include resources outside the worktree.
+- **Capacity:** the actual Agent Host can run the selected Execution Agents while leaving capacity for downstream Runtime Skill Agents, which retain their own orchestration. Select only a subset that fits those limits.
+
+When at least two Runnable Tickets satisfy these checks, prefer concurrent implementation and focused checks. Otherwise advance a feasible Ticket serially. Unproven concurrency conditions alone require neither a mode-selection approval nor an Execution Outcome. A conflicting pair does not prevent other independent Tickets from running concurrently. Serialize promotion through the DAG Integration Branch, and recompute the Runnable Frontier after every claim, acceptance, graph decision, external block, or recovered live-state change.
+
 Claim atomically: record the Ticket, one write-capable Execution Agent, its worktree, and a **Ticket Base** equal to the current Accepted Integration Tip. The Ticket Base stays fixed until the Coordinator Agent explicitly replaces it after an Accepted Integration Tip change or live recovery proves the assignment wrong; every replacement invalidates prior candidate and review evidence. Do not dispatch a second writer for the same claim.
 
-Schedule serially by default. Run Tickets concurrently only when no Hard Dependency orders them and their write boundaries are genuinely independent. Reserve Agent Host capacity for downstream Agents used by Runtime Skills, which retain their own orchestration. Serialize promotion through the DAG Integration Branch, and recompute the Runnable Frontier after every claim, acceptance, graph decision, external block, or recovered live-state change.
-
-For concurrent Tickets, prefer parallel implementation and focused checks, then give one Ticket completion priority from final gates and review through promotion and its required tracker checkpoint. For a deferred Ticket, confirm a current Ticket Base and authorize final work after any preceding acceptance and required checkpoint; the same Execution Agent refreshes its candidate when necessary. Other Tickets retain their owner, workspace, and WIP while waiting; waiting is not an Execution Outcome. Long repair or blocking work may yield completion priority to another eligible Ticket instead of holding the whole frontier.
+For concurrent Tickets, give one Ticket completion priority from final gates and review through promotion and its required tracker checkpoint. For a deferred Ticket, confirm a current Ticket Base and authorize final work after any preceding acceptance and required checkpoint; the same Execution Agent refreshes its candidate when necessary. Other Tickets retain their owner, workspace, and WIP while waiting; waiting is not an Execution Outcome. Long repair or blocking work may yield completion priority to another eligible Ticket instead of holding the whole frontier.
 
 ## Dispatch the fixed Ticket contract
 

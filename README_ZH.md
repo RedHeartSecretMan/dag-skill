@@ -44,7 +44,7 @@
 
 Coordinator 以零历史或最小相关历史派发固定 Ticket contract、[单票执行协议](./skill/dag/references/ticket-execution.md)，以及明确的最终完成指令。协议规定工程闭环、Runtime Skill 输入与证据规则及交接要求；契约提供适用的用户与项目约束，以及已有批准的指针。Agent 从权威输入与分配的 workspace 重建上下文。
 
-默认串行调度：派发即授权当前 Ticket 完成最终门禁和审查。独立 Ticket 可以并行实现并运行 focused checks；如果最终完成被延后，则由 Coordinator 在此前验收及必需 tracker checkpoint 完成后确认当前 `Ticket Base`，再恢复最终门禁与审查。每张 Ticket 保持同一 owner 和 workspace，为 Runtime Skills 的内部 Agents 预留容量，长期修复期间可让其他具备条件的工作继续。等待延后的最终完成属于调度，不新增 `Execution Outcome`。
+至少两张 Ticket 可执行、交付改动与运行资源有证据证明独立或已隔离，并且宿主能为 Runtime Skill 审查预留容量时，优先并行实现和运行 focused checks；否则串行推进。独立 worktree 本身不足以证明独立性；[调度条件](./skill/dag/SKILL.md#compute-and-claim-the-runnable-frontier)覆盖共享接口、配置、文件、端口、设备、数据库和运行目录。串行派发直接授权最终门禁与审查；并行任务若被延后最终完成，则由 Coordinator 在此前验收及必需 tracker 更新完成后确认当前 `Ticket Base`，再恢复执行。保持同一 owner 和 workspace，长期修复期间让其他具备条件的工作继续，集成和验收始终串行。等待延后的最终完成属于调度，不新增 `Execution Outcome`。
 
 当 Ticket 工作可以稳定交接时，`Execution Agent` 只返回以下三种 `Execution Outcome` 之一：
 
