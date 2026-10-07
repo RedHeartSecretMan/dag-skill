@@ -298,6 +298,32 @@ class LocalPromotionTests(unittest.TestCase):
         self.freeze()
         self.assert_rejected(self.promote(), "Base must be a local ancestor")
 
+    def test_rejects_fabricated_ancestry_from_repository_grafts(self) -> None:
+        unrelated = git(
+            self.repository,
+            "-c",
+            "user.name=DAG Skill Tests",
+            "-c",
+            "user.email=dag-skill-tests@example.invalid",
+            "commit-tree",
+            self.tree,
+            "-m",
+            "unrelated root",
+        )
+        headers = git(self.repository, "cat-file", "-p", unrelated).split("\n\n", 1)[0]
+        self.assertFalse(
+            any(line.startswith("parent ") for line in headers.splitlines())
+        )
+        grafts = self.repository / ".git" / "info" / "grafts"
+        grafts.write_text(f"{unrelated} {self.base}\n", encoding="ascii")
+        # Establish that ordinary Git sees the fabricated edge while the
+        # immutable commit object above has no parent.
+        git(self.repository, "merge-base", "--is-ancestor", self.base, unrelated)
+        self.payload["candidate"] = unrelated
+        self.freeze()
+
+        self.assert_rejected(self.promote(), "Base must be a local ancestor")
+
     def test_rejects_checked_out_branch_in_main_or_linked_worktree(self) -> None:
         git(self.repository, "checkout", "--quiet", "integration")
         self.assert_rejected(self.promote(), "checked out in a worktree")

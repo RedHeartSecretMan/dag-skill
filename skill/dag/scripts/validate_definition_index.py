@@ -27,6 +27,7 @@ SAFE_GIT_ENVIRONMENT = {
     "GIT_CONFIG_GLOBAL": os.devnull,
     "GIT_CONFIG_NOSYSTEM": "1",
     "GIT_CONFIG_SYSTEM": os.devnull,
+    "GIT_GRAFT_FILE": os.devnull,
     "GIT_LITERAL_PATHSPECS": "1",
     "GIT_NO_LAZY_FETCH": "1",
     "GIT_NO_REPLACE_OBJECTS": "1",
