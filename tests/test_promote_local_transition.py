@@ -359,6 +359,56 @@ class LocalPromotionTests(unittest.TestCase):
         git(self.repository, "worktree", "add", "--quiet", str(linked), "integration")
         self.assert_rejected(self.promote(), "checked out in a worktree")
 
+    def test_promotes_with_a_missing_prunable_sibling_worktree(self) -> None:
+        linked = self.root / "missing-sibling"
+        git(
+            self.repository,
+            "worktree",
+            "add",
+            "--quiet",
+            "--detach",
+            str(linked),
+            self.base,
+        )
+        linked.rename(self.root / "preserved-sibling")
+        before = self.transition.read_bytes(), self.evidence.read_bytes()
+
+        result = self.promote()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)["status"], "local-promoted")
+        self.assertEqual(
+            git(self.repository, "rev-parse", INTEGRATION_REF), self.candidate
+        )
+        self.assertEqual(
+            (self.transition.read_bytes(), self.evidence.read_bytes()), before
+        )
+        self.assertFalse(linked.exists())
+
+    def test_rejects_a_cyclic_registered_sibling_worktree_without_a_traceback(
+        self,
+    ) -> None:
+        linked = self.root / "cyclic-sibling"
+        git(
+            self.repository,
+            "worktree",
+            "add",
+            "--quiet",
+            "--detach",
+            str(linked),
+            self.base,
+        )
+        linked.rename(self.root / "preserved-sibling")
+        linked.symlink_to(linked.name)
+        before = self.transition.read_bytes(), self.evidence.read_bytes()
+
+        self.assert_rejected(self.promote(), linked.name)
+
+        self.assertEqual(linked.readlink(), Path(linked.name))
+        self.assertEqual(
+            (self.transition.read_bytes(), self.evidence.read_bytes()), before
+        )
+
     def test_rejects_symbolic_integration_ref_without_writing_its_target(self) -> None:
         git(self.repository, "branch", "other", self.base)
         git(self.repository, "symbolic-ref", INTEGRATION_REF, "refs/heads/other")

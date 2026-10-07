@@ -174,7 +174,16 @@ def worktree_roots(repository: Path, integration_ref: str) -> list[Path]:
         if field == b"branch " + integration_ref.encode("utf-8"):
             raise ValidationError("integration_ref is checked out in a worktree")
         if field.startswith(b"worktree "):
-            roots.append(Path(os.fsdecode(field[9:])).resolve())
+            root = Path(os.fsdecode(field[9:]))
+            try:
+                root = root.resolve()
+                # Non-strict resolution suppresses symlink loops on Python 3.13+.
+                root.stat()
+            except FileNotFoundError:
+                pass
+            except RuntimeError as error:
+                raise ValidationError(str(error)) from error
+            roots.append(root)
     return roots
 
 
