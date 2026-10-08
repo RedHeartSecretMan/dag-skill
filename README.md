@@ -8,7 +8,7 @@ The Skill is packaged in [`skill/dag/`](./skill/dag/):
 
 - [`SKILL.md`](./skill/dag/SKILL.md) defines the operating rules;
 - [`references/ticket-execution.md`](./skill/dag/references/ticket-execution.md) is the single-Ticket protocol supplied to each `Execution Agent`;
-- the other [`references/`](./skill/dag/references/) define Definition binding and integration recovery;
+- [`definition-binding.md`](./skill/dag/references/definition-binding.md) and [`integration-transitions.md`](./skill/dag/references/integration-transitions.md) define Definition binding and integration recovery;
 - [`scripts/validate_definition_index.py`](./skill/dag/scripts/validate_definition_index.py) validates the `DAG Definition Index`;
 - [`scripts/promote_local_transition.py`](./skill/dag/scripts/promote_local_transition.py) verifies frozen evidence and advances a local integration ref;
 - [`scripts/install_runtime_skills.py`](./skill/dag/scripts/install_runtime_skills.py) installs the `Runtime Skill Bundle`.

@@ -16,7 +16,7 @@
 
 ### Changed
 
-- 单票执行流程独立为 `references/ticket-execution.md` 并随零历史派发显式传入；串行任务直接执行，并行任务仅在明确延后最终验证时等待 Base 确认。
+- 单票执行流程独立为 [`references/ticket-execution.md`](./skill/dag/references/ticket-execution.md) 并随零历史派发显式传入；串行任务直接执行，并行任务仅在明确延后最终验证时等待 Base 确认。
 - 集中 Run Receipt 与 pending Transition 说明，统一 Base 刷新后的门禁有效性规则；文档验证改为复制包可用性、引用可达性和公开入口检查，减少整句匹配造成的维护负担。
 - 已批准 Ticket 明确交付验证、审计或操作证据时，可作为既有 Baseline Satisfaction 规则，无需额外批准零差异术语；实际验收责任、当前 Base 核对及远端操作授权保持不变。
 - 没有明确同步要求时默认 Local-only，包括已配置 remote 的仓库；恢复已有运行时保持原模式，发布票的独立授权继续生效。
@@ -25,7 +25,7 @@
 - 纯稳定审计检查点以 Definition 身份不变证明收敛 fresh review 范围；元数据变化后的产品门禁复用保留原候选身份，并补充等价性与影响核对。
 - 同一验收责任反复出现成立的 finding 时，执行 Agent 在本票范围内检查有因果关联的相邻路径，再提交复审。
 - Runtime Skills 的锚定 commit 改为最低版本要求：复用完整内容对应锚点或其 Git 后代提交的副本，包括中间版本；缺失项仍从锚点补齐，无法核验或有本地修改的目标保留现场。
-- 默认 `README.md` 改为英文，中文版移至 `README_ZH.md`，语言切换文字使用“简体中文”。
+- 默认 [`README.md`](./README.md) 改为英文，中文版移至 [`README_ZH.md`](./README_ZH.md)，语言切换文字使用“简体中文”。
 - 派发契约携带适用于当前及下游 Agent 的用户与项目约束，以及已有批准的指针；Runtime Skill 调用和后续派发继续遵守这些约束。
 - Runtime Skill 调用优先使用 Target Project 已有的权威 Ticket、Spec 和 tracker 流程；仅缺少依赖约定的文档路径不要求项目配置，已有测试 seam 批准在原范围内复用。
 - `setup-matt-pocock-skills` 仅由明确的安装请求或使用它完成已授权项目配置的需要触发安装；Coordinator 沿用已有授权补齐缺失副本，仅安装不授权执行配置。
@@ -43,8 +43,8 @@
 ### Changed
 
 - 将 `Needs Coordinator Decision` Execution Outcome 重命名为 `Needs Decision`，不保留旧名称；`Coordinator Agent` 仍负责在现有权限内处理，超出权限时交由用户决定。
-- README 直接说明 `Promotion Candidate` 正常时序覆盖单票执行、`Ready for Acceptance` 交接和 Ticket 验收。
-- README 只保留一张逐票 sequence diagram，按实际时序展示最小 Ticket context、Ticket 内 candidate/review 闭环、串行 promotion、可选 tracker checkpoint 和后继解锁。
+- [README](./README.md) 直接说明 `Promotion Candidate` 正常时序覆盖单票执行、`Ready for Acceptance` 交接和 Ticket 验收。
+- [README](./README.md) 只保留一张逐票 sequence diagram，按实际时序展示最小 Ticket context、Ticket 内 candidate/review 闭环、串行 promotion、可选 tracker checkpoint 和后继解锁。
 
 ### Fixed
 
@@ -59,7 +59,7 @@
 - 首张 Ticket 前绑定 DAG Definition：项目内 Spec/Tickets 进入集成历史，外部 tracker 使用包含完整计划内容和来源身份的规范化快照，固定的 `.dag/definition-index.json` 作为唯一 DAG Definition Index；Starting Base 或当前 Accepted Integration Tip 已包含相同定义和等价 index 时只验证身份。
 - DAG Definition Checkpoint 作为非 Ticket 的受审查 commit/tree，通过 Integration Transition 复用串行 CAS、Remote-mirrored 同步和 SHA 回读，并在成功后成为后续 Ticket Base。
 - 新增只读 `validate_definition_index.py`：只使用指定 commit 的本地 Git objects，禁用 replace refs 和 partial-clone lazy fetch，验证 canonical JSON、NFC 安全路径、UTF-8 字节序、Git blob 身份与模式，并准确拒绝 canonical/legacy Git LFS pointer、symlink 和 gitlink；新增对应 integration tests。
-- 新增 Definition binding 与 Integration Transition branch references，让主 SKILL 保留常规步骤和完成条件，按运行分支披露 schema、publication 与 recovery 细节。
+- 新增 [Definition binding](./skill/dag/references/definition-binding.md) 与 [Integration Transition](./skill/dag/references/integration-transitions.md) branch references，让主 [SKILL](./skill/dag/SKILL.md) 保留常规步骤和完成条件，按运行分支披露 schema、publication 与 recovery 细节。
 - 新增只读 GitHub Actions CI，在 Python 3.12/3.14 上运行完整 tests、Ruff、Markdown lint 和两个 CLI help，并以精确 commit 固定官方 checkout/setup-python Actions。
 
 ### Changed
@@ -69,9 +69,9 @@
 - DAG Revision 必须重新处置受影响的 Accepted Ticket 和 Superseded Ticket 证据：fresh audit 证明新 Acceptance Obligation 仍满足，或按 Target Project 规则重开/转交给有效 Ticket；旧证据不能自动沿用。
 - DAG Definition Checkpoint 的 acceptance-impact dispositions 与 audit 身份在本地 CAS 前随 typed pending Integration Transition 一起冻结；崩溃恢复只能采用同一证据集，CAS 前证据变化必须显式取消旧 Transition 并新建。
 - Remote-mirrored 的运行级授权和恢复对账同时覆盖 DAG Milestones 与 DAG Definition Checkpoints；普通运行状态变化不会创建 DAG Definition Checkpoint，也不改变 Execution Agent 的接口。
-- README、SKILL 和 DESIGN 统一使用 CONTEXT 中的 canonical terms；CONTEXT 新增 Agent Host，删除与 Integration Transition 重叠的串行验收别名，并保留英文术语配中文定义。
+- [README](./README.md)、[SKILL](./skill/dag/SKILL.md) 和 [DESIGN](./docs/DESIGN.md) 统一使用 [CONTEXT](./CONTEXT.md) 中的 canonical terms；[CONTEXT](./CONTEXT.md) 新增 Agent Host，删除与 Integration Transition 重叠的串行验收别名，并保留英文术语配中文定义。
 - Coordinator 自身发现的未决选择不再冒充 Execution Outcome；Checkpoint 候选完成前不再成为 Ticket Base；pending Transition 的冻结证据变化改为 CAS 前显式取消并新建，禁止原地替换。
-- Runtime Skill Bundle 的 README 恢复条件覆盖无法解析、缺失和固定身份不一致；安装器示例统一以 `<this-skill-root>` 指向实际复制目录。
+- Runtime Skill Bundle 的 [README](./README.md) 恢复条件覆盖无法解析、缺失和固定身份不一致；安装器示例统一以 `<this-skill-root>` 指向实际复制目录。
 - 将公开安装入口从 `scripts/install_dependencies.py` 重命名为 `scripts/install_runtime_skills.py`，直接表达其默认只安装 Runtime Skills，同时保留显式 opt-in setup helper；旧路径不再保留。
 - Execution Agent 派发改为 Agent Host 中立的零历史契约；不支持零历史时仅继承排除无关 Ticket、Run Receipt 和既有工具输出的最小窗口。
 - Definition Index validator 先定点读取 index，再批量查询其选择的路径，不再枚举整个 commit tree。
@@ -85,7 +85,7 @@
 - DAG 不再解释 `$code-review` 内部如何发现 Spec 或组织审查，只保存它返回的完整结果并绑定 Base、candidate commit/tree 和评估范围。
 - 本地 DAG 集成分支改为不签出到 worktree 的 ref，推广使用 Base 到 Candidate 的原子比较更新；换 Agent 时必须先确认原 Agent 已停止，再交接原 Ticket、branch、worktree 和 WIP。
 - 远端模式在首张 Ticket 前一次确定；新映射只初始化一次，恢复已有映射先只读对账；里程碑同步改为比较 Candidate、上次同步 commit 与远端 SHA，不再保留重发计数或额外自动 push 状态。
-- README 改用启动、派票、验收和远端处理的直白流程说明。
+- [README](./README.md) 改用启动、派票、验收和远端处理的直白流程说明。
 
 ## [0.3.0] - 2026-08-29
 
@@ -136,7 +136,7 @@
 - 一次 Remote Checkpoint Authorization 覆盖每个 DAG Milestone 的选定 DAG 分支推送与远端 SHA 回读，并在恢复期间保留本地已验证里程碑和并行 Ticket 进展。
 - Runtime Skill Bundle 固定 `code-review`、`tdd` 和 `codebase-design`，同 revision 的 `setup-matt-pocock-skills` 为需要配置的目标项目提供用户调用入口。
 - Python 3.12+ 安装器使用固定目录摘要离线验证现有支持包，仅为缺失目录获取上游内容，以排他方式写入新路径，并在成功返回前复核全部四个目录。
-- README 按任务的实际推进顺序解释启动信息、单票闭环、Git 隔离、返工、授权和终态，并为必要术语提供直白定义。
+- [README](./README.md) 按任务的实际推进顺序解释启动信息、单票闭环、Git 隔离、返工、授权和终态，并为必要术语提供直白定义。
 
 ## [0.1.0] - 2026-08-24
 

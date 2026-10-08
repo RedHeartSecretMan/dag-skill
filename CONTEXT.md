@@ -1,6 +1,6 @@
 # DAG 协调
 
-术语名称使用英文，定义使用中文。README、Skill 和运行证据应使用统一的术语。
+术语名称使用英文，定义使用中文。[README](./README.md)、[Skill](./skill/dag/SKILL.md) 和运行证据应使用统一的术语。
 
 ## 项目与计划
 

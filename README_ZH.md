@@ -8,7 +8,7 @@
 
 - [`SKILL.md`](./skill/dag/SKILL.md) 是运行规范；
 - [`references/ticket-execution.md`](./skill/dag/references/ticket-execution.md) 是每个 `Execution Agent` 接收的单票执行协议；
-- 其他 [`references/`](./skill/dag/references/) 定义 Definition 绑定和集成恢复契约；
+- [`definition-binding.md`](./skill/dag/references/definition-binding.md) 和 [`integration-transitions.md`](./skill/dag/references/integration-transitions.md) 定义 Definition 绑定和集成恢复契约；
 - [`scripts/validate_definition_index.py`](./skill/dag/scripts/validate_definition_index.py) 验证 `DAG Definition Index`；
 - [`scripts/promote_local_transition.py`](./skill/dag/scripts/promote_local_transition.py) 核验冻结证据并推进本地集成 ref；
 - [`scripts/install_runtime_skills.py`](./skill/dag/scripts/install_runtime_skills.py) 安装 `Runtime Skill Bundle`。

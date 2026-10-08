@@ -1,6 +1,6 @@
 # DAG Skill Design
 
-This document explains the stable design choices behind the DAG Skill. [`SKILL.md`](../skill/dag/SKILL.md) is the Coordinator's normative entrypoint; [`ticket-execution.md`](../skill/dag/references/ticket-execution.md) is the Execution Agent's protocol. The remaining references define Definition binding and integration recovery, and [`CONTEXT.md`](../CONTEXT.md) is the shared glossary. The Target Project's live instructions and approved obligations remain authoritative for a run.
+This document explains the stable design choices behind the DAG Skill. [`SKILL.md`](../skill/dag/SKILL.md) is the Coordinator's normative entrypoint; [`ticket-execution.md`](../skill/dag/references/ticket-execution.md) is the Execution Agent's protocol. The remaining references define [Definition binding](../skill/dag/references/definition-binding.md) and [integration recovery](../skill/dag/references/integration-transitions.md), and [`CONTEXT.md`](../CONTEXT.md) is the shared glossary. The Target Project's live instructions and approved obligations remain authoritative for a run.
 
 ## Objective
 
@@ -17,7 +17,7 @@ thin Coordinator Agent
 
 This design exposes only graph-relevant outcomes to the Coordinator Agent. Test failures and ordinary review findings stay with the Ticket owner; acceptance and successor unlocking stay with the graph owner.
 
-Context isolation follows the same ownership split. The Coordinator holds the whole-DAG state, while the Execution Agent receives one Ticket contract, an explicit copyable protocol pointer, and a finalization instruction. Zero-history dispatch, or the smallest relevant history window, keeps unrelated graph state out of implementation context. The protocol supplies the non-obvious execution and handoff rules that workspace pointers alone cannot convey; the contract carries project constraints and existing approvals for the Agent and its downstream Agents.
+Context isolation follows the same ownership split. The Coordinator holds the whole-DAG state, while the Execution Agent receives one Ticket contract, an explicit [copyable protocol pointer](../skill/dag/references/ticket-execution.md), and a finalization instruction. Zero-history dispatch, or the smallest relevant history window, keeps unrelated graph state out of implementation context. The protocol supplies the non-obvious execution and handoff rules that workspace pointers alone cannot convey; the contract carries project constraints and existing approvals for the Agent and its downstream Agents.
 
 ## Why there is no DAG Review Agent
 
@@ -25,7 +25,7 @@ Context isolation follows the same ownership split. The Coordinator holds the wh
 
 The Execution Agent invokes `code-review` and closes its in-scope findings. A Candidate Review Record binds the complete returned result to the fixed Ticket Base, candidate commit/tree, and evaluated range; the review output itself need not repeat those identities. The Coordinator verifies that evidence at handoff rather than repeating engineering review.
 
-Recurring supported findings justify a causal audit of evidence-related neighboring paths within the same Ticket obligation. This keeps repair scope proportional to observed failures without adding an exhaustive matrix, repair limit, or review role. The execution protocol owns this rule and the finding-disposition loop.
+Recurring supported findings justify a causal audit of evidence-related neighboring paths within the same Ticket obligation. This keeps repair scope proportional to observed failures without adding an exhaustive matrix, repair limit, or review role. The [execution protocol](../skill/dag/references/ticket-execution.md#run-the-ticket-local-engineering-loop) owns this rule and the finding-disposition loop.
 
 ## State and ownership
 
@@ -55,7 +55,7 @@ Run state is a different surface from the approved Definition. Claims, workspace
 
 Project-required stable tracker writes use the same DAG Definition Checkpoint path rather than a second state authority. The project determines timing and field mappings; the Coordinator's [tracker section](../skill/dag/SKILL.md#persist-target-project-required-stable-tracker-evidence) owns sequencing and pending-update handling. This keeps per-Ticket and explicitly batched rules distinct without inventing a tracker schema.
 
-Unchanged Definition identities let a stable audit checkpoint receive fresh review focused on its changed tracker mappings and evidence. Changing the index or a selected input instead requires complete Definition rebinding and an acceptance-impact audit, even for an apparent metadata edit. The Definition reference owns that classification and its scope-specific gates.
+Unchanged Definition identities let a stable audit checkpoint receive fresh review focused on its changed tracker mappings and evidence. Changing the index or a selected input instead requires complete Definition rebinding and an acceptance-impact audit, even for an apparent metadata edit. The [Definition reference](../skill/dag/references/definition-binding.md#persist-required-stable-tracker-state) owns that classification and its scope-specific gates.
 
 The Run Receipt supplies exact comparison identities for interrupted integration work. Its field inventory, frozen-evidence rules, and local or remote recovery cases have one authoritative home in [`integration-transitions.md`](../skill/dag/references/integration-transitions.md). Keeping those rules together avoids divergent startup and recovery recipes.
 
@@ -73,19 +73,19 @@ Parallel work can make a Ticket Base obsolete before promotion. The Coordinator 
 
 The DAG Integration Branch is a local ref kept out of every worktree. A serialized Integration Transition advances it directly from the recorded Base to one reviewed descendant commit using compare-and-swap and exact readback. This prevents merge-generated or amended bytes from bypassing review, avoids moving a checked-out branch, and makes downstream Bases deterministic. Graph and evidence remain fixed through completion; later evidence participates in the next graph recomputation.
 
-The narrow `scripts/promote_local_transition.py` helper verifies the frozen request and performs local CAS and readback. Failed prerequisites stop ref mutation; post-CAS failures preserve the pending evidence for recovery. Evidence files, the Git ref, and receipt completion are separate persistence surfaces. The helper supplies no semantic acceptance, remote publication, or rollback; the integration reference defines those boundaries.
+The narrow `scripts/promote_local_transition.py` helper verifies the frozen request and performs local CAS and readback. Failed prerequisites stop ref mutation; post-CAS failures preserve the pending evidence for recovery. Evidence files, the Git ref, and receipt completion are separate persistence surfaces. The helper supplies no semantic acceptance, remote publication, or rollback; the [integration reference](../skill/dag/references/integration-transitions.md#start-one-serialized-transition) defines those boundaries.
 
 Ticket acceptance is a semantic result; a DAG Milestone is the new artifact created by a non-empty Ticket candidate's completed Integration Transition. Definition checkpoints can advance the accepted tip without accepting a Ticket. Baseline Satisfaction and Superseded results can close graph obligations without creating a new artifact.
 
 ## Acceptance and integration publication
 
-Accepted means every Ticket obligation is evidenced, not merely that tests pass or a candidate is committed. An approved verification, audit, or operational Ticket may define Baseline Satisfaction without product-byte changes; its existing contract supplies the rule without another approval solely for zero diff. Current Base/tree identities, a clean empty delivery diff, actual deliverables, and applicable authority still govern. The Coordinator owns the serialized acceptance decision; the execution protocol owns the evidence handoff.
+Accepted means every Ticket obligation is evidenced, not merely that tests pass or a candidate is committed. An approved verification, audit, or operational Ticket may define Baseline Satisfaction without product-byte changes; its existing contract supplies the rule without another approval solely for zero diff. Current Base/tree identities, a clean empty delivery diff, actual deliverables, and applicable authority still govern. The Coordinator owns the serialized acceptance decision; the [execution protocol](../skill/dag/references/ticket-execution.md#gather-zero-diff-evidence) owns the evidence handoff.
 
 Product-equivalent metadata changes may retain valid product gates with their original artifact identities and a fresh equivalence and impact audit. Invalidated and project-required candidate-specific checks run again, and each new candidate receives fresh review. This preserves provenance without spending unchanged product-test effort on metadata. Operational deliverables and remote authority remain actual acceptance obligations.
 
 One run-level Integration Publication Mode keeps authorization predictable. Existing records or project requirements determine it; absent synchronization intent, Local-only remains the default even with configured remotes. Remote-mirrored maps one dedicated branch and requires authority for its exact remote/ref. An unambiguous synchronization instruction supplies that authority once. Missing mapping or remote-add authority remains a specific decision, and release operations retain their separate authorization boundary.
 
-Remote initialization and established-mapping recovery differ because a missing new ref can be created while a missing established ref is drift. Recording the mapping and exact synchronized identities lets readback reconcile an unsent push or lost response without force-push, ref switching, or retry states. The integration reference owns the allowed identity cases and recovery sequence.
+Remote initialization and established-mapping recovery differ because a missing new ref can be created while a missing established ref is drift. Recording the mapping and exact synchronized identities lets readback reconcile an unsent push or lost response without force-push, ref switching, or retry states. The [integration reference](../skill/dag/references/integration-transitions.md#complete-or-recover-the-transition) owns the allowed identity cases and recovery sequence.
 
 ## Progress without retry states
 
@@ -117,7 +117,7 @@ The optional `setup-matt-pocock-skills` helper is installed only for an explicit
 
 Installation and runtime readiness are separate: the Agent Host must reload and resolve all three Runtime Skills before a Ticket is claimed. Startup does not execute a real Skill workflow as a probe. Missing capabilities or installation prerequisites leave one observable closing condition rather than a false readiness claim.
 
-Runtime Skill invocations need the project's authoritative context and scoped existing approvals. The Ticket contract and execution protocol provide those inputs; an equivalent project tracker workflow can replace a dependency's conventional discovery path. Missing context is resolved as a specific gap without turning optional setup into a universal prerequisite.
+Runtime Skill invocations need the project's authoritative context and scoped existing approvals. The Ticket contract and [execution protocol](../skill/dag/references/ticket-execution.md#supply-runtime-skills) provide those inputs; an equivalent project tracker workflow can replace a dependency's conventional discovery path. Missing context is resolved as a specific gap without turning optional setup into a universal prerequisite.
 
 Each DAG start or resume verifies the bundle once; ordinary Ticket execution uses that verified bundle without another dependency preflight.
 
