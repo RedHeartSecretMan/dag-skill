@@ -45,6 +45,8 @@ Maintain the off-delivery Run Receipt under [Run Receipt and frozen evidence](re
 
 The Runtime Skill Bundle contains `code-review`, `tdd`, and `codebase-design`. The revision anchored by `scripts/install_runtime_skills.py` is the minimum: accept its exact contents or complete Skill contents verified at a descendant commit in the upstream repository. Use Git ancestry, not commit dates, to establish that a revision is newer. On each DAG start or resume, resolve the active Agent Host and stable Skills root, then check once that all three Skills resolve, their entrypoints and referenced resources are available, and their content identities meet this version floor. Record the verified source commits and content identities. Do not run a review or other real Skill workflow as a startup probe.
 
+Resolve and record a Python 3.12+ executable for bundled helpers; use that verified executable in place of `python3` in the command examples throughout this Skill.
+
 If any bundle member cannot be resolved through the active Agent Host, is missing, or has not been verified against this version floor, run the bundled installer by default before the first Ticket claim:
 
 ```bash

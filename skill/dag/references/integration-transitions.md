@@ -27,7 +27,7 @@ Use the Target Project's tracker as the recovery store only when it remains off-
 | --- | --- |
 | Integration | Starting Base; Accepted Integration Tip once established; local integration ref; publication mode; selected remote/ref and last synchronized commit when applicable |
 | Definition | Index identity and validated result; selected input identities; binding commit/tree and latest completed Definition checkpoint |
-| Capability | Verified Agent Host, stable Skills root, Runtime Skill source commits and content identities |
+| Capability | Verified Agent Host, Python 3.12+ executable, stable Skills root, Runtime Skill source commits and content identities |
 | Ticket ownership | Claims, Agent liveness, Ticket Base, candidate, branch/worktree and WIP pointers; Execution Outcomes and their evidence |
 | Outstanding work | Pending tracker update or typed Integration Transition; authorized external operation request and native lookup/idempotency identities, result/readback pointers and unresolved conditions; decisions and external closing conditions with owners and next actions |
 | Resources | Run-owned resources, ownership, retained evidence and recovery pointers, and disposition |
