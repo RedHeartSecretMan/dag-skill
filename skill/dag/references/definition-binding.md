@@ -38,14 +38,16 @@ When a source mixes Definition and run state, use the Target Project's existing 
 
 ## Persist required stable tracker state
 
-When the Target Project requires stable tracker state or acceptance evidence in history, freeze the affected Accepted or Superseded Tickets, their verdict and evidence identities, and the governing Target Project rule before creating the candidate. Classify every changed path against the currently validated DAG Definition Index:
+When the Target Project requires stable tracker state or acceptance evidence in history, freeze the affected Tickets' Accepted, Superseded, or reopened acceptance dispositions, their verdict and evidence identities, and the governing Target Project rule before creating the candidate. Record a reopen disposition only with no active Integration Transition, preserving the historical acceptance and evidence. Classify every changed path against the currently validated DAG Definition Index:
 
 - A state/evidence-only checkpoint may change only project-authorized stable audit paths that the index does not select. It preserves the validated index, selected path set, and every selected blob identity.
 - A change to `.dag/definition-index.json` or any selected path is a DAG Definition change, even when the edit looks like status or evidence. Update the index to the new blob identities and perform the complete Definition and acceptance-impact audit; do not label it state/evidence-only.
 
 If one tracked path mixes Definition with run state, use the split or normalized snapshot rule above before either path. Every checkpoint excludes the Run Receipt and all transient run state.
 
-Apply the Target Project's exact rules for status, checklist, verdict, comments, and evidence. If those rules do not say how the frozen Accepted, Superseded, PASS, FAIL, or BLOCKED state determines a field, record a Coordinator-owned unresolved decision instead of inferring status or checklist changes. Run the applicable tracker integrity, scope, sensitive-data, documentation, review, and publication gates on the exact candidate. Complete it through the ordinary [DAG Definition Checkpoint](#complete-a-dag-definition-checkpoint) and [Integration Transition](integration-transitions.md#start-one-serialized-transition) rules; it accepts no Ticket and does not replace the Ticket's delivery evidence.
+Apply the Target Project's exact rules for status, checklist, verdict, comments, and evidence, including reopening. If those rules do not determine a field from the frozen acceptance disposition, PASS, FAIL, or BLOCKED result, record a Coordinator-owned unresolved decision instead of inferring status or checklist changes. Run the applicable tracker integrity, scope, sensitive-data, documentation, review, and publication gates on the exact candidate. Complete it through the ordinary [DAG Definition Checkpoint](#complete-a-dag-definition-checkpoint) and [Integration Transition](integration-transitions.md#start-one-serialized-transition) rules; it accepts no Ticket and does not replace the Ticket's delivery evidence.
+
+Complete a required per-Ticket reopen update before restoring its claim or resuming affected work; then assign the current Accepted Integration Tip as Ticket Base. An explicitly batched rule permits only the independent work it allows while the update is pending, under the [required tracker update lifecycle](../SKILL.md#persist-target-project-required-stable-tracker-evidence).
 
 For a state/evidence-only checkpoint, compare the exact candidate's validator result with its Base and require an unchanged index blob identity, selected path set, and every selected blob identity. Use that invariance to preserve conclusions about unchanged graph identity, Hard Dependencies, and Acceptance Obligations. Bind a fresh tracker impact audit and independent Standards/Spec review to the checkpoint candidate, focused on the changed state mappings, verdicts, evidence identities and links, scope, sensitive data, tracker integrity, and required documentation gates. Existing Ticket delivery evidence keeps its original artifact identities; valid product gate reuse follows [Keep gate evidence valid](ticket-execution.md#keep-gate-evidence-valid). An index or selected input change takes the full Definition and acceptance-impact audit path instead.
 
@@ -55,7 +57,7 @@ Create an isolated checkpoint from Starting Base before the first Accepted Integ
 
 1. changes only approved Definition inputs, `.dag/definition-index.json`, and Target Project-required stable audit evidence;
 2. excludes the Run Receipt, transient state, and its own completion record;
-3. passes the validator on its exact candidate commit and the gates for its classified scope above; a Definition change requires the full graph identity, acyclicity, reference, scope, sensitive-data, acceptance-impact, and applicable documentation checks;
+3. passes the validator on its exact candidate commit and the gates for its classified scope above; a Definition change requires the full graph identity, acyclicity, reference, scope, sensitive-data, acceptance-impact, and applicable documentation checks, including [governing Spec obligation ownership coverage](../SKILL.md#reconstruct-the-live-run);
 4. receives fresh independent Standards/Spec review for that scope, bound to its Base, candidate commit/tree, and evaluated range, with every finding disposition complete;
 5. freezes all candidate-bound evidence before local compare-and-swap and completes the applicable Integration Publication Mode.
 

@@ -29,10 +29,12 @@ Use the Target Project's tracker as the recovery store only when it remains off-
 | Definition | Index identity and validated result; selected input identities; binding commit/tree and latest completed Definition checkpoint |
 | Capability | Verified Agent Host, stable Skills root, Runtime Skill source commits and content identities |
 | Ticket ownership | Claims, Agent liveness, Ticket Base, candidate, branch/worktree and WIP pointers; Execution Outcomes and their evidence |
-| Outstanding work | Pending tracker update or typed Integration Transition; decisions and external closing conditions with owners and next actions |
+| Outstanding work | Pending tracker update or typed Integration Transition; authorized external operation request and native lookup/idempotency identities, result/readback pointers and unresolved conditions; decisions and external closing conditions with owners and next actions |
 | Resources | Run-owned resources, ownership, retained evidence and recovery pointers, and disposition |
 
 Link complete reports instead of copying them into the receipt. The receipt indexes the tracked Definition binding; it never replaces it or enters delivery history. Target Project-required stable tracker or acceptance evidence enters history through an authorized Definition checkpoint, whose own completion record remains off-delivery.
+
+For zero-diff external actions that could repeat side effects, follow [operation preparation and result recovery](ticket-execution.md#gather-zero-diff-evidence).
 
 Before moving the integration ref, freeze one pending Integration Transition with its candidate kind, Base, candidate commit/tree, and exact gate/review evidence. A Definition checkpoint also binds its validated index and inputs, acceptance-impact dispositions, and audit identities. The frozen local promotion record below can be that Transition's authoritative record, referenced by path and digest from the receipt. Record subsequent local/remote readbacks without replacing the frozen evidence. The receipt remains the compare source for reconciliation; ordinary claim or resource updates do not create checkpoints.
 

@@ -25,7 +25,7 @@ _Avoid_: Run Receipt 指针、隐式最新版本、项目自定义别名
 _Avoid_: prompt、重试轮次、实现阶段
 
 **Acceptance Obligation**:
-一个 Ticket 必须满足的外部可观察结果及其验收证据责任。
+批准范围内必须满足的外部可观察结果及其验收证据责任；每项 Spec 义务由有效 Ticket 或项目已有的 whole-DAG gate 及明确责任人承担。
 _Avoid_: 实现任务、文件归属
 
 **Hard Dependency**:
@@ -39,7 +39,7 @@ _Avoid_: 审查修复、候选重试、仅重命名
 ## 状态与执行
 
 **Accepted Ticket**:
-Acceptance Obligation 已由有效证据满足，并完成所选 Integration Publication Mode 要求的 Ticket。
+Acceptance Obligation 在所记录的 Base、交付或操作产物、输入与环境身份上已由有效证据满足，并完成所选 Integration Publication Mode 要求的 Ticket；历史验收保留原身份，最终完成仍需核对证据适用性，已确认缺陷按项目规则返回责任 Ticket 返修。
 _Avoid_: 实现完成、候选已就绪、本地已提交
 
 **Superseded Ticket**:
@@ -117,11 +117,11 @@ _Avoid_: working tree、最新文件、DAG Definition Checkpoint
 _Avoid_: 未绑定的审查文本、审查者身份
 
 **Run Receipt**:
-保存在交付历史之外、索引精确运行身份、认领、未决条件和资源证据的紧凑恢复记录；它引用 DAG Definition 绑定与 Integration Transition 证据，不替代这些事实来源。
+保存在交付历史之外、索引精确运行身份、认领、未决条件、外部动作恢复身份和资源证据的紧凑恢复记录；它引用 DAG Definition 绑定与 Integration Transition 证据，不替代这些事实来源。
 _Avoid_: DAG Definition、已跟踪选择器、调度数据库
 
 ## 终态
 
 **Terminal Outcome**:
-只能是 Complete 或 Stalled；Complete 表示最终 DAG Definition 下的全部责任均已闭环，Stalled 表示当前没有任何获授权且可执行的推进路径；本次资源的处置、保留或待处理情况与该产品结果分别报告。
+只能是 Complete 或 Stalled；Complete 表示最终 DAG Definition 的全部批准义务有明确归属且已满足、责任均已闭环，证据适用于最终 Accepted Integration Tip，且没有未解决的缺陷或证据缺口；Stalled 表示当前没有任何获授权且可执行的推进路径。本次资源的处置、保留或待处理情况与该产品结果分别报告。
 _Avoid_: 等待中、存在未决决定、未同步的 Remote-mirrored 运行
