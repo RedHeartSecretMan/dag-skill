@@ -19,6 +19,8 @@
 
 ### 启动与恢复
 
+内置 helpers 要求 Python 3.12+。按[启动规则](./skill/dag/SKILL.md#bootstrap-the-runtime-skill-bundle)确认并记录兼容的可执行路径，再用它替换下方示例中的 `python3`。
+
 进入 `Runnable Frontier` 前，`Coordinator Agent` 按顺序完成：
 
 1. 回读 `Target Project` 的指令、Spec、Tickets、tracker、Git、worktrees、测试和已有证据，重建有效 `Approved DAG`。每项范围内的 Spec 义务应由有效 Ticket 或已有 whole-DAG gate 及明确责任人承担。如果项目要求更新 Git-tracked tracker，则确认 Accepted、Superseded 或重开处置后的更新内容、时序及所需写入权限。
@@ -44,7 +46,7 @@
 
 Coordinator 以零历史或最小相关历史派发固定 Ticket contract、[单票执行协议](./skill/dag/references/ticket-execution.md)，以及明确的最终完成指令。协议规定工程闭环、Runtime Skill 输入与证据规则及交接要求；契约提供适用的用户与项目约束，以及已有批准的指针。Agent 从权威输入与分配的 workspace 重建上下文。重复调查可使用可选[共享探索笔记](./skill/dag/SKILL.md#dispatch-the-fixed-ticket-contract)；消费者仍向权威来源核验影响实现或验收的事实。
 
-至少两张 Ticket 可执行、交付改动与运行资源有证据证明独立或已隔离，并且宿主能为下游 Runtime Skill Agents 预留容量时，优先并行实现和运行 focused checks。每次 claim 或 resume 都将拟派发工作与既有 live claims 一起按[调度条件](./skill/dag/SKILL.md#compute-and-claim-the-runnable-frontier)检查，计入延后工作等任务的实际资源占用；否则串行推进。独立 worktree 本身不足以证明独立性。串行派发直接授权最终门禁与审查；并行任务若被延后最终完成，则由 Coordinator 在此前验收及必需 tracker 更新完成后确认当前 `Ticket Base`，再恢复执行。保持同一 owner 和 workspace，长期修复期间让其他具备条件的工作继续，集成和验收始终串行。等待延后的最终完成属于调度，不新增 `Execution Outcome`。
+交付改动与运行资源有证据证明独立或已隔离，并且宿主能为下游 Runtime Skill Agents 预留容量时，优先并行实现和运行 focused checks，也包括只有一张新票就绪、与既有 live claim 并行补位的情况。每次 claim 或 resume 都将拟派发工作与既有 live claims 一起按[调度条件](./skill/dag/SKILL.md#compute-and-claim-the-runnable-frontier)检查，计入延后工作等任务的实际资源占用；否则串行推进。独立 worktree 本身不足以证明独立性。串行派发直接授权最终门禁与审查；并行任务若被延后最终完成，则由 Coordinator 在此前验收及必需 tracker 更新完成后确认当前 `Ticket Base`，再恢复执行。保持同一 owner 和 workspace，长期修复期间让其他具备条件的工作继续，集成和验收始终串行。等待延后的最终完成属于调度，不新增 `Execution Outcome`。
 
 当 Ticket 工作可以稳定交接时，`Execution Agent` 只返回以下三种 `Execution Outcome` 之一：
 
@@ -138,7 +140,7 @@ sequenceDiagram
 
 `Remote-mirrored` 只同步一个专用的 `DAG Integration Branch`。写默认或受保护分支、改用 PR、同步 Ticket 分支、force-push 或切换 ref 都不属于该模式的默认权限。
 
-[集成契约](./skill/dag/references/integration-transitions.md)集中定义交付历史之外的 `Run Receipt`、pending 冻结证据、compare-and-swap，以及本地和远端恢复。`scripts/promote_local_transition.py` 只核验并推进本地 ref；发布与验收仍由 Coordinator 负责。`Remote-mirrored` 必须精确回读远端 SHA 后才能验收 Ticket、解锁后继或启动下一次 `Integration Transition`。恢复沿用该模式，发布授权仍与集成镜像分开。
+[集成契约](./skill/dag/references/integration-transitions.md)集中定义交付历史之外的 `Run Receipt`、pending 冻结证据、compare-and-swap，以及本地和远端恢复。[`scripts/promote_local_transition.py`](./skill/dag/scripts/promote_local_transition.py) 只核验并推进本地 ref；发布与验收仍由 Coordinator 负责。`Remote-mirrored` 必须精确回读远端 SHA 后才能验收 Ticket、解锁后继或启动下一次 `Integration Transition`。恢复沿用该模式，发布授权仍与集成镜像分开。
 
 ## 授权与终态
 
