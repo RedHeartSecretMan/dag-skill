@@ -1,6 +1,6 @@
 # Execution Records
 
-`record_execution_checkpoint.py` publishes one validated, off-delivery shadow record for a claimed Ticket. `index_execution_record.py` revalidates that record and CAS-indexes it into the existing off-delivery Run Receipt. Together they provide the first P0/P1 data seam for context, evidence, phase, resource, and wait measurements. They do not change a Git ref, mutate a claim, decide acceptance, or replace the Run Receipt.
+`record_execution_checkpoint.py` publishes one validated, off-delivery shadow record for a claimed Ticket. `index_execution_record.py` revalidates that record and CAS-indexes it into the existing off-delivery Run Receipt. Together they provide a compact data seam for context, evidence, phase, resource, and wait measurements. They do not change a Git ref, mutate a claim, decide acceptance, or replace the Run Receipt.
 
 ## Ownership and publication
 

@@ -9,8 +9,18 @@ The Skill is packaged in [`skill/dag/`](./skill/dag/):
 - [`SKILL.md`](./skill/dag/SKILL.md) defines the operating rules;
 - [`references/ticket-execution.md`](./skill/dag/references/ticket-execution.md) is the single-Ticket protocol supplied to each `Execution Agent`;
 - [`definition-binding.md`](./skill/dag/references/definition-binding.md) and [`integration-transitions.md`](./skill/dag/references/integration-transitions.md) define Definition binding and integration recovery;
+- [`execution-records.md`](./skill/dag/references/execution-records.md), [`exploration-cache.md`](./skill/dag/references/exploration-cache.md), and [`artifact-handles.md`](./skill/dag/references/artifact-handles.md) define compact execution context and evidence references;
+- [`admission.md`](./skill/dag/references/admission.md), [`claims.md`](./skill/dag/references/claims.md), and [`recovery.md`](./skill/dag/references/recovery.md) define parallel admission, claim CAS, and writer recovery;
+- [`review-context.md`](./skill/dag/references/review-context.md), [`candidate-review.md`](./skill/dag/references/candidate-review.md), and [`promotion.md`](./skill/dag/references/promotion.md) define fresh candidate review and Promotion preflight;
+- [`dispositions.md`](./skill/dag/references/dispositions.md) and [`terminal-outcome.md`](./skill/dag/references/terminal-outcome.md) define Ticket disposition and Complete/Stalled audit;
 - [`scripts/validate_definition_index.py`](./skill/dag/scripts/validate_definition_index.py) validates the `DAG Definition Index`;
 - [`scripts/promote_local_transition.py`](./skill/dag/scripts/promote_local_transition.py) verifies frozen evidence and advances a local integration ref;
+- [`scripts/record_execution_checkpoint.py`](./skill/dag/scripts/record_execution_checkpoint.py) and [`scripts/index_execution_record.py`](./skill/dag/scripts/index_execution_record.py) publish and index compact execution records;
+- [`scripts/record_exploration_note.py`](./skill/dag/scripts/record_exploration_note.py) and [`scripts/record_tool_artifact.py`](./skill/dag/scripts/record_tool_artifact.py) publish reusable notes and digest-checked tool artifacts;
+- [`scripts/plan_execution_admission.py`](./skill/dag/scripts/plan_execution_admission.py) and [`scripts/record_execution_claim.py`](./skill/dag/scripts/record_execution_claim.py) plan and CAS-record parallel claims;
+- [`scripts/record_review_context.py`](./skill/dag/scripts/record_review_context.py), [`scripts/record_candidate_review.py`](./skill/dag/scripts/record_candidate_review.py), and [`scripts/verify_candidate_review.py`](./skill/dag/scripts/verify_candidate_review.py) bind and verify candidate review inputs;
+- [`scripts/reconcile_execution_claim.py`](./skill/dag/scripts/reconcile_execution_claim.py), [`scripts/verify_promotion_package.py`](./skill/dag/scripts/verify_promotion_package.py), and [`scripts/record_ticket_disposition.py`](./skill/dag/scripts/record_ticket_disposition.py) handle recovery, promotion preflight, and Ticket closure;
+- [`scripts/verify_terminal_outcome.py`](./skill/dag/scripts/verify_terminal_outcome.py) verifies the final mechanical conditions;
 - [`scripts/install_runtime_skills.py`](./skill/dag/scripts/install_runtime_skills.py) installs the `Runtime Skill Bundle`.
 
 It executes only an `Approved DAG`. The `Target Project` remains responsible for authoring Specs and Tickets.
@@ -57,6 +67,18 @@ When it can hand off a stable result, the `Execution Agent` returns exactly one 
 | `Externally Blocked` | Required decisions are settled, but an external prerequisite is still missing, such as credentials, a service, hardware, an `Agent Host` capability, or required authorization. |
 
 These `Execution Outcome` values are handoff results from the `Execution Agent`, not Ticket states. The `Coordinator Agent` still records acceptance and graph state. The diagram below shows the normal `Promotion Candidate` sequence: after completing work on the Ticket, the `Execution Agent` hands it off as `Ready for Acceptance`, and the `Coordinator Agent` completes Ticket acceptance.
+
+### Execution context and evidence
+
+The flow keeps large context and run state outside Agent prompts while preserving exact identities:
+
+- A `Ticket Capsule` and `Execution Checkpoint` carry the smallest dispatch and resume state. An off-delivery shadow record and the `Run Receipt` index them with digest, CAS, and generation checks.
+- `Artifact Handle` and `Exploration Cache` references carry digest-checked tool output and reusable investigation facts. A cache or artifact mismatch returns to authoritative inputs.
+- The read-only admission planner compares live claims, Accepted direct inputs, Hard Dependencies, paths, interfaces, resources, capacity, and the single Promotion lane. The Coordinator then records a claim through CAS after rereading the live frontier.
+- A `Review Context Capsule` binds the fixed Base, candidate range, commit list, changed paths, obligations, gates, and evidence references. Every candidate requires a fresh `$code-review`; a `Candidate Review Record` binds the complete review artifact without interpreting its verdict.
+- `Promotion Evidence Package` is checked before and during local CAS promotion. An explicit Ticket disposition then closes the claim, and the terminal audit verifies `Complete` or `Stalled` conditions.
+
+These records remain off-delivery and preserve the existing Coordinator/Execution Agent ownership split. They reduce repeated context transfer without introducing a scheduler service or a second acceptance authority.
 
 ```mermaid
 sequenceDiagram

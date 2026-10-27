@@ -6,7 +6,7 @@
 
 ### Added
 
-- 新增 `record_execution_checkpoint.py` 与 `index_execution_record.py`，以固定 schema 校验 `Ticket Capsule`、`Execution Checkpoint`、`Evidence Index` 和 P0 metrics，并通过 artifact SHA-256、路径边界、claim generation、Ticket Base、Run Receipt generation 与 CAS 校验发布和索引 off-delivery shadow record；该记录不改变 claim、Git ref、Integration Transition 或 acceptance。
+- 新增 `record_execution_checkpoint.py` 与 `index_execution_record.py`，以固定 schema 校验 `Ticket Capsule`、`Execution Checkpoint`、`Evidence Index` 和 metrics，并通过 artifact SHA-256、路径边界、claim generation、Ticket Base、Run Receipt generation 与 CAS 校验发布和索引 off-delivery shadow record；该记录不改变 claim、Git ref、Integration Transition 或 acceptance。
 - 新增 `record_exploration_note.py`，以 source、target、environment 和 scope identities 计算 Exploration Cache key，并在身份匹配时生成 advisory consumption record；缓存 miss 自动停在权威输入路径。
 - 新增 `record_tool_artifact.py`，为大 tool output 生成并验证 C3 `Artifact Handle`，通过 byte count、SHA-256 和原始路径校验支持按需加载。
 - 新增只读 `plan_execution_admission.py`，统一检查 live claims、路径与接口冲突、资源容量和单一 Promotion lane，并输出可解释的 admission decision。

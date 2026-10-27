@@ -58,6 +58,26 @@ _Avoid_: 实现者、重复 Coordinator Agent、审查者
 在一个 Ticket 内持续负责实现、验证、Promotion Candidate、审查 finding 闭环并返回一个 Execution Outcome 的 Agent。
 _Avoid_: DAG 调度者、验收决策者
 
+**Ticket Capsule**:
+绑定 Ticket、owner、claim、Ticket Base、Definition、授权、范围、Acceptance Obligations 和门禁的不可变派发输入；它只携带可重建单票上下文所需的身份与指针。
+_Avoid_: prompt 快照、Run Receipt、验收结果
+
+**Execution Checkpoint**:
+一个 owner 在固定 claim generation 下对单票阶段、变更路径、候选、证据增量、资源、下一步和阻塞条件的不可变观察；它不改变 claim，也不授予验收权。
+_Avoid_: Ticket 状态、gate 结果、可原地更新的进度日志
+
+**Execution Checkpoint Record**:
+交付之外、由 Capsule 和 Checkpoint 组成的紧凑 shadow index；Coordinator 通过当前 Run Receipt generation 和引用证据回读后，才可将它用于恢复和度量。
+_Avoid_: 第二份 Run Receipt、Acceptance Obligation 来源、验收决定
+
+**Execution Admission Decision**:
+Coordinator 根据当前 live claims、候选、依赖身份、路径、资源和容量生成的只读 admission 建议；它不创建 claim、不派发 writer，也不改变 Git。
+_Avoid_: 调度器状态、claim、Agent assignment
+
+**Live Claim**:
+通过 Receipt CAS 记录的单 Ticket 写入所有权，绑定 owner、workspace、branch、Ticket Base、phase 和资源预留；它不等同于 Agent 已启动。
+_Avoid_: Ticket Accepted、Agent liveness、Promotion 权限
+
 **Agent Host**:
 承载 Coordinator Agent、Execution Agent 及 Runtime Skills 的内部 Agents，并决定可解析 Skills、可用运行能力和并发容量的宿主环境。
 _Avoid_: Agent 实例、Target Project、Skills root
@@ -113,8 +133,28 @@ _Avoid_: Ticket 状态、无类型的 pending sync、裸 Candidate
 _Avoid_: working tree、最新文件、DAG Definition Checkpoint
 
 **Candidate Review Record**:
-把 Ticket Base、Promotion Candidate、评估范围与 `$code-review` 完整结果绑定在一起的证据。
+把 Ticket Base、Promotion Candidate、评估范围、fresh Review Context Capsule 与 `$code-review` 完整结果绑定在一起的证据；其 review artifact 由 digest-checked Artifact Handle 指向。
 _Avoid_: 未绑定的审查文本、审查者身份
+
+**Review Context Capsule**:
+为一次候选审查准备的紧凑、候选绑定输入，包含 Base、candidate range、commit list、changed paths、obligations、gates 和已核验证据引用；每个新 candidate 都要求新的 context key 和 fresh review。
+_Avoid_: review verdict、旧候选的可复用批准
+
+**Artifact Handle**:
+指向交付之外或 workspace 内正规文件的带路径边界、byte count 和 SHA-256 的轻量引用，并保留产生该 artifact 的命令与环境身份。
+_Avoid_: 复制到 prompt 的完整 tool output、gate 结论
+
+**Exploration Cache**:
+绑定 question、scope、source、target 和 environment identities 的 advisory 调查笔记及 consumption record；身份不匹配即 cache miss 并回到权威来源。
+_Avoid_: Definition input、依赖输出、验收证据
+
+**Promotion Evidence Package**:
+在 Integration Transition 前将当前 Accepted Integration Tip、live claim、fresh review record 和 review artifact 绑定起来的机械 preflight 证据。
+_Avoid_: semantic acceptance、Git ref 更新、Ticket disposition
+
+**Ticket Disposition**:
+Coordinator 在语义决定已经完成后，通过 Receipt CAS 为当前 claim 记录 `Accepted` 或 `Superseded` 并关闭该 claim 的显式处置。
+_Avoid_: 从测试退出码推导的状态、自动验收、Terminal Outcome
 
 **Run Receipt**:
 保存在交付历史之外、索引精确运行身份、认领、未决条件、外部动作恢复身份和资源证据的紧凑恢复记录；它引用 DAG Definition 绑定与 Integration Transition 证据，不替代这些事实来源。

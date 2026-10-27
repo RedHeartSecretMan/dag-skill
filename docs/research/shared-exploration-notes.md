@@ -1,6 +1,6 @@
 # 共享探索笔记与 DAG 的最小设计研究
 
-本报告保留研究时的依据与建议。仓库对照基于 `16445a12e4557bba24f0bfc5cd70523207e444ed`；上游对照固定到 `b0618bc436ad893b3c5e84e55fba86586d34a404`，外部来源于 2026-10-09 核验。后续实施见 [0.4.3 方案](../plans/0.4.3.md)，执行以[当前派发契约](../../skill/dag/SKILL.md#dispatch-the-fixed-ticket-contract)和[输入读取规则](../../skill/dag/references/ticket-execution.md#read-the-assignment-and-preserve-its-boundaries)为准。
+本报告保留研究时的依据与建议。仓库对照基于 `16445a12e4557bba24f0bfc5cd70523207e444ed`；上游对照固定到 `b0618bc436ad893b3c5e84e55fba86586d34a404`，外部来源于 2026-10-09 核验。共享探索笔记的现行 schema、发布和消费契约见 [`exploration-cache.md`](../../skill/dag/references/exploration-cache.md)；历史演进见 [0.4.3 方案](../plans/0.4.3.md)，执行以[当前派发契约](../../skill/dag/SKILL.md#dispatch-the-fixed-ticket-contract)和[输入读取规则](../../skill/dag/references/ticket-execution.md#read-the-assignment-and-preserve-its-boundaries)为准。
 
 建议保留两种 DAG 角色和两种 Integration Transition，仅在确有重复探索时，通过已有 Ticket 上下文指针提供共享笔记。笔记的价值是省去重复搜索和定位；决定实现、依赖或验收的关键事实仍应回到当前权威来源核验。这是待验证的收益假设，本仓库没有运行对比结果证明其时间、token 或缺陷收益。
 
@@ -39,7 +39,7 @@
 
 ## 可选机制的最小范围
 
-以下均为建议，不是本轮新增的现行规则。
+以下内容保留研究时的设计理由和操作建议；具体 schema、身份校验、cache miss 行为及安全边界以现行的 [`exploration-cache.md`](../../skill/dag/references/exploration-cache.md) 和主 Skill 为准，不另立一套协议。
 
 1. **按问题委派。** Coordinator 或当前 Ticket 责任人可以在自己的已有责任范围内安排短期探索。辅助任务只调查所需来源、写指定笔记；既有 DAG 角色继续拥有图决策和 Ticket 实现。发现边界变化时返回证据，由原责任人处理。
 2. **核实共享可达性。** 为确有共享需要的问题选用已获权限的、交付之外的运行目录，例如 `<shared-off-delivery-root>/<run-id>/`。确认作者能写、预期读者在其真实宿主和权限下能读；后续替代 Agent 或跨宿主派发需重新确认。仓库外、相同字符串路径或不同 worktree 本身均不证明共享。不可达时省略共享指针，继续在 Ticket 内查原始来源；若原始来源也不可达，才按已有决策或外部阻塞规则处理。
@@ -48,7 +48,7 @@
 5. **按影响刷新。** 消费者只读取当前 Ticket 相关部分。Base 改变后，比对结论依赖的源码、配置、依赖版本、Accepted inputs 及环境条件；无关变更不自动作废整份笔记，受影响部分重新查证。依赖范围不清时，回查该结论的原始来源。笔记日期和来源文件未改都不足以单独证明仍然适用。正式 gates 与 review 是否重用，继续由[现有证据有效性规则](../../skill/dag/references/ticket-execution.md#keep-gate-evidence-valid)判断。
 6. **保持小派发与现有清理路径。** Ticket payload 只增加相关问题的读取条件、文件或章节指针及适用身份，继续零历史或最小相关历史派发。Run Receipt 若需恢复，只索引路径、作者和资源处置，不复制内容或新增权威状态。将笔记归入[现有资源清单](../../skill/dag/SKILL.md#resume-safely-and-finish)：无人使用且可重建的缓存按已有权限回收；被验收、审查或恢复证据引用的版本先核实保留位置和链接。清理不改变 Ticket 验收或 Terminal Outcome。
 
-若后续批准实施，最小落点可以是[派发契约](../../skill/dag/SKILL.md#dispatch-the-fixed-ticket-contract)与[执行协议的输入读取段](../../skill/dag/references/ticket-execution.md#read-the-assignment-and-preserve-its-boundaries)各一小段。无需更改 Definition Index、Integration Transition、Runtime Skill Bundle 或 Promotion helper。
+当前实现已经在[派发契约](../../skill/dag/SKILL.md#dispatch-the-fixed-ticket-contract)中提供可选的 exploration note 指针，并由 [`record_exploration_note.py`](../../skill/dag/scripts/record_exploration_note.py) 按 [`exploration-cache.md`](../../skill/dag/references/exploration-cache.md) 发布和消费。它不改变 Definition Index、Integration Transition、Runtime Skill Bundle 或 Promotion 的权威边界；若未来调整 schema，应同步更新该 reference、helper、测试和本报告中对应的设计理由。
 
 以下英文仅为 **proposed** 协议片段，未成为当前规则：
 
@@ -87,4 +87,4 @@ rules.
 
 需要修改有效 Tickets、Spec、Hard Dependencies 或 Acceptance Obligations 时，沿用现有 DAG Revision 和 [DAG Definition Checkpoint](../../skill/dag/references/definition-binding.md#complete-a-dag-definition-checkpoint)。若某份研究报告本身是批准的独立交付物，就按已有 Ticket 契约验收和保留，不能归为可丢弃缓存；无产品字节变化时，也只有 Approved Ticket 或项目规则认可且义务全部有证据，才可走 [Baseline Satisfaction](../../skill/dag/references/ticket-execution.md#gather-zero-diff-evidence)。若报告内容成为 governing Definition，纳入现有 Definition 绑定。共享笔记不得改写待完成 Transition 的冻结证据；若新发现证明候选或证据无效，沿用[现有停止与恢复规则](../../skill/dag/references/integration-transitions.md#reconcile-the-local-integration-ref)，不能为完成 Transition 而忽略失效事实。
 
-当前证据足以支持一个可选的小补充，尚不足以证明需要普遍预探索、强制模板、第三种角色或 Transition、额外审批层。下一步如获准，可先在一个存在重复探索的 run 中验证上述收益与失败边界，再决定是否写入正式协议。
+当前证据支持将共享探索保留为可选、小上下文能力，尚不足以证明需要普遍预探索、强制模板、第三种角色或 Transition、额外审批层。现有实现仍没有测量 token、耗时或缺陷收益；如要评估收益，应在存在重复探索的真实 run 中记录可复现的输入规模、读取次数、耗时和失败边界，再决定是否调整现行协议。

@@ -1,6 +1,6 @@
 # Execution Admission
 
-`plan_execution_admission.py` is a read-only Coordinator helper for the P3 admission step. It evaluates live claims and candidate Tickets together, then emits a deterministic `Execution Admission Decision`. It does not create a claim, assign a writer, change a workspace, move a Git ref, or enter a Promotion transition.
+`plan_execution_admission.py` is a read-only Coordinator helper for the admission step. It evaluates live claims and candidate Tickets together, then emits a deterministic `Execution Admission Decision`. It does not create a claim, assign a writer, change a workspace, move a Git ref, or enter a Promotion transition.
 
 ## Command
 

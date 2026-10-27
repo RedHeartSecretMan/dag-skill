@@ -9,8 +9,18 @@
 - [`SKILL.md`](./skill/dag/SKILL.md) 是运行规范；
 - [`references/ticket-execution.md`](./skill/dag/references/ticket-execution.md) 是每个 `Execution Agent` 接收的单票执行协议；
 - [`definition-binding.md`](./skill/dag/references/definition-binding.md) 和 [`integration-transitions.md`](./skill/dag/references/integration-transitions.md) 定义 Definition 绑定和集成恢复契约；
+- [`execution-records.md`](./skill/dag/references/execution-records.md)、[`exploration-cache.md`](./skill/dag/references/exploration-cache.md) 和 [`artifact-handles.md`](./skill/dag/references/artifact-handles.md) 定义紧凑执行上下文和证据引用；
+- [`admission.md`](./skill/dag/references/admission.md)、[`claims.md`](./skill/dag/references/claims.md) 和 [`recovery.md`](./skill/dag/references/recovery.md) 定义并行 admission、claim CAS 和写入者恢复；
+- [`review-context.md`](./skill/dag/references/review-context.md)、[`candidate-review.md`](./skill/dag/references/candidate-review.md) 和 [`promotion.md`](./skill/dag/references/promotion.md) 定义 fresh candidate review 和 Promotion 前置校验；
+- [`dispositions.md`](./skill/dag/references/dispositions.md) 和 [`terminal-outcome.md`](./skill/dag/references/terminal-outcome.md) 定义 Ticket disposition 与 Complete/Stalled 审计；
 - [`scripts/validate_definition_index.py`](./skill/dag/scripts/validate_definition_index.py) 验证 `DAG Definition Index`；
 - [`scripts/promote_local_transition.py`](./skill/dag/scripts/promote_local_transition.py) 核验冻结证据并推进本地集成 ref；
+- [`scripts/record_execution_checkpoint.py`](./skill/dag/scripts/record_execution_checkpoint.py) 和 [`scripts/index_execution_record.py`](./skill/dag/scripts/index_execution_record.py) 发布并索引紧凑执行记录；
+- [`scripts/record_exploration_note.py`](./skill/dag/scripts/record_exploration_note.py) 和 [`scripts/record_tool_artifact.py`](./skill/dag/scripts/record_tool_artifact.py) 发布可复用笔记与带 digest 校验的工具 artifact；
+- [`scripts/plan_execution_admission.py`](./skill/dag/scripts/plan_execution_admission.py) 和 [`scripts/record_execution_claim.py`](./skill/dag/scripts/record_execution_claim.py) 规划并通过 CAS 记录并行 claim；
+- [`scripts/record_review_context.py`](./skill/dag/scripts/record_review_context.py)、[`scripts/record_candidate_review.py`](./skill/dag/scripts/record_candidate_review.py) 和 [`scripts/verify_candidate_review.py`](./skill/dag/scripts/verify_candidate_review.py) 绑定并核验候选审查输入；
+- [`scripts/reconcile_execution_claim.py`](./skill/dag/scripts/reconcile_execution_claim.py)、[`scripts/verify_promotion_package.py`](./skill/dag/scripts/verify_promotion_package.py) 和 [`scripts/record_ticket_disposition.py`](./skill/dag/scripts/record_ticket_disposition.py) 处理恢复、推广前置校验和 Ticket 关闭；
+- [`scripts/verify_terminal_outcome.py`](./skill/dag/scripts/verify_terminal_outcome.py) 验证最终机械条件；
 - [`scripts/install_runtime_skills.py`](./skill/dag/scripts/install_runtime_skills.py) 安装 `Runtime Skill Bundle`。
 
 它只执行已经批准的 `Approved DAG`，不替代 `Target Project` 编写 Spec 或 Ticket。
@@ -57,6 +67,18 @@ Coordinator 以零历史或最小相关历史派发固定 Ticket contract、[单
 | `Externally Blocked` | 所需决定已经明确，但仍缺少继续执行所需的外部条件，例如凭据、服务、硬件、`Agent Host` 能力或已要求的授权 |
 
 这些 `Execution Outcome` 只是 `Execution Agent` 的交接结果，不是 Ticket 状态；验收和图状态仍由 `Coordinator Agent` 记录。下图展示 `Promotion Candidate` 路径的正常时序：单票执行完成后以 `Ready for Acceptance` 交接，再由 `Coordinator Agent` 完成 Ticket 验收。
+
+### 执行上下文与证据
+
+流程将大上下文和运行状态放在 Agent prompt 之外，同时保留精确身份：
+
+- `Ticket Capsule` 和 `Execution Checkpoint` 携带最小派发与恢复状态；交付之外的 shadow record 和 `Run Receipt` 使用 digest、CAS 与 generation 校验进行索引。
+- `Artifact Handle` 和 `Exploration Cache` 携带带 digest 校验的工具输出与可复用调查事实。缓存或 artifact 不匹配时回到权威输入。
+- 只读 admission planner 同时比较 live claims、Accepted direct inputs、Hard Dependencies、路径、接口、资源、容量和唯一 Promotion lane；Coordinator 回读 live frontier 后再通过 CAS 记录 claim。
+- `Review Context Capsule` 绑定固定 Base、candidate range、commit list、changed paths、obligations、gates 和证据引用。每个 candidate 都必须 fresh `$code-review`；`Candidate Review Record` 绑定完整 review artifact，但不解释 verdict。
+- `Promotion Evidence Package` 在本地 CAS promotion 前后校验。随后由显式 Ticket disposition 关闭 claim，终态审计验证 `Complete` 或 `Stalled` 条件。
+
+这些记录都保存在交付之外，保留现有 Coordinator/Execution Agent 的职责分工。它们减少重复上下文传递，不引入 scheduler service 或第二验收权威。
 
 ```mermaid
 sequenceDiagram
