@@ -105,6 +105,30 @@ The graph changes only when the evidence changes a graph boundary: a prerequisit
 
 The Skill needs no separate scheduler database. Git-backed Definition and delivery evidence reconstruct the graph; a compact off-delivery Run Receipt indexes live ownership and recovery identities. Reports are linked rather than copied, so the receipt is a recovery index rather than another plan or evidence authority.
 
+The P0/P1 execution-record helpers add a validated shadow index for one Ticket's Capsule, Checkpoint, Evidence Index entries, and measurements, then CAS-index that record into the existing Run Receipt after the Coordinator supplies its current digest and generation. It remains off-delivery and advisory until the Coordinator verifies its claim generation, Base, source identities, and referenced artifacts. A missing or conflicting shadow record stops the optimized recovery path and returns to the existing authoritative state; it never grants acceptance or creates a second Run Receipt authority.
+
+The first P2 Exploration Cache helper binds a note to its question, scope, source identities, target identity, and environment identity. Consumption records those identities only after they match the current context; a mismatch is a cache miss and returns to authoritative inputs. Notes and consumption records remain advisory and do not change graph, dependency, permission, or acceptance ownership.
+
+The P2 Artifact Handle helper keeps large tool output in an off-delivery or workspace artifact and passes only its digest-checked path and execution metadata through handoff context. Consumers reread the handle and artifact before using the body; a mismatch makes the evidence unavailable without converting the metadata into a gate result.
+
+The first P3 admission planner evaluates live claims and candidate reservations as a read-only decision. It keeps Build / Review concurrency available for independent work while allowing only one Promotion lane candidate, and reports capacity or conflict reasons without creating claims. The Coordinator must reread the live frontier before recording ownership and Ticket Base.
+
+The P3 claim helper is the next CAS seam: it binds one accepted admission decision to the current Run Receipt generation, owner, workspace, branch, Ticket Base, and reservation set. It records live ownership without dispatching a writer, so a stale decision or uncertain liveness remains a recovery condition rather than an implicit replacement.
+
+The first P4 Review Context Capsule binds the fixed Base, candidate commit range, changed paths, obligations, gate identities, and verified artifact/cache references into a small review input. Its context key changes with any candidate or obligation identity, and `fresh_review_required` remains true. It helps `$code-review` locate authoritative inputs without reusing an old verdict.
+
+The Candidate Review Record helper then binds the complete review Artifact Handle to that Capsule. It gives the Coordinator a precise candidate-bound review identity while leaving the review body and verdict with `$code-review`; changed review inputs or execution artifacts produce a new record key.
+
+The handoff verifier rereads the current Base and candidate identities before Promotion and returns only a mechanical evidence result. This keeps semantic acceptance and finding disposition with the existing Coordinator and review contracts while making stale review evidence fail closed.
+
+The recovery helper consumes live claims with an explicit writer state. Unknown liveness preserves ownership and establishes a named recheck event; stopped liveness requires evidence before resume is allowed. This keeps recovery and replacement inside the existing single-writer invariant.
+
+The Promotion Evidence Package is the final mechanical seam before Integration Transition and is reread by `promote_local_transition.py` before CAS. It ensures current tip, live claim, candidate-bound fresh review, and artifact identities agree; it leaves semantic acceptance, CAS publication, and Ticket disposition with the existing Coordinator contract.
+
+Ticket disposition is the final Receipt CAS seam: an explicit Coordinator decision plus evidence closes the live claim and records `Accepted` or `Superseded`. The helper does not infer product meaning; downstream tracker updates, successor unlocking, obligation coverage, and Terminal Outcome remain protocol decisions.
+
+The Terminal Outcome audit helper closes the mechanical verification loop for `Complete` and `Stalled`. It checks the final tip, obligation applicability, gates, tracker state, liveness, and available progress paths while leaving the Coordinator's semantic conclusion and resource disposition separate.
+
 Run-owned resource records distinguish reclaimable inactive resources from live writers, unrelated resources, unique WIP or evidence, and required recovery material. Disposing of a resource requires preserved evidence and existing authority. Resource disposition is reported separately from Complete or Stalled so cleanup neither changes product acceptance nor grants destructive authority.
 
 Authorized zero-diff external actions need recovery identities before invocation: the Ticket, target and artifact or necessary parameter identities, authority, and available query or idempotency correlation belong in the existing off-delivery recovery store. After a lost response or interruption, readback in the action's own system determines whether to observe a running operation, reuse a completed result, or safely continue. Missing or failed queries leave the result unresolved. The [zero-diff protocol](../skill/dag/references/ticket-execution.md#gather-zero-diff-evidence) owns this contract. Where reliable correlation or idempotency is unavailable, that limitation remains part of the next decision.

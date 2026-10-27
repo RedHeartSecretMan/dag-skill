@@ -73,6 +73,8 @@ class LocalPromotionTests(unittest.TestCase):
         self.record_directory.mkdir()
         self.evidence = self.record_directory / "review.md"
         self.evidence.write_bytes(b"project-specific reviewed evidence\n")
+        self.promotion_evidence = self.record_directory / "promotion.json"
+        self.promotion_receipt = self.record_directory / "run-receipt.json"
         self.transition = self.record_directory / "pending.json"
         self.payload = {
             "schema_version": 1,
@@ -93,22 +95,90 @@ class LocalPromotionTests(unittest.TestCase):
         self.transition.write_text(json.dumps(self.payload) + "\n", encoding="utf-8")
         self.transition_digest = self.digest(self.transition)
 
-    def promote(self, digest: str | None = None) -> subprocess.CompletedProcess[str]:
+    def promote(
+        self,
+        digest: str | None = None,
+        promotion: bool = False,
+    ) -> subprocess.CompletedProcess[str]:
+        command = [
+            sys.executable,
+            str(SCRIPT),
+            "--repository",
+            str(self.repository),
+            "--transition",
+            str(self.transition),
+            "--sha256",
+            self.transition_digest if digest is None else digest,
+        ]
+        if promotion:
+            command.extend(
+                [
+                    "--promotion-evidence",
+                    str(self.promotion_evidence),
+                    "--promotion-evidence-sha256",
+                    self.digest(self.promotion_evidence),
+                    "--promotion-receipt",
+                    str(self.promotion_receipt),
+                    "--promotion-receipt-sha256",
+                    self.digest(self.promotion_receipt),
+                ]
+            )
         return subprocess.run(
-            [
-                sys.executable,
-                str(SCRIPT),
-                "--repository",
-                str(self.repository),
-                "--transition",
-                str(self.transition),
-                "--sha256",
-                self.transition_digest if digest is None else digest,
-            ],
+            command,
             cwd=self.root,
             capture_output=True,
             text=True,
             check=False,
+        )
+
+    def write_promotion_evidence(self, *, candidate: str | None = None) -> None:
+        candidate = candidate or self.candidate
+        self.promotion_evidence.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "kind": "Promotion Evidence Package",
+                    "run_id": "run-1",
+                    "receipt_generation": 4,
+                    "ticket_id": "ticket-1",
+                    "owner_id": "agent-1",
+                    "claim_generation": 1,
+                    "ticket_base": {
+                        "commit": self.base,
+                        "tree": git(
+                            self.repository, "rev-parse", f"{self.base}^{{tree}}"
+                        ),
+                    },
+                    "candidate": {
+                        "commit": candidate,
+                        "tree": self.tree,
+                        "range": "base..candidate",
+                        "commits": [candidate],
+                    },
+                    "review_context_key": "1" * 64,
+                    "review_record_key": "2" * 64,
+                    "review_artifact_sha256": "3" * 64,
+                    "fresh_review_required": True,
+                    "promotion_allowed": True,
+                },
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        self.promotion_receipt.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "kind": "Run Receipt",
+                    "run_id": "run-1",
+                    "coordinator_generation": 4,
+                    "claims": [{"ticket_id": "ticket-1", "claim_generation": 1}],
+                },
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
         )
 
     def assert_rejected(
@@ -163,6 +233,31 @@ class LocalPromotionTests(unittest.TestCase):
         self.assertEqual(self.transition.read_bytes(), record_bytes)
         self.assertEqual(self.evidence.read_bytes(), evidence_bytes)
         self.assertEqual(git(self.repository, "status", "--porcelain"), "")
+
+    def test_promotes_with_matching_promotion_evidence(self) -> None:
+        self.write_promotion_evidence()
+
+        result = self.promote(promotion=True)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            json.loads(result.stdout)["promotion_evidence_sha256"],
+            self.digest(self.promotion_evidence),
+        )
+        self.assertEqual(
+            git(self.repository, "rev-parse", INTEGRATION_REF), self.candidate
+        )
+
+    def test_rejects_mismatched_promotion_evidence_before_cas(self) -> None:
+        self.write_promotion_evidence(candidate="0" * len(self.candidate))
+        before = git(self.repository, "rev-parse", INTEGRATION_REF)
+
+        self.assert_rejected(
+            self.promote(promotion=True),
+            "promotion evidence Base or candidate does not match",
+        )
+
+        self.assertEqual(git(self.repository, "rev-parse", INTEGRATION_REF), before)
 
     def test_recovers_the_same_frozen_transition_after_promotion(self) -> None:
         self.assertEqual(self.promote().returncode, 0)

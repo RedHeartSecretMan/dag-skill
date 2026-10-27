@@ -37,6 +37,22 @@ FIELDS = {
     "evidence",
 }
 CANDIDATE_KINDS = {"Promotion Candidate", "DAG Definition Checkpoint"}
+PROMOTION_FIELDS = {
+    "schema_version",
+    "kind",
+    "run_id",
+    "receipt_generation",
+    "ticket_id",
+    "owner_id",
+    "claim_generation",
+    "ticket_base",
+    "candidate",
+    "review_context_key",
+    "review_record_key",
+    "review_artifact_sha256",
+    "fresh_review_required",
+    "promotion_allowed",
+}
 
 
 def parse_integer(value: str) -> int:
@@ -110,6 +126,93 @@ def read_transition(path: Path, digest: str) -> tuple[bytes, dict[str, object]]:
                 "each evidence SHA-256 must be 64 lowercase hex digits"
             )
     return content, payload
+
+
+def read_promotion_evidence(
+    path: Path,
+    digest: str,
+    transition: dict[str, object],
+) -> tuple[bytes, dict[str, object]]:
+    if SHA256.fullmatch(digest) is None:
+        raise ValidationError(
+            "--promotion-evidence-sha256 must be 64 lowercase hex digits"
+        )
+    content = read_regular_file(path)
+    if hashlib.sha256(content).hexdigest() != digest:
+        raise ValidationError("promotion evidence SHA-256 does not match")
+    try:
+        package = json.loads(
+            content.decode("utf-8"), object_pairs_hook=unique_json_object
+        )
+    except (UnicodeDecodeError, ValueError) as error:
+        raise ValidationError(
+            f"promotion evidence must be UTF-8 JSON: {error}"
+        ) from error
+    if not isinstance(package, dict) or set(package) != PROMOTION_FIELDS:
+        raise ValidationError("promotion evidence fields do not match schema_version 1")
+    if (
+        package["schema_version"] != 1
+        or package["kind"] != "Promotion Evidence Package"
+        or package["promotion_allowed"] is not True
+        or package["fresh_review_required"] is not True
+    ):
+        raise ValidationError(
+            "promotion evidence is not an allowed fresh-review package"
+        )
+    base = package["ticket_base"]
+    candidate = package["candidate"]
+    if not isinstance(base, dict) or set(base) != {"commit", "tree"}:
+        raise ValidationError("promotion evidence ticket_base is malformed")
+    if not isinstance(candidate, dict) or not {"commit", "tree"}.issubset(candidate):
+        raise ValidationError("promotion evidence candidate is malformed")
+    if (
+        base["commit"] != transition["base"]
+        or candidate["commit"] != transition["candidate"]
+        or candidate["tree"] != transition["candidate_tree"]
+    ):
+        raise ValidationError(
+            "promotion evidence Base or candidate does not match pending transition"
+        )
+    return content, package
+
+
+def read_promotion_receipt(
+    path: Path,
+    digest: str,
+    package: dict[str, object],
+) -> bytes:
+    if SHA256.fullmatch(digest) is None:
+        raise ValidationError("--receipt-sha256 must be 64 lowercase hex digits")
+    content = read_regular_file(path)
+    if hashlib.sha256(content).hexdigest() != digest:
+        raise ValidationError("promotion receipt SHA-256 does not match")
+    try:
+        receipt = json.loads(
+            content.decode("utf-8"), object_pairs_hook=unique_json_object
+        )
+    except (UnicodeDecodeError, ValueError) as error:
+        raise ValidationError(
+            f"promotion receipt must be UTF-8 JSON: {error}"
+        ) from error
+    if not isinstance(receipt, dict) or receipt.get("kind") != "Run Receipt":
+        raise ValidationError("promotion receipt kind is unsupported")
+    if receipt.get("coordinator_generation") != package["receipt_generation"]:
+        raise ValidationError("promotion receipt generation does not match package")
+    claims = receipt.get("claims")
+    if not isinstance(claims, list):
+        raise ValidationError("promotion receipt claims must be an array")
+    matching = [
+        item
+        for item in claims
+        if isinstance(item, dict)
+        and item.get("ticket_id") == package["ticket_id"]
+        and item.get("claim_generation") == package["claim_generation"]
+    ]
+    if len(matching) != 1:
+        raise ValidationError(
+            "promotion receipt does not contain the package live claim"
+        )
+    return content
 
 
 def evidence_paths(transition: Path, payload: dict[str, object]) -> list[Path]:
@@ -248,7 +351,13 @@ def verify_objects(repository: Path, payload: dict[str, object]) -> None:
             raise ValidationError(
                 f"{field} does not match the repository object format"
             )
-        if run_git(repository, ["cat-file", "-t", oid]).strip() != object_type.encode():
+        try:
+            actual_type = run_git(repository, ["cat-file", "-t", oid]).strip()
+        except ValidationError as error:
+            raise ValidationError(
+                f"{field}: could not get object info: {error}"
+            ) from error
+        if actual_type != object_type.encode():
             raise ValidationError(f"{field} must identify a local {object_type} object")
     tree = (
         run_git(repository, ["rev-parse", f"{payload['candidate']}^{{tree}}"])
@@ -268,7 +377,13 @@ def verify_objects(repository: Path, payload: dict[str, object]) -> None:
 
 
 def promote_local_transition(
-    repository: Path, transition: Path, digest: str
+    repository: Path,
+    transition: Path,
+    digest: str,
+    promotion_evidence: Path | None = None,
+    promotion_evidence_digest: str | None = None,
+    promotion_receipt: Path | None = None,
+    promotion_receipt_digest: str | None = None,
 ) -> dict[str, object]:
     if SHA256.fullmatch(digest) is None:
         raise ValidationError("--sha256 must be 64 lowercase hex digits")
@@ -279,6 +394,28 @@ def promote_local_transition(
     # Keep the final path component unresolved so a symlink record is rejected.
     transition = transition.absolute()
     content, payload = read_transition(transition, digest)
+    if (promotion_evidence is None) != (promotion_evidence_digest is None):
+        raise ValidationError(
+            "promotion evidence path and SHA-256 must be supplied together"
+        )
+    if promotion_evidence is not None and (
+        promotion_receipt is None or promotion_receipt_digest is None
+    ):
+        raise ValidationError(
+            "promotion evidence requires current Receipt path and SHA-256"
+        )
+    if (promotion_receipt is None) != (promotion_receipt_digest is None):
+        raise ValidationError("Receipt path and SHA-256 must be supplied together")
+    promotion_content = None
+    promotion_package = None
+    promotion_receipt_content = None
+    if promotion_evidence is not None and promotion_evidence_digest is not None:
+        promotion_content, promotion_package = read_promotion_evidence(
+            promotion_evidence, promotion_evidence_digest, payload
+        )
+        promotion_receipt_content = read_promotion_receipt(
+            promotion_receipt, promotion_receipt_digest, promotion_package
+        )
     paths = evidence_paths(transition, payload)
     repository = Path(
         os.fsdecode(run_git(repository, ["rev-parse", "--show-toplevel"]).strip())
@@ -288,6 +425,11 @@ def promote_local_transition(
     roots = worktree_roots(repository, payload["integration_ref"])
     verify_off_delivery(repository, payload, [transition, *paths], roots)
     verify_frozen_files(transition, content, payload, paths)
+    if promotion_evidence is not None and promotion_evidence_digest is not None:
+        if read_regular_file(promotion_evidence) != promotion_content:
+            raise ValidationError("promotion evidence changed during preflight")
+        if read_regular_file(promotion_receipt) != promotion_receipt_content:
+            raise ValidationError("promotion receipt changed during preflight")
 
     # Repeat mutable preflight, then reread the exact frozen bytes immediately
     # before CAS. Atomicity across Git refs and external files requires the
@@ -298,6 +440,13 @@ def promote_local_transition(
     if live not in {payload["base"], payload["candidate"]}:
         raise ValidationError("integration_ref has drifted from Base and candidate")
     verify_frozen_files(transition, content, payload, paths)
+    if promotion_evidence is not None and promotion_evidence_digest is not None:
+        promotion_content, _ = read_promotion_evidence(
+            promotion_evidence, promotion_evidence_digest, payload
+        )
+        promotion_receipt_content = read_promotion_receipt(
+            promotion_receipt, promotion_receipt_digest, _
+        )
     if live == payload["base"]:
         run_git(
             repository,
@@ -324,7 +473,7 @@ def promote_local_transition(
         raise ValidationError(
             "local promotion readback failed; preserve pending evidence and inspect the ref before recovery"
         ) from error
-    return {
+    result = {
         "status": status,
         "candidate_kind": payload["candidate_kind"],
         "integration_ref": payload["integration_ref"],
@@ -333,6 +482,9 @@ def promote_local_transition(
         "candidate_tree": payload["candidate_tree"],
         "transition_sha256": digest,
     }
+    if promotion_evidence_digest is not None:
+        result["promotion_evidence_sha256"] = promotion_evidence_digest
+    return result
 
 
 def main() -> int:
@@ -348,10 +500,20 @@ def main() -> int:
         required=True,
         help="SHA-256 of the exact pending record bytes, recorded in the Run Receipt",
     )
+    parser.add_argument("--promotion-evidence", type=Path)
+    parser.add_argument("--promotion-evidence-sha256")
+    parser.add_argument("--promotion-receipt", type=Path)
+    parser.add_argument("--promotion-receipt-sha256")
     arguments = parser.parse_args()
     try:
         result = promote_local_transition(
-            arguments.repository, arguments.transition, arguments.sha256
+            arguments.repository,
+            arguments.transition,
+            arguments.sha256,
+            arguments.promotion_evidence,
+            arguments.promotion_evidence_sha256,
+            arguments.promotion_receipt,
+            arguments.promotion_receipt_sha256,
         )
     except (
         OSError,

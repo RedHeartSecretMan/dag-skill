@@ -16,6 +16,19 @@ ROOT = Path(__file__).resolve().parents[1]
 SKILL = ROOT / "skill" / "dag"
 PUBLIC_HELPERS = (
     "install_runtime_skills.py",
+    "record_execution_checkpoint.py",
+    "index_execution_record.py",
+    "record_exploration_note.py",
+    "record_tool_artifact.py",
+    "plan_execution_admission.py",
+    "record_execution_claim.py",
+    "record_review_context.py",
+    "record_candidate_review.py",
+    "verify_candidate_review.py",
+    "reconcile_execution_claim.py",
+    "verify_promotion_package.py",
+    "record_ticket_disposition.py",
+    "verify_terminal_outcome.py",
     "validate_definition_index.py",
     "promote_local_transition.py",
 )

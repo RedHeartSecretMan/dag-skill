@@ -4,6 +4,22 @@
 
 ## [Unreleased]
 
+### Added
+
+- 新增 `record_execution_checkpoint.py` 与 `index_execution_record.py`，以固定 schema 校验 `Ticket Capsule`、`Execution Checkpoint`、`Evidence Index` 和 P0 metrics，并通过 artifact SHA-256、路径边界、claim generation、Ticket Base、Run Receipt generation 与 CAS 校验发布和索引 off-delivery shadow record；该记录不改变 claim、Git ref、Integration Transition 或 acceptance。
+- 新增 `record_exploration_note.py`，以 source、target、environment 和 scope identities 计算 Exploration Cache key，并在身份匹配时生成 advisory consumption record；缓存 miss 自动停在权威输入路径。
+- 新增 `record_tool_artifact.py`，为大 tool output 生成并验证 C3 `Artifact Handle`，通过 byte count、SHA-256 和原始路径校验支持按需加载。
+- 新增只读 `plan_execution_admission.py`，统一检查 live claims、路径与接口冲突、资源容量和单一 Promotion lane，并输出可解释的 admission decision。
+- 新增 `record_execution_claim.py`，在 Coordinator 提供当前 Receipt digest/generation 后，以 CAS 记录唯一 live Ticket claim，并拒绝旧 decision、旧 Base 和冲突 owner。
+- 新增 `record_review_context.py`，绑定 candidate、Base、commit range、obligations、gate、artifact 和探索引用，生成强制 fresh review 的 context key。
+- 新增 `record_candidate_review.py`，把 digest-verified `$code-review` Artifact Handle 绑定到 fresh Review Context Capsule，生成 Candidate Review Record key，不解析或替代 review verdict。
+- 新增只读 `verify_candidate_review.py`，在 handoff / Promotion 前重新核对当前 Base、candidate、Capsule、review record 和 review Artifact Handle。
+- 新增 `reconcile_execution_claim.py`，消费 live claim 和 Checkpoint Record，显式处理 `live`、`stopped`、`unknown` writer 状态，避免静默重复 writer。
+- 新增只读 `verify_promotion_package.py`，在 Integration Transition 前绑定当前 claim、Accepted Tip、fresh review record 和 review artifact，输出机械 `promotion_allowed` 结果。
+- `promote_local_transition.py` 现在可在初始 preflight 和 CAS 前重读并校验 `Promotion Evidence Package`，防止 stale review 或 Base/candidate mismatch 推进 integration ref。
+- 新增 `record_ticket_disposition.py`，在 Coordinator 提供显式 decision、evidence 和当前 Receipt generation 后，以 CAS 关闭 live claim 并记录 `Accepted` / `Superseded` disposition。
+- 新增只读 `verify_terminal_outcome.py`，校验 `Complete` / `Stalled` 的 final tip、obligation、whole-DAG gate、tracker、decision、liveness 和进展路径条件。
+
 ### Changed
 
 - 启动、Definition 变更与最终完成检查覆盖全部批准 Spec 义务的归属；最终证据核对保留原执行身份，并确认其对当前 Accepted Integration Tip 的适用性。已确认缺陷沿责任 Ticket 返修，复用既有 claim、tracker checkpoint、fresh review 与集成路径，只处置受影响的消费者。
