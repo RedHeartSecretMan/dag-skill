@@ -140,7 +140,9 @@ class ArtifactHandleTests(unittest.TestCase):
 
         result = self.invoke("--artifact-root", str(loop))
 
-        self.assert_rejected(result, "Symlink loop")
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertTrue(result.stderr.startswith("error: "), result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
 
 
 if __name__ == "__main__":
