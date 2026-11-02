@@ -146,6 +146,24 @@ class AdmissionPlannerTests(unittest.TestCase):
         )
         self.assertEqual(decision["rejected"][0]["conflicting_ticket_id"], "live")
 
+    def test_rejects_parent_child_path_conflict(self) -> None:
+        self.write_request(
+            live=[self.claim("live", "implement", "src")],
+            candidates=[
+                self.claim("child", "implement", "src/a.py", priority=1, age=0)
+            ],
+        )
+
+        result = self.invoke()
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        decision = json.loads(self.output.read_text(encoding="utf-8"))
+        self.assertEqual(decision["selected"], [])
+        self.assertEqual(
+            decision["rejected"][0]["admission_reason"],
+            "path_or_interface_conflict",
+        )
+
     def test_promotion_lane_is_single_and_priority_ordered(self) -> None:
         self.write_request(
             candidates=[

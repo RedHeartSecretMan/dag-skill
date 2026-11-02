@@ -262,7 +262,7 @@ def main() -> int:
                 "artifact_sha256": handle["artifact_sha256"],
                 "byte_count": handle["byte_count"],
             }
-    except (OSError, RecordError) as error:
+    except (OSError, RecordError, RuntimeError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
     print(json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(",", ":")))

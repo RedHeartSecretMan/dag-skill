@@ -20,6 +20,7 @@ class TicketDispositionTests(unittest.TestCase):
         self.receipt = self.root / "receipt.json"
         self.decision = self.root / "decision.json"
         self.promotion = self.root / "promotion.json"
+        self.baseline = self.root / "baseline.json"
         self.evidence = self.root / "decision-evidence.txt"
         self.evidence.write_text("Coordinator decision evidence\n", encoding="utf-8")
         self.write_receipt()
@@ -126,11 +127,38 @@ class TicketDispositionTests(unittest.TestCase):
             encoding="utf-8",
         )
 
+    def write_baseline(self) -> None:
+        self.baseline.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "kind": "Baseline Satisfaction Evidence",
+                    "run_id": "run-1",
+                    "ticket_id": "ticket-1",
+                    "owner_id": "agent-1",
+                    "claim_generation": 2,
+                    "ticket_base": {"commit": "a" * 40, "tree": "b" * 40},
+                    "disposition": "Accepted",
+                    "evidence_refs": [
+                        {
+                            "id": "decision-evidence",
+                            "path": str(self.evidence),
+                            "sha256": self.digest(self.evidence),
+                        }
+                    ],
+                },
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+
     def invoke(
         self,
         *,
         generation: int = 4,
         promotion: bool = True,
+        baseline: bool = False,
         receipt_digest: str | None = None,
     ) -> subprocess.CompletedProcess[str]:
         command = [
@@ -152,6 +180,15 @@ class TicketDispositionTests(unittest.TestCase):
                     str(self.promotion),
                     "--promotion-evidence-sha256",
                     self.digest(self.promotion),
+                ]
+            )
+        if baseline:
+            command.extend(
+                [
+                    "--baseline-evidence",
+                    str(self.baseline),
+                    "--baseline-evidence-sha256",
+                    self.digest(self.baseline),
                 ]
             )
         return subprocess.run(
@@ -192,10 +229,20 @@ class TicketDispositionTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout)["disposition"], "Superseded")
 
-    def test_rejects_accepted_without_promotion_or_stale_receipt(self) -> None:
-        self.assert_rejected(
-            self.invoke(promotion=False), "requires promotion evidence"
+    def test_accepts_baseline_satisfaction_without_promotion_package(self) -> None:
+        self.write_baseline()
+        result = self.invoke(promotion=False, baseline=True)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)["disposition"], "Accepted")
+        receipt = json.loads(self.receipt.read_text(encoding="utf-8"))
+        self.assertEqual(
+            receipt["ticket_dispositions"][0]["baseline_evidence_sha256"],
+            self.digest(self.baseline),
         )
+
+    def test_rejects_accepted_without_promotion_or_stale_receipt(self) -> None:
+        self.assert_rejected(self.invoke(promotion=False), "requires exactly one")
         self.assert_rejected(self.invoke(generation=5), "coordinator_generation")
 
     def test_rejects_changed_decision_evidence(self) -> None:

@@ -134,6 +134,14 @@ class ArtifactHandleTests(unittest.TestCase):
         combined = self.invoke("--verify", str(self.output))
         self.assert_rejected(combined, "--verify cannot be combined")
 
+    def test_rejects_symlink_loop_without_traceback(self) -> None:
+        loop = self.root / "loop"
+        loop.symlink_to(loop.name)
+
+        result = self.invoke("--artifact-root", str(loop))
+
+        self.assert_rejected(result, "Symlink loop")
+
 
 if __name__ == "__main__":
     unittest.main()

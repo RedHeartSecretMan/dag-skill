@@ -29,6 +29,7 @@ FINDING_DISPOSITIONS = {"open", "resolved", "deferred"}
 OBSERVED_RESULTS = {"pass", "fail", "unknown", "not-run"}
 RESOURCE_MODES = {"shared", "exclusive"}
 CONTEXT_MEASUREMENT_KINDS = {"bytes", "characters", "tokens"}
+MAX_JSON_INTEGER_DIGITS = 20
 METRIC_NAMES = {
     "dispatch.input_bytes",
     "handoff.input_bytes",
@@ -387,7 +388,9 @@ def validate_resources(value: Any) -> list[dict[str, Any]]:
         result.append(
             {
                 "resource": resource,
-                "quantity": require_integer(item["quantity"], f"{label}.quantity"),
+                "quantity": require_integer(
+                    item["quantity"], f"{label}.quantity", minimum=1
+                ),
                 "mode": mode,
             }
         )
@@ -617,12 +620,23 @@ def read_regular_file(path: Path, label: str) -> bytes:
         fail(f"{label} could not be read: {error}")
 
 
+def parse_integer(value: str) -> int:
+    if len(value.lstrip("-")) > MAX_JSON_INTEGER_DIGITS:
+        raise ValueError("JSON integer is oversized")
+    return int(value)
+
+
 def parse_json(content: bytes, label: str) -> Any:
     try:
-        return json.loads(content.decode("utf-8"), object_pairs_hook=unique_json_object)
+        return json.loads(
+            content.decode("utf-8"),
+            object_pairs_hook=unique_json_object,
+            parse_int=parse_integer,
+        )
     except (
         UnicodeDecodeError,
         json.JSONDecodeError,
+        ValueError,
         RecordError,
         RecursionError,
     ) as error:
@@ -665,13 +679,20 @@ def verify_artifact_paths(root: Path, evidence: list[dict[str, Any]]) -> None:
             fail(f"evidence {item['evidence_id']} artifact digest does not match")
 
 
+def path_contains(parent: str, child: str) -> bool:
+    return parent == child or child.startswith(f"{parent}/")
+
+
 def validate_relationships(capsule: dict[str, Any], checkpoint: dict[str, Any]) -> None:
     for field in ("run_id", "ticket_id", "owner_id", "claim_generation", "workspace"):
         if capsule[field] != checkpoint[field]:
             fail(f"capsule and checkpoint {field} do not match")
     if capsule["ticket_base"] != checkpoint["ticket_base"]:
         fail("capsule and checkpoint ticket_base do not match")
-    if not set(checkpoint["changed_paths"]).issubset(set(capsule["scope"])):
+    if not all(
+        any(path_contains(scope, changed) for scope in capsule["scope"])
+        for changed in checkpoint["changed_paths"]
+    ):
         fail("checkpoint.changed_paths must be within capsule.scope")
 
 
@@ -680,6 +701,19 @@ def canonical_json(value: Any) -> bytes:
         json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
         + "\n"
     ).encode("utf-8")
+
+
+def ensure_no_symlink_ancestors(path: Path, label: str) -> None:
+    current = path.absolute().parent
+    while True:
+        try:
+            if current.is_symlink():
+                fail(f"{label} parent hierarchy must not contain symlinks")
+        except OSError as error:
+            fail(f"{label} parent could not be inspected: {error}")
+        if current.parent == current:
+            break
+        current = current.parent
 
 
 def safe_output_path(path: Path, inputs: list[Path]) -> None:
@@ -699,6 +733,7 @@ def safe_output_path(path: Path, inputs: list[Path]) -> None:
         for input_path in inputs
     ):
         fail("output must be different from every input")
+    ensure_no_symlink_ancestors(path, "output")
     parent = path.parent
     if not parent.is_dir() or parent.is_symlink():
         fail("output parent must be an existing non-symlink directory")
@@ -818,7 +853,7 @@ def main() -> int:
             arguments.output,
             arguments.artifact_root,
         )
-    except (OSError, RecordError) as error:
+    except (OSError, RecordError, RuntimeError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
     result = {

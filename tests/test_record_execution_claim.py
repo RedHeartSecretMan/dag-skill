@@ -192,6 +192,12 @@ class ExecutionClaimTests(unittest.TestCase):
         self.write_claim(owner_id="other-agent")
         self.assert_rejected(self.invoke(), "owner or phase")
         self.assertEqual(self.receipt.read_bytes(), before)
+        self.write_claim()
+        claim = json.loads(self.claim.read_text(encoding="utf-8"))
+        claim["changed_paths"] = ["src/other.py"]
+        self.claim.write_text(json.dumps(claim), encoding="utf-8")
+        self.assert_rejected(self.invoke(), "changed_paths do not match")
+        self.assertEqual(self.receipt.read_bytes(), before)
 
     def test_rejects_decision_from_different_request(self) -> None:
         self.request.write_text(

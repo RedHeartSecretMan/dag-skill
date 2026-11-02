@@ -140,7 +140,7 @@ def main() -> int:
                 arguments.review_handle,
             ],
         )
-    except (OSError, RecordError) as error:
+    except (OSError, RecordError, RuntimeError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
     print(

@@ -28,12 +28,14 @@ from record_execution_checkpoint import (
     require_integer,
     require_sha256,
     require_text,
+    require_timestamp,
     sha256,
 )
 
 SCHEMA_VERSION = 1
 DECISION_KIND = "Ticket Disposition Decision"
 DISPOSITION_KIND = "Ticket Disposition"
+BASELINE_KIND = "Baseline Satisfaction Evidence"
 DISPOSITIONS = {"Accepted", "Superseded"}
 DECISION_FIELDS = {
     "schema_version",
@@ -47,6 +49,17 @@ DECISION_FIELDS = {
     "decided_by",
     "decided_at",
     "rationale",
+    "evidence_refs",
+}
+BASELINE_FIELDS = {
+    "schema_version",
+    "kind",
+    "run_id",
+    "ticket_id",
+    "owner_id",
+    "claim_generation",
+    "ticket_base",
+    "disposition",
     "evidence_refs",
 }
 
@@ -111,7 +124,7 @@ def validate_decision(payload: Any) -> dict[str, Any]:
             payload["rule_identity"], "decision.rule_identity"
         ),
         "decided_by": require_identity(payload["decided_by"], "decision.decided_by"),
-        "decided_at": require_text(payload["decided_at"], "decision.decided_at"),
+        "decided_at": require_timestamp(payload["decided_at"], "decision.decided_at"),
         "rationale": require_text(payload["rationale"], "decision.rationale"),
         "evidence_refs": validate_evidence_refs(
             payload["evidence_refs"], "decision.evidence_refs"
@@ -171,11 +184,91 @@ def validate_promotion_package(
     return digest
 
 
+def validate_baseline_package(
+    path: Path,
+    digest: str,
+    decision: dict[str, Any],
+    claim: dict[str, Any],
+) -> str:
+    content = read_regular_file(path, "baseline evidence")
+    if sha256(content) != digest:
+        fail("baseline evidence SHA-256 does not match")
+    package = require_object(
+        parse_json(content, "baseline evidence"), "baseline evidence"
+    )
+    require_exact_fields(package, BASELINE_FIELDS, "baseline evidence")
+    if package["schema_version"] != SCHEMA_VERSION or package["kind"] != BASELINE_KIND:
+        fail("baseline evidence schema_version or kind is unsupported")
+    if package["run_id"] != decision["run_id"]:
+        fail("baseline evidence run_id does not match decision")
+    if package["ticket_id"] != decision["ticket_id"]:
+        fail("baseline evidence ticket_id does not match decision")
+    if package["owner_id"] != claim.get("owner_id"):
+        fail("baseline evidence owner_id does not match live claim")
+    if package["claim_generation"] != decision["claim_generation"]:
+        fail("baseline evidence claim_generation does not match decision")
+    if package["ticket_base"] != claim.get("ticket_base"):
+        fail("baseline evidence Ticket Base does not match live claim")
+    if package["disposition"] != decision["disposition"]:
+        fail("baseline evidence disposition does not match decision")
+    if (
+        validate_evidence_refs(
+            package["evidence_refs"], "baseline evidence.evidence_refs"
+        )
+        != decision["evidence_refs"]
+    ):
+        fail("baseline evidence references do not match decision evidence")
+    return digest
+
+
+def validate_disposition_evidence(
+    decision: dict[str, Any],
+    claim: dict[str, Any],
+    promotion_path: Path | None,
+    promotion_digest: str | None,
+    baseline_path: Path | None,
+    baseline_digest: str | None,
+    expected_generation: int,
+) -> tuple[str | None, str | None]:
+    if decision["disposition"] == "Accepted":
+        if (promotion_path is None) == (baseline_path is None):
+            fail(
+                "Accepted disposition requires exactly one promotion or baseline evidence"
+            )
+        if promotion_path is not None:
+            if promotion_digest is None or baseline_digest is not None:
+                fail("promotion evidence path and SHA-256 must be supplied together")
+            return (
+                validate_promotion_package(
+                    promotion_path,
+                    promotion_digest,
+                    decision,
+                    expected_generation,
+                    claim,
+                ),
+                None,
+            )
+        if baseline_digest is None or promotion_digest is not None:
+            fail("baseline evidence path and SHA-256 must be supplied together")
+        return (
+            None,
+            validate_baseline_package(baseline_path, baseline_digest, decision, claim),
+        )
+    if any(
+        value is not None
+        for value in (promotion_path, promotion_digest, baseline_path, baseline_digest)
+    ):
+        fail("Superseded disposition cannot carry promotion or baseline evidence")
+    return None, None
+
+
 def _record_disposition_locked(
     receipt_path: Path,
     decision_path: Path,
     promotion_path: Path | None,
     promotion_digest: str | None,
+    baseline_path: Path | None,
+    baseline_digest: str | None,
     expected_generation: int,
     expected_receipt_digest: str,
 ) -> tuple[str, dict[str, Any]]:
@@ -206,15 +299,29 @@ def _record_disposition_locked(
             fail("receipt contains duplicate dispositions for this claim")
         current = existing[0]
         if decision["disposition"] == "Accepted":
-            if promotion_path is None or promotion_digest is None:
-                fail("Accepted disposition requires promotion evidence")
-            promotion_sha = require_sha256(
-                promotion_digest, "promotion_evidence_sha256"
+            existing_claim = {
+                "owner_id": current.get("claim_owner_id"),
+                "ticket_base": current.get("ticket_base"),
+            }
+            promotion_sha, baseline_sha = validate_disposition_evidence(
+                decision,
+                existing_claim,
+                promotion_path,
+                promotion_digest,
+                baseline_path,
+                baseline_digest,
+                current.get("coordinator_generation", expected_generation),
             )
-        elif promotion_path is not None or promotion_digest is not None:
-            fail("Superseded disposition cannot carry promotion evidence")
         else:
-            promotion_sha = None
+            promotion_sha, baseline_sha = validate_disposition_evidence(
+                decision,
+                {},
+                promotion_path,
+                promotion_digest,
+                baseline_path,
+                baseline_digest,
+                expected_generation,
+            )
         expected = {
             "schema_version": SCHEMA_VERSION,
             "kind": DISPOSITION_KIND,
@@ -229,6 +336,8 @@ def _record_disposition_locked(
             "rationale": decision["rationale"],
             "evidence_refs": decision["evidence_refs"],
             "promotion_evidence_sha256": promotion_sha,
+            "baseline_evidence_sha256": baseline_sha,
+            "ticket_base": current.get("ticket_base"),
             "claim_owner_id": current.get("claim_owner_id"),
         }
         if current == expected:
@@ -249,20 +358,15 @@ def _record_disposition_locked(
     if len(matches) != 1:
         fail("receipt must contain exactly one live claim matching the decision")
     claim = matches[0]
-    if decision["disposition"] == "Accepted":
-        if promotion_path is None or promotion_digest is None:
-            fail("Accepted disposition requires promotion evidence")
-        promotion_sha = validate_promotion_package(
-            promotion_path,
-            promotion_digest,
-            decision,
-            expected_generation,
-            claim,
-        )
-    elif promotion_path is not None or promotion_digest is not None:
-        fail("Superseded disposition cannot carry promotion evidence")
-    else:
-        promotion_sha = None
+    promotion_sha, baseline_sha = validate_disposition_evidence(
+        decision,
+        claim,
+        promotion_path,
+        promotion_digest,
+        baseline_path,
+        baseline_digest,
+        expected_generation,
+    )
     entry = {
         "schema_version": SCHEMA_VERSION,
         "kind": DISPOSITION_KIND,
@@ -277,6 +381,8 @@ def _record_disposition_locked(
         "rationale": decision["rationale"],
         "evidence_refs": decision["evidence_refs"],
         "promotion_evidence_sha256": promotion_sha,
+        "baseline_evidence_sha256": baseline_sha,
+        "ticket_base": claim.get("ticket_base"),
         "claim_owner_id": claim.get("owner_id"),
     }
     receipt["claims"] = [
@@ -299,6 +405,8 @@ def record_disposition(
     decision_path: Path,
     promotion_path: Path | None,
     promotion_digest: str | None,
+    baseline_path: Path | None,
+    baseline_digest: str | None,
     expected_generation: int,
     expected_receipt_digest: str,
 ) -> tuple[str, dict[str, Any]]:
@@ -308,6 +416,8 @@ def record_disposition(
             decision_path,
             promotion_path,
             promotion_digest,
+            baseline_path,
+            baseline_digest,
             expected_generation,
             expected_receipt_digest,
         )
@@ -321,6 +431,8 @@ def main() -> int:
     parser.add_argument("--decision", required=True, type=Path)
     parser.add_argument("--promotion-evidence", type=Path)
     parser.add_argument("--promotion-evidence-sha256")
+    parser.add_argument("--baseline-evidence", type=Path)
+    parser.add_argument("--baseline-evidence-sha256")
     parser.add_argument("--expected-generation", required=True, type=int)
     parser.add_argument("--expected-receipt-sha256", required=True)
     arguments = parser.parse_args()
@@ -330,12 +442,14 @@ def main() -> int:
             arguments.decision,
             arguments.promotion_evidence,
             arguments.promotion_evidence_sha256,
+            arguments.baseline_evidence,
+            arguments.baseline_evidence_sha256,
             arguments.expected_generation,
             require_sha256(
                 arguments.expected_receipt_sha256, "expected_receipt_sha256"
             ),
         )
-    except (OSError, ReceiptIndexError, RecordError) as error:
+    except (OSError, ReceiptIndexError, RecordError, RuntimeError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
     print(

@@ -177,6 +177,9 @@ def make_claim_entry(
     )
     if selected["owner_id"] != claim["owner_id"] or selected["phase"] != claim["phase"]:
         fail("claim owner or phase does not match the admission decision")
+    expected_lane = "promotion" if claim["phase"] == "promotion" else "build-review"
+    if selected["lane"] != expected_lane:
+        fail("admission decision lane does not match the claim phase")
     return {
         **claim,
         "lane": selected["lane"],
@@ -230,6 +233,28 @@ def _record_claim_locked(
         or candidate["phase"] != claim["phase"]
     ):
         fail("claim owner or phase does not match the admission request")
+    if set(candidate["changed_paths"]) != set(claim["changed_paths"]):
+        fail("claim changed_paths do not match the admission request")
+    if set(candidate["shared_interfaces"]) != set(claim["shared_interfaces"]):
+        fail("claim shared_interfaces do not match the admission request")
+    candidate_resources = sorted(
+        (
+            item["resource"],
+            item["quantity"],
+            item["mode"],
+        )
+        for item in candidate["resources"]
+    )
+    claim_resources = sorted(
+        (
+            item["resource"],
+            item["quantity"],
+            item["mode"],
+        )
+        for item in claim["resources"]
+    )
+    if candidate_resources != claim_resources:
+        fail("claim resources do not match the admission request")
     selected_ids = {item["ticket_id"] for item in decision["selected"]}
     if claim["ticket_id"] not in selected_ids:
         fail("claim Ticket was not accepted by the admission decision")
@@ -295,7 +320,7 @@ def main() -> int:
             arguments.expected_generation,
             arguments.expected_receipt_sha256,
         )
-    except (OSError, ReceiptIndexError, RecordError) as error:
+    except (OSError, ReceiptIndexError, RecordError, RuntimeError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
     print(

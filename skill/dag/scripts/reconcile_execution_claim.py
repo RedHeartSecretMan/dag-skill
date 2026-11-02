@@ -206,10 +206,11 @@ def main() -> int:
             arguments.recheck_event,
             arguments.liveness_evidence,
         )
-        status = publish_once(
-            arguments.output, canonical_json(capsule), [arguments.receipt]
-        )
-    except (OSError, ReceiptIndexError, RecordError) as error:
+        inputs = [arguments.receipt]
+        if arguments.liveness_evidence is not None:
+            inputs.append(arguments.liveness_evidence)
+        status = publish_once(arguments.output, canonical_json(capsule), inputs)
+    except (OSError, ReceiptIndexError, RecordError, RuntimeError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
     print(

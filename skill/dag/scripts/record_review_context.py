@@ -278,7 +278,7 @@ def main() -> int:
         status = publish_once(
             arguments.output, canonical_json(capsule), [arguments.context]
         )
-    except (OSError, RecordError) as error:
+    except (OSError, RecordError, RuntimeError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
     print(

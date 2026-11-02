@@ -186,6 +186,16 @@ class TerminalOutcomeTests(unittest.TestCase):
 
         self.assert_rejected(self.invoke(), "Stalled cannot have runnable_tickets")
 
+    def test_rejects_stalled_with_pending_tracker_update(self) -> None:
+        self.write_audit("Stalled")
+        audit = json.loads(self.audit.read_text(encoding="utf-8"))
+        audit["pending_tracker_updates"] = ["ticket-1"]
+        self.audit.write_text(json.dumps(audit), encoding="utf-8")
+
+        self.assert_rejected(
+            self.invoke(), "Stalled cannot have pending_tracker_updates"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

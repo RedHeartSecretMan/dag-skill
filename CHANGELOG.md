@@ -22,6 +22,8 @@
 
 ### Changed
 
+- `Baseline Satisfaction` 现在通过 Base-bound evidence 完成 `Accepted` 处置；Admission claim 强制绑定路径、接口和资源身份，路径冲突支持父子路径判断。
+- 执行记录和所有 off-delivery 输出统一拒绝嵌套符号链接逃逸、循环链接和超大 JSON 整数；恢复 capsule 同时绑定 liveness evidence，Stalled 审计阻止 pending tracker update。
 - 启动、Definition 变更与最终完成检查覆盖全部批准 Spec 义务的归属；最终证据核对保留原执行身份，并确认其对当前 Accepted Integration Tip 的适用性。已确认缺陷沿责任 Ticket 返修，复用既有 claim、tracker checkpoint、fresh review 与集成路径，只处置受影响的消费者。
 - 已授权的零差异外部动作在调用前记录恢复身份；中断或响应丢失后先关联回读，再决定观察、复用结果或安全继续，结果不明时保留未决事实。
 - 每次 claim、resume 或补位的并行条件检查同时覆盖既有 live claims，计入延后工作及下游 Runtime Skill Agents 的实际资源需求。

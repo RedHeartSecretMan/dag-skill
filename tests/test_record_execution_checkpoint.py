@@ -238,6 +238,14 @@ class ExecutionCheckpointRecordTests(unittest.TestCase):
         self.assert_rejected(self.invoke(), "duplicate JSON field")
         self.assertFalse(self.output.exists())
 
+    def test_rejects_oversized_json_integer_without_traceback(self) -> None:
+        self.checkpoint.write_text(
+            '{"schema_version":' + "9" * 5000 + "}", encoding="utf-8"
+        )
+
+        self.assert_rejected(self.invoke(), "JSON integer is oversized")
+        self.assertFalse(self.output.exists())
+
     def test_rejects_candidate_before_verification(self) -> None:
         payload = json.loads(self.checkpoint.read_text(encoding="utf-8"))
         payload["candidate"] = {
@@ -259,6 +267,18 @@ class ExecutionCheckpointRecordTests(unittest.TestCase):
         link.symlink_to(outside, target_is_directory=True)
 
         self.assert_rejected(self.invoke(link / "record.json"), "output parent")
+
+    def test_rejects_ancestor_symlink_output_parent(self) -> None:
+        outside = self.root / "outside"
+        outside.mkdir()
+        (outside / "nested").mkdir()
+        link = self.root / "link"
+        link.symlink_to(outside, target_is_directory=True)
+
+        result = self.invoke(link / "nested" / "record.json")
+
+        self.assert_rejected(result, "parent hierarchy must not contain symlinks")
+        self.assertFalse((outside / "nested" / "record.json").exists())
 
 
 if __name__ == "__main__":

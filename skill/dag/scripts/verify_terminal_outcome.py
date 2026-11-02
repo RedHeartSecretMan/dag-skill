@@ -249,6 +249,7 @@ def verify_audit(
         ):
             fail("Stalled requires at least one unfinished obligation")
         for field in (
+            "pending_tracker_updates",
             "unresolved_decisions",
             "needs_decisions",
             "runnable_tickets",
@@ -292,7 +293,7 @@ def main() -> int:
             canonical_json(evidence),
             [arguments.receipt, arguments.audit],
         )
-    except (OSError, RecordError) as error:
+    except (OSError, RecordError, RuntimeError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
     print(

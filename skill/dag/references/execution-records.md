@@ -20,7 +20,7 @@ python3 <this-skill-root>/scripts/record_execution_checkpoint.py \
   --output <off-delivery-or-workspace>/shadow/execution-record.json
 ```
 
-The helper requires Python 3.12+, regular non-symlink input files, an existing non-symlink artifact root, and repository-relative evidence paths. Evidence files must exist and match their declared SHA-256 digest. The command emits one compact JSON result on success and an `error:` diagnostic without a traceback on failure.
+The helper requires Python 3.12+, regular non-symlink input files, an existing non-symlink artifact root, and repository-relative evidence paths. Evidence files must exist and match their declared SHA-256 digest. Oversized JSON integers, duplicate fields, symlink loops, and unsafe output parent hierarchies fail with an `error:` diagnostic without a traceback.
 
 After publishing the record, the Coordinator indexes it with a receipt CAS:
 
@@ -86,7 +86,7 @@ run_id, ticket_id, owner_id, claim_generation, phase
 checkpoint_ref: {path, sha256}
 capsule_ref: {path, sha256}
 ticket_base, candidate, evidence_ids
-measurement_version, metrics, observed_at
+measurement_version, metrics, context_budget, observed_at
 capsule_definition_identity
 ```
 

@@ -18,6 +18,7 @@ from record_execution_checkpoint import (
     RECORD_KIND,
     RecordError,
     canonical_json,
+    ensure_no_symlink_ancestors,
     parse_json,
     read_regular_file,
     require_exact_fields,
@@ -228,6 +229,7 @@ def entry_for_record(
 
 
 def safe_receipt_target(path: Path) -> None:
+    ensure_no_symlink_ancestors(path, "receipt")
     try:
         metadata = path.lstat()
     except OSError as error:
@@ -242,6 +244,7 @@ def safe_receipt_target(path: Path) -> None:
 
 @contextlib.contextmanager
 def receipt_lock(path: Path):
+    safe_receipt_target(path)
     lock_path = path.with_name(f".{path.name}.lock")
     flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
     descriptor = os.open(lock_path, flags, 0o600)
@@ -346,7 +349,7 @@ def main() -> int:
             arguments.expected_generation,
             arguments.expected_receipt_sha256,
         )
-    except (OSError, IndexError, RecordError) as error:
+    except (OSError, IndexError, RecordError, RuntimeError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
     print(

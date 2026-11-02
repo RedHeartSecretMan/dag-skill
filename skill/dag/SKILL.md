@@ -59,7 +59,7 @@ For resume and writer recovery, read [`recovery.md`](references/recovery.md) and
 
 Before the serialized Integration Transition, read [`promotion.md`](references/promotion.md) and use `scripts/verify_promotion_package.py` to bind the current claim, Accepted Integration Tip, fresh review record, and review artifact. Treat `promotion_allowed` as a mechanical preflight only; semantic acceptance and the existing frozen-evidence/CAS sequence remain Coordinator-owned.
 
-After the Coordinator has made the semantic Ticket decision and all required Promotion / tracker evidence is current, read [`dispositions.md`](references/dispositions.md) and use `scripts/record_ticket_disposition.py` to CAS-record `Accepted` or `Superseded` and close the live claim. The helper never derives the disposition from tests or review output.
+After the Coordinator has made the semantic Ticket decision and all required Promotion, Baseline Satisfaction, or tracker evidence is current, read [`dispositions.md`](references/dispositions.md) and use `scripts/record_ticket_disposition.py` to CAS-record `Accepted` or `Superseded` and close the live claim. The helper never derives the disposition from tests or review output.
 
 Before reporting a Terminal Outcome, read [`terminal-outcome.md`](references/terminal-outcome.md) and use `scripts/verify_terminal_outcome.py` against the current Receipt and Accepted Integration Tip. Complete and Stalled remain Coordinator-owned conclusions; the helper only verifies the explicit audit and fail-closed conditions.
 

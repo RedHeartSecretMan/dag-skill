@@ -63,7 +63,9 @@ def validate_resources(value: Any, label: str) -> list[dict[str, Any]]:
         result.append(
             {
                 "resource": resource,
-                "quantity": require_integer(item["quantity"], f"{item_label}.quantity"),
+                "quantity": require_integer(
+                    item["quantity"], f"{item_label}.quantity", minimum=1
+                ),
                 "mode": mode,
             }
         )
@@ -241,6 +243,16 @@ def resource_map(resources: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     return {item["resource"]: item for item in resources}
 
 
+def paths_overlap(left: str, right: str) -> bool:
+    return left == right or left.startswith(f"{right}/") or right.startswith(f"{left}/")
+
+
+def path_sets_overlap(left: set[str], right: set[str]) -> bool:
+    return any(
+        paths_overlap(candidate, existing) for candidate in left for existing in right
+    )
+
+
 def conflict_reason(
     candidate: dict[str, Any],
     existing: list[dict[str, Any]],
@@ -250,7 +262,7 @@ def conflict_reason(
     candidate_resources = resource_map(candidate["resources"])
     for item in existing:
         existing_paths = item["changed_paths"] | item["shared_interfaces"]
-        if candidate_paths & existing_paths:
+        if path_sets_overlap(candidate_paths, existing_paths):
             return "path_or_interface_conflict", item["ticket_id"]
         for resource, claim in resource_map(item["resources"]).items():
             if resource in {"agent_slots", "runtime_skill_slots"}:
@@ -430,7 +442,7 @@ def main() -> int:
         status = publish_once(
             arguments.output, canonical_json(decision), [arguments.request]
         )
-    except (OSError, RecordError) as error:
+    except (OSError, RecordError, RuntimeError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 1
     print(
