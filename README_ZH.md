@@ -12,7 +12,7 @@
 - [`execution-records.md`](./skill/dag/references/execution-records.md)、[`exploration-cache.md`](./skill/dag/references/exploration-cache.md) 和 [`artifact-handles.md`](./skill/dag/references/artifact-handles.md) 定义紧凑执行上下文和证据引用；
 - [`admission.md`](./skill/dag/references/admission.md)、[`claims.md`](./skill/dag/references/claims.md) 和 [`recovery.md`](./skill/dag/references/recovery.md) 定义并行 admission、claim CAS 和写入者恢复；
 - [`review-context.md`](./skill/dag/references/review-context.md)、[`candidate-review.md`](./skill/dag/references/candidate-review.md) 和 [`promotion.md`](./skill/dag/references/promotion.md) 定义 fresh candidate review 和 Promotion 前置校验；
-- [`dispositions.md`](./skill/dag/references/dispositions.md) 和 [`terminal-outcome.md`](./skill/dag/references/terminal-outcome.md) 定义 Ticket disposition 与 Complete/Stalled 审计；
+- [`dispositions.md`](./skill/dag/references/dispositions.md)、[`tracker-checkpoints.md`](./skill/dag/references/tracker-checkpoints.md) 和 [`terminal-outcome.md`](./skill/dag/references/terminal-outcome.md) 定义 Ticket disposition、Tracker Policy/Checkpoint 与 Complete/Stalled 审计；
 - [`scripts/validate_definition_index.py`](./skill/dag/scripts/validate_definition_index.py) 验证 `DAG Definition Index`；
 - [`scripts/promote_local_transition.py`](./skill/dag/scripts/promote_local_transition.py) 核验冻结证据并推进本地集成 ref；
 - [`scripts/record_execution_checkpoint.py`](./skill/dag/scripts/record_execution_checkpoint.py) 和 [`scripts/index_execution_record.py`](./skill/dag/scripts/index_execution_record.py) 发布并索引紧凑执行记录；
@@ -20,6 +20,7 @@
 - [`scripts/plan_execution_admission.py`](./skill/dag/scripts/plan_execution_admission.py) 和 [`scripts/record_execution_claim.py`](./skill/dag/scripts/record_execution_claim.py) 规划并通过 CAS 记录并行 claim；
 - [`scripts/record_review_context.py`](./skill/dag/scripts/record_review_context.py)、[`scripts/record_candidate_review.py`](./skill/dag/scripts/record_candidate_review.py) 和 [`scripts/verify_candidate_review.py`](./skill/dag/scripts/verify_candidate_review.py) 绑定并核验候选审查输入；
 - [`scripts/reconcile_execution_claim.py`](./skill/dag/scripts/reconcile_execution_claim.py)、[`scripts/verify_promotion_package.py`](./skill/dag/scripts/verify_promotion_package.py) 和 [`scripts/record_ticket_disposition.py`](./skill/dag/scripts/record_ticket_disposition.py) 处理恢复、推广前置校验和 Ticket 关闭；
+- [`scripts/record_tracker_policy.py`](./skill/dag/scripts/record_tracker_policy.py) 和 [`scripts/record_tracker_checkpoint.py`](./skill/dag/scripts/record_tracker_checkpoint.py) 在不解析自然语言内容的前提下通过 CAS 记录 `Tracker Policy` 与已完成的 `Tracker Checkpoint`；
 - [`scripts/verify_terminal_outcome.py`](./skill/dag/scripts/verify_terminal_outcome.py) 验证最终机械条件；
 - [`scripts/install_runtime_skills.py`](./skill/dag/scripts/install_runtime_skills.py) 安装 `Runtime Skill Bundle`。
 

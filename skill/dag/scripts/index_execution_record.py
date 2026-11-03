@@ -143,6 +143,11 @@ def validate_receipt(payload: Any) -> dict[str, Any]:
     payload["run_id"] = run_id
     payload["coordinator_generation"] = generation
     payload["execution_records"] = normalized_records
+    if "tracker_policy" in payload and payload["tracker_policy"] is not None:
+        require_object(payload["tracker_policy"], "receipt.tracker_policy")
+    for field in ("tracker_checkpoints", "pending_tracker_updates"):
+        if field in payload and not isinstance(payload[field], list):
+            fail(f"receipt.{field} must be an array")
     return payload
 
 

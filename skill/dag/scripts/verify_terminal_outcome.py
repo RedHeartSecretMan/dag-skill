@@ -24,6 +24,12 @@ from record_execution_checkpoint import (
     sha256,
     validate_ticket_base,
 )
+from record_tracker_checkpoint import validate_receipt_tracker_checkpoints
+from record_tracker_policy import (
+    compute_pending_tracker_updates,
+    effective_ticket_dispositions,
+    validate_receipt_tracker_policy,
+)
 
 SCHEMA_VERSION = 1
 AUDIT_KIND = "Terminal Outcome Audit"
@@ -51,9 +57,13 @@ def validate_obligations(value: Any) -> list[dict[str, Any]]:
     for index, item in enumerate(value):
         label = f"audit.obligations[{index}]"
         item = require_object(item, label)
-        require_exact_fields(
-            item, {"id", "owner", "status", "evidence_applicable"}, label
-        )
+        actual_fields = set(item)
+        required_fields = {"id", "owner", "status", "evidence_applicable"}
+        optional_fields = {"ticket_id"}
+        if not required_fields.issubset(actual_fields) or (
+            actual_fields - (required_fields | optional_fields)
+        ):
+            require_exact_fields(item, required_fields, label)
         obligation_id = require_identity(item["id"], f"{label}.id")
         if obligation_id in ids:
             fail(f"{label}.id is duplicated")
@@ -63,14 +73,17 @@ def validate_obligations(value: Any) -> list[dict[str, Any]]:
             fail(f"{label}.status is unsupported")
         if type(item["evidence_applicable"]) is not bool:
             fail(f"{label}.evidence_applicable must be boolean")
-        result.append(
-            {
-                "id": obligation_id,
-                "owner": require_identity(item["owner"], f"{label}.owner"),
-                "status": status,
-                "evidence_applicable": item["evidence_applicable"],
-            }
-        )
+        entry: dict[str, Any] = {
+            "id": obligation_id,
+            "owner": require_identity(item["owner"], f"{label}.owner"),
+            "status": status,
+            "evidence_applicable": item["evidence_applicable"],
+        }
+        if "ticket_id" in item and item["ticket_id"] is not None:
+            entry["ticket_id"] = require_identity(
+                item["ticket_id"], f"{label}.ticket_id"
+            )
+        result.append(entry)
     return result
 
 
@@ -197,6 +210,44 @@ def validate_audit(payload: Any) -> dict[str, Any]:
     }
 
 
+def verify_dispositions_match_obligations(
+    effective: dict[str, dict[str, Any]],
+    obligations: list[dict[str, Any]],
+    *,
+    complete: bool,
+) -> None:
+    mapped_tickets: set[str] = set()
+    for obligation in obligations:
+        ticket_id = str(obligation.get("ticket_id") or obligation["owner"])
+        if ticket_id in mapped_tickets:
+            fail("terminal obligations must map one-to-one with Ticket dispositions")
+        mapped_tickets.add(ticket_id)
+        status = obligation["status"]
+        if status in {"Accepted", "Superseded"} or complete:
+            recorded = effective.get(ticket_id)
+            if recorded is None:
+                fail(
+                    f"obligation {obligation['id']} ({ticket_id}) has no recorded Ticket disposition in receipt"
+                )
+            if recorded["disposition"] != status:
+                fail(
+                    f"obligation {obligation['id']} status {status} does not match recorded Ticket disposition {recorded['disposition']}"
+                )
+            if (
+                "ticket_id" in obligation
+                and recorded.get("claim_owner_id") is not None
+                and obligation["owner"] not in {recorded["claim_owner_id"], ticket_id}
+            ):
+                fail(
+                    f"obligation {obligation['id']} owner does not match recorded Ticket disposition owner"
+                )
+    missing = sorted(set(effective) - mapped_tickets)
+    if missing:
+        fail(
+            f"recorded Ticket dispositions missing from terminal obligations: {', '.join(missing)}"
+        )
+
+
 def verify_audit(
     receipt_path: Path,
     audit_path: Path,
@@ -213,6 +264,15 @@ def verify_audit(
         fail("audit accepted tip commit does not match current tip")
     if audit["accepted_tip"]["tree"] != expected_tip_tree:
         fail("audit accepted tip tree does not match current tip")
+    receipt_tip = receipt.get("accepted_integration_tip")
+    if receipt_tip is not None:
+        receipt_tip = validate_ticket_base(
+            receipt_tip, "receipt.accepted_integration_tip"
+        )
+        if receipt_tip != audit["accepted_tip"]:
+            fail(
+                "receipt.accepted_integration_tip does not match terminal accepted tip"
+            )
     claims = receipt.get("claims", [])
     if not isinstance(claims, list):
         fail("receipt.claims must be an array")
@@ -220,6 +280,9 @@ def verify_audit(
         fail("live claims remain at terminal outcome")
     if not audit["writer_liveness_resolved"]:
         fail("writer liveness is unresolved")
+    receipt_pending = receipt.get("pending_tracker_updates", [])
+    if not isinstance(receipt_pending, list):
+        fail("receipt.pending_tracker_updates must be an array")
     if audit["outcome"] == "Complete":
         if any(
             obligation["status"] not in {"Accepted", "Superseded"}
@@ -242,6 +305,50 @@ def verify_audit(
         ):
             if audit[field]:
                 fail(f"Complete cannot have {field}")
+        if receipt_pending:
+            fail("Complete cannot have pending_tracker_updates in receipt")
+        policy = validate_receipt_tracker_policy(receipt, reread_record=True)
+        if policy is None:
+            fail("Complete requires a recorded Tracker Policy in receipt")
+        effective = effective_ticket_dispositions(receipt, verify_evidence=True)
+        verify_dispositions_match_obligations(
+            effective, audit["obligations"], complete=True
+        )
+        checkpoints = validate_receipt_tracker_checkpoints(receipt)
+        if policy["mode"] == "none":
+            if checkpoints:
+                fail("Tracker Policy mode none cannot have Tracker Checkpoints")
+        else:
+            if not checkpoints:
+                fail(
+                    f"Complete requires a completed Tracker Checkpoint when mode is {policy['mode']}"
+                )
+            current_checkpoints = [
+                item
+                for item in checkpoints
+                if item["policy_key"] == policy["policy_key"]
+            ]
+            if not current_checkpoints:
+                fail(
+                    "stale policy: no Tracker Checkpoint matches current Tracker Policy"
+                )
+            uncheckpointed = compute_pending_tracker_updates(receipt, policy)
+            if uncheckpointed:
+                fail(
+                    "Complete requires a completed Tracker Checkpoint for every Ticket disposition"
+                )
+            latest = checkpoints[-1]
+            if latest["policy_key"] != policy["policy_key"]:
+                fail(
+                    "stale policy: latest Tracker Checkpoint does not match current Tracker Policy"
+                )
+            if (
+                latest["candidate"]["commit"] != expected_tip_commit
+                or latest["candidate"]["tree"] != expected_tip_tree
+            ):
+                fail(
+                    "stale checkpoint: latest Tracker Checkpoint candidate does not match Accepted Integration Tip"
+                )
     else:
         if not any(
             obligation["status"] in {"Open", "Blocked"}
@@ -259,6 +366,15 @@ def verify_audit(
         ):
             if audit[field]:
                 fail(f"Stalled cannot have {field}")
+        if receipt_pending:
+            fail("Stalled cannot have pending_tracker_updates in receipt")
+        if receipt.get("tracker_policy") is not None:
+            validate_receipt_tracker_policy(receipt, reread_record=True)
+        if receipt.get("ticket_dispositions"):
+            effective = effective_ticket_dispositions(receipt, verify_evidence=True)
+            verify_dispositions_match_obligations(
+                effective, audit["obligations"], complete=False
+            )
     return {
         "schema_version": SCHEMA_VERSION,
         "kind": EVIDENCE_KIND,

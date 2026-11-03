@@ -156,6 +156,14 @@ _Avoid_: semantic acceptance、Git ref 更新、Ticket disposition
 Coordinator 在语义决定已经完成后，通过 Receipt CAS 为当前 claim 记录 `Accepted` 或 `Superseded` 并关闭该 claim 的显式处置。
 _Avoid_: 从测试退出码推导的状态、自动验收、Terminal Outcome
 
+**Tracker Policy**:
+Coordinator 在首次认领前通过 Receipt CAS 记录的运行级 tracker 策略（`none`、`in_repo` 或 `external_snapshot`），明确 `authoritative_paths`、`rule_refs`、`definition_paths`、`tracker_paths`、`update_scope`、理由，以及是否存在显式 `stateful_tracker_decision`。
+_Avoid_: 默认视为 `none`、用正则解析 Markdown 状态词、隐式混用 Definition 与可变工单状态
+
+**Tracker Checkpoint**:
+Coordinator 在 Ticket 处置后按 `Tracker Policy` 完成受审查 `DAG Definition Checkpoint` 与回读后记录的机械绑定记录，关联处置、策略身份、`base`/`candidate` commit/tree、变更路径、前后 Git blob 身份与证据 SHA-256。
+_Avoid_: 解析自然语言复选框、由 Execution Agent 直接改写 tracker、未回读即解锁后继
+
 **Run Receipt**:
 保存在交付历史之外、索引精确运行身份、认领、未决条件、外部动作恢复身份和资源证据的紧凑恢复记录；它引用 DAG Definition 绑定与 Integration Transition 证据，不替代这些事实来源。
 _Avoid_: DAG Definition、已跟踪选择器、调度数据库

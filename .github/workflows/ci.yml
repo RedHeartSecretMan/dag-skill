@@ -61,6 +61,7 @@ jobs:
           skill/dag/references/promotion.md
           skill/dag/references/terminal-outcome.md
           skill/dag/references/ticket-execution.md
+          skill/dag/references/tracker-checkpoints.md
 
       - name: Check command interfaces
         run: |
@@ -77,6 +78,8 @@ jobs:
           python skill/dag/scripts/reconcile_execution_claim.py --help
           python skill/dag/scripts/verify_promotion_package.py --help
           python skill/dag/scripts/record_ticket_disposition.py --help
+          python skill/dag/scripts/record_tracker_policy.py --help
+          python skill/dag/scripts/record_tracker_checkpoint.py --help
           python skill/dag/scripts/verify_terminal_outcome.py --help
           python skill/dag/scripts/validate_definition_index.py --help
           python skill/dag/scripts/promote_local_transition.py --help

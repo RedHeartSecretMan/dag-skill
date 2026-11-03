@@ -39,6 +39,10 @@ from record_execution_checkpoint import (
 from record_execution_checkpoint import (
     validate_ticket_base as require_ticket_base,
 )
+from record_tracker_policy import (
+    paths_overlap,
+    validate_receipt_tracker_policy,
+)
 
 CLAIM_SCHEMA_VERSION = 1
 CLAIM_KIND = "Execution Claim"
@@ -275,6 +279,33 @@ def _record_claim_locked(
         fail("request coordinator_generation does not match receipt")
     if decision["coordinator_generation"] != expected_generation:
         fail("decision coordinator_generation does not match receipt")
+    policy = validate_receipt_tracker_policy(receipt)
+    if policy is not None:
+        reserved_paths = set(claim["changed_paths"]) | set(claim["shared_interfaces"])
+        if any(
+            paths_overlap(reserved, tracker_path)
+            for reserved in reserved_paths
+            for tracker_path in policy["tracker_paths"]
+        ):
+            fail("Execution Agent claim cannot modify tracker_paths")
+        pending = receipt.get("pending_tracker_updates", [])
+        if not isinstance(pending, list):
+            fail("receipt.pending_tracker_updates must be an array")
+        if pending:
+            if policy["update_scope"] == "per_ticket":
+                fail(
+                    "pending_tracker_updates must complete before another claim under per_ticket scope"
+                )
+            pending_ids = {
+                item.get("ticket_id") for item in pending if isinstance(item, dict)
+            }
+            dependency_ids = {
+                item["ticket_id"] for item in candidate["hard_dependencies"]
+            }
+            if claim["ticket_id"] in pending_ids or pending_ids & dependency_ids:
+                fail(
+                    "claim cannot proceed while its Ticket or prerequisite pending_tracker_updates remain"
+                )
     claims.append(entry)
     receipt["coordinator_generation"] += 1
     replace_receipt(receipt_path, receipt_bytes, canonical_json(receipt), locked=True)

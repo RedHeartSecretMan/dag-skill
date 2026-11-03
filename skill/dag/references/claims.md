@@ -25,4 +25,6 @@ Before writing, the helper verifies:
 - the claim's Ticket Base, workspace, branch, paths, and resources satisfy the claim schema;
 - no different live claim already owns the Ticket.
 
+When the Run Receipt contains a `Tracker Policy` ([`tracker-checkpoints.md`](tracker-checkpoints.md)), the helper also verifies that `changed_paths` and `shared_interfaces` do not overlap `tracker_paths`, rejects new claims while `pending_tracker_updates` remain under `per_ticket` scope, and rejects dependent claims whose prerequisites remain in `pending_tracker_updates` under `batched` scope.
+
 The helper appends the claim and increments `coordinator_generation` through the existing Receipt CAS writer. Repeating the same claim with the updated Receipt generation is idempotent. The claim's paths, shared interfaces, and resource reservations must exactly match the admitted candidate, and its lane must match its phase. A stale decision, old generation, conflicting owner, or changed claim fails before Receipt mutation. The successful record still leaves Agent dispatch and writer liveness under the Coordinator workflow.

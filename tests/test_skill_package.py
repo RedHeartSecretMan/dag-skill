@@ -28,6 +28,8 @@ PUBLIC_HELPERS = (
     "reconcile_execution_claim.py",
     "verify_promotion_package.py",
     "record_ticket_disposition.py",
+    "record_tracker_policy.py",
+    "record_tracker_checkpoint.py",
     "verify_terminal_outcome.py",
     "validate_definition_index.py",
     "promote_local_transition.py",

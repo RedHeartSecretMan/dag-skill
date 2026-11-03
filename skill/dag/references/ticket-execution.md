@@ -10,6 +10,8 @@ Use linked optional shared exploration notes as advisory context. Verify facts a
 
 Own this Ticket's implementation, gates, candidates, and finding closure. Leave the DAG Integration Branch, remote writes, graph decisions, acceptance, and successor unlocking to the Coordinator Agent. Work on no other Ticket. Carry applicable user and Target Project constraints, including model, reasoning, tool, and downstream Agent requirements, into Runtime Skill invocations and dispatches. Reuse existing approvals within their scope, including test-seam approvals; report an unmet explicit constraint instead of silently substituting another configuration.
 
+Leave Target Project tracker paths (`tracker_paths` in the Coordinator's `Tracker Policy`) untouched; tracker updates belong exclusively to the Coordinator Agent after Ticket disposition.
+
 ## Supply Runtime Skills
 
 Use the Runtime Skill Bundle already verified at startup; do not repeat its preflight for an invocation. Supply each Runtime Skill with the applicable project instructions and authoritative inputs. For `$code-review`, include the fixed review Base, candidate range and commit list, scope and governing Spec pointers, and the project's existing tracker workflow. Project-provided instructions take precedence over a dependency's conventional discovery paths, including `docs/agents/issue-tracker.md`. A missing conventional file alone does not require project setup when equivalent authoritative context is supplied. Resolve genuinely missing context within existing authority or report the specific required decision. Project configuration requires its own authorization.

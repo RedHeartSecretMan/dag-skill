@@ -12,7 +12,7 @@ The Skill is packaged in [`skill/dag/`](./skill/dag/):
 - [`execution-records.md`](./skill/dag/references/execution-records.md), [`exploration-cache.md`](./skill/dag/references/exploration-cache.md), and [`artifact-handles.md`](./skill/dag/references/artifact-handles.md) define compact execution context and evidence references;
 - [`admission.md`](./skill/dag/references/admission.md), [`claims.md`](./skill/dag/references/claims.md), and [`recovery.md`](./skill/dag/references/recovery.md) define parallel admission, claim CAS, and writer recovery;
 - [`review-context.md`](./skill/dag/references/review-context.md), [`candidate-review.md`](./skill/dag/references/candidate-review.md), and [`promotion.md`](./skill/dag/references/promotion.md) define fresh candidate review and Promotion preflight;
-- [`dispositions.md`](./skill/dag/references/dispositions.md) and [`terminal-outcome.md`](./skill/dag/references/terminal-outcome.md) define Ticket disposition and Complete/Stalled audit;
+- [`dispositions.md`](./skill/dag/references/dispositions.md), [`tracker-checkpoints.md`](./skill/dag/references/tracker-checkpoints.md), and [`terminal-outcome.md`](./skill/dag/references/terminal-outcome.md) define Ticket disposition, Tracker Policy/Checkpoints, and Complete/Stalled audit;
 - [`scripts/validate_definition_index.py`](./skill/dag/scripts/validate_definition_index.py) validates the `DAG Definition Index`;
 - [`scripts/promote_local_transition.py`](./skill/dag/scripts/promote_local_transition.py) verifies frozen evidence and advances a local integration ref;
 - [`scripts/record_execution_checkpoint.py`](./skill/dag/scripts/record_execution_checkpoint.py) and [`scripts/index_execution_record.py`](./skill/dag/scripts/index_execution_record.py) publish and index compact execution records;
@@ -20,6 +20,7 @@ The Skill is packaged in [`skill/dag/`](./skill/dag/):
 - [`scripts/plan_execution_admission.py`](./skill/dag/scripts/plan_execution_admission.py) and [`scripts/record_execution_claim.py`](./skill/dag/scripts/record_execution_claim.py) plan and CAS-record parallel claims;
 - [`scripts/record_review_context.py`](./skill/dag/scripts/record_review_context.py), [`scripts/record_candidate_review.py`](./skill/dag/scripts/record_candidate_review.py), and [`scripts/verify_candidate_review.py`](./skill/dag/scripts/verify_candidate_review.py) bind and verify candidate review inputs;
 - [`scripts/reconcile_execution_claim.py`](./skill/dag/scripts/reconcile_execution_claim.py), [`scripts/verify_promotion_package.py`](./skill/dag/scripts/verify_promotion_package.py), and [`scripts/record_ticket_disposition.py`](./skill/dag/scripts/record_ticket_disposition.py) handle recovery, promotion preflight, and Ticket closure;
+- [`scripts/record_tracker_policy.py`](./skill/dag/scripts/record_tracker_policy.py) and [`scripts/record_tracker_checkpoint.py`](./skill/dag/scripts/record_tracker_checkpoint.py) CAS-record the run's `Tracker Policy` and completed `Tracker Checkpoint` transitions without parsing tracker prose;
 - [`scripts/verify_terminal_outcome.py`](./skill/dag/scripts/verify_terminal_outcome.py) verifies the final mechanical conditions;
 - [`scripts/install_runtime_skills.py`](./skill/dag/scripts/install_runtime_skills.py) installs the `Runtime Skill Bundle`.
 

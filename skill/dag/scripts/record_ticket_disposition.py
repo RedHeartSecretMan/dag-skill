@@ -31,6 +31,10 @@ from record_execution_checkpoint import (
     require_timestamp,
     sha256,
 )
+from record_tracker_policy import (
+    compute_pending_tracker_updates,
+    validate_receipt_tracker_policy,
+)
 
 SCHEMA_VERSION = 1
 DECISION_KIND = "Ticket Disposition Decision"
@@ -284,6 +288,7 @@ def _record_disposition_locked(
     )
     if decision["run_id"] != receipt["run_id"]:
         fail("receipt and decision run_id do not match")
+    policy = validate_receipt_tracker_policy(receipt)
     dispositions = receipt.setdefault("ticket_dispositions", [])
     if not isinstance(dispositions, list):
         fail("receipt.ticket_dispositions must be an array")
@@ -395,6 +400,10 @@ def _record_disposition_locked(
         )
     ]
     dispositions.append(entry)
+    if policy is not None:
+        receipt["pending_tracker_updates"] = compute_pending_tracker_updates(
+            receipt, policy
+        )
     receipt["coordinator_generation"] += 1
     replace_receipt(receipt_path, receipt_bytes, canonical_json(receipt), locked=True)
     return "recorded", entry

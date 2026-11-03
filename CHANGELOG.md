@@ -4,6 +4,22 @@
 
 ## [Unreleased]
 
+## [0.5.1] - 2026-11-03
+
+### Added
+
+- 新增 `record_tracker_policy.py` 与 `record_tracker_checkpoint.py`，在不解析 Markdown 或项目专属状态词的前提下，以 CAS 绑定运行级 `Tracker Policy`（`none` / `in_repo` / `external_snapshot`，默认拒绝 `definition_paths` 与 `tracker_paths` 重叠）和已完成的 `Tracker Checkpoint`（绑定处置、`policy_key`、`base`/`candidate` commit/tree、`changed_paths`、前后 Git blob 身份与证据 SHA-256）。
+
+### Changed
+
+- Ticket 完成流程增加 Coordinator-owned `Tracker Policy`、Tracker Checkpoint、审查、Definition Checkpoint 和 readback 顺序；终态校验会交叉核对 Receipt dispositions、tracker 更新和最终 Accepted Integration Tip。
+
+### Fixed
+
+- 修复代码与 Run Receipt 已完成但仓内 `.scratch` tracker 未同步仍可报告 `Complete` 的漏洞；legacy Run Receipt 必须升级 tracker policy 并补齐所需 checkpoint 后才能完成终态验收。
+
+## [0.5.0] - 2026-10-27
+
 ### Added
 
 - 新增 `record_execution_checkpoint.py` 与 `index_execution_record.py`，以固定 schema 校验 `Ticket Capsule`、`Execution Checkpoint`、`Evidence Index` 和 metrics，并通过 artifact SHA-256、路径边界、claim generation、Ticket Base、Run Receipt generation 与 CAS 校验发布和索引 off-delivery shadow record；该记录不改变 claim、Git ref、Integration Transition 或 acceptance。
@@ -22,8 +38,6 @@
 
 ### Changed
 
-- `Baseline Satisfaction` 现在通过 Base-bound evidence 完成 `Accepted` 处置；Admission claim 强制绑定路径、接口和资源身份，路径冲突支持父子路径判断。
-- 执行记录和所有 off-delivery 输出统一拒绝嵌套符号链接逃逸、循环链接和超大 JSON 整数；恢复 capsule 同时绑定 liveness evidence，Stalled 审计阻止 pending tracker update。
 - 启动、Definition 变更与最终完成检查覆盖全部批准 Spec 义务的归属；最终证据核对保留原执行身份，并确认其对当前 Accepted Integration Tip 的适用性。已确认缺陷沿责任 Ticket 返修，复用既有 claim、tracker checkpoint、fresh review 与集成路径，只处置受影响的消费者。
 - 已授权的零差异外部动作在调用前记录恢复身份；中断或响应丢失后先关联回读，再决定观察、复用结果或安全继续，结果不明时保留未决事实。
 - 每次 claim、resume 或补位的并行条件检查同时覆盖既有 live claims，计入延后工作及下游 Runtime Skill Agents 的实际资源需求。
@@ -32,6 +46,26 @@
 ### Fixed
 
 - 启动时记录已核验的 Python 3.12+ 解释器，所有 bundled helpers 复用该解释器，避免系统默认 `python3` 指向旧版本时误用。
+
+## [0.4.3] - 2026-10-09
+
+### Added
+
+- 完成 DAG 的义务覆盖与最终证据适用性核对，明确已验收 Ticket 的责任返修、受影响消费者审计和 tracker checkpoint 顺序。
+- 补齐零差异外部操作的未知结果恢复：先关联原操作并回读归属与结果，再决定观察、复用或在证据充分时安全继续。
+- 明确并行 claim、resume 和补位必须同时检查既有 live claims、共享接口、运行资源与下游 Runtime Skill Agents 容量。
+- 增加可选的身份绑定共享探索笔记，支持跨 Ticket 复用调查事实，同时要求消费者回到权威来源核验。
+
+### Changed
+
+- 统一 Complete、返修、DAG Revision、外部操作恢复和并行调度的 Coordinator/Execution Agent 责任边界。
+- 启动时记录并复用已核验的 Python 3.12+ helper 解释器，避免系统默认 Python 版本漂移。
+- 文档、CI、双语 README 和协议引用完成跨文档对齐；本版本的验证范围为本地隔离项目与本地可记录服务，不包含生产或真实远端业务写入。
+
+### Fixed
+
+- 允许暂停写入和检查的下游 claim 与其前置 Ticket 的责任返修并存，同时继续计入资源和容量检查。
+- 将已验收义务的证据适用性、未知操作结果、并行补位和共享探索笔记纳入一致的恢复与终态判断。
 
 ## [0.4.2] - 2026-10-07
 
@@ -173,7 +207,10 @@
 - 提供固定 Skill Bundle 的 Python 3.12+ 安装器。
 - 提供项目使用指南、设计说明、领域词汇、可选宿主界面元数据和安装器回归测试。
 
-[Unreleased]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.5.1...HEAD
+[0.5.1]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.5.0...v0.5.1
+[0.5.0]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.4.3...v0.5.0
+[0.4.3]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.3.1...v0.4.0
