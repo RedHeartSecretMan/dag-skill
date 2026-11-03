@@ -15,6 +15,26 @@
 
 - 启动时记录已核验的 Python 3.12+ 解释器，所有 bundled helpers 复用该解释器，避免系统默认 `python3` 指向旧版本时误用。
 
+## [0.4.3] - 2026-10-09
+
+### Added
+
+- 完成 DAG 的义务覆盖与最终证据适用性核对，明确已验收 Ticket 的责任返修、受影响消费者审计和 tracker checkpoint 顺序。
+- 补齐零差异外部操作的未知结果恢复：先关联原操作并回读归属与结果，再决定观察、复用或在证据充分时安全继续。
+- 明确并行 claim、resume 和补位必须同时检查既有 live claims、共享接口、运行资源与下游 Runtime Skill Agents 容量。
+- 增加可选的身份绑定共享探索笔记，支持跨 Ticket 复用调查事实，同时要求消费者回到权威来源核验。
+
+### Changed
+
+- 统一 Complete、返修、DAG Revision、外部操作恢复和并行调度的 Coordinator/Execution Agent 责任边界。
+- 启动时记录并复用已核验的 Python 3.12+ helper 解释器，避免系统默认 Python 版本漂移。
+- 文档、CI、双语 README 和协议引用完成跨文档对齐；本版本的验证范围为本地隔离项目与本地可记录服务，不包含生产或真实远端业务写入。
+
+### Fixed
+
+- 允许暂停写入和检查的下游 claim 与其前置 Ticket 的责任返修并存，同时继续计入资源和容量检查。
+- 将已验收义务的证据适用性、未知操作结果、并行补位和共享探索笔记纳入一致的恢复与终态判断。
+
 ## [0.4.2] - 2026-10-07
 
 ### Added
@@ -155,7 +175,8 @@
 - 提供固定 Skill Bundle 的 Python 3.12+ 安装器。
 - 提供项目使用指南、设计说明、领域词汇、可选宿主界面元数据和安装器回归测试。
 
-[Unreleased]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.4.2...HEAD
+[Unreleased]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.4.3...HEAD
+[0.4.3]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.4.2...v0.4.3
 [0.4.2]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.4.1...v0.4.2
 [0.4.1]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.4.0...v0.4.1
 [0.4.0]: https://github.com/RedHeartSecretMan/dag-skill/compare/v0.3.1...v0.4.0
