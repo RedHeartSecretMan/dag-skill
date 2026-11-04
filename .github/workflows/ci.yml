@@ -49,7 +49,7 @@ jobs:
           skill/dag/SKILL.md
           skill/dag/references/definition-binding.md
           skill/dag/references/execution-artifacts.md
-          skill/dag/references/frontier-scheduling.md
+          skill/dag/references/runnable-scheduling.md
           skill/dag/references/integration-transitions.md
           skill/dag/references/outcome-closure.md
           skill/dag/references/ticket-execution.md
