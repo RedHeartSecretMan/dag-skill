@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "skill" / "dag" / "scripts" / "reconcile_execution_claim.py"
+SCRIPT = ROOT / "skill" / "dag" / "scripts" / "publish.py"
 
 
 class ReconcileExecutionClaimTests(unittest.TestCase):
@@ -64,6 +64,7 @@ class ReconcileExecutionClaimTests(unittest.TestCase):
             [
                 sys.executable,
                 str(SCRIPT),
+                "resume-capsule",
                 "--receipt",
                 str(self.receipt),
                 "--ticket-id",

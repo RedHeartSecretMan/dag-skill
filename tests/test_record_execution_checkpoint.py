@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "skill" / "dag" / "scripts" / "record_execution_checkpoint.py"
+SCRIPT = ROOT / "skill" / "dag" / "scripts" / "publish.py"
 
 
 def digest(path: Path) -> str:
@@ -141,6 +141,7 @@ class ExecutionCheckpointRecordTests(unittest.TestCase):
             [
                 sys.executable,
                 str(SCRIPT),
+                "execution-record",
                 "--capsule",
                 str(self.capsule),
                 "--checkpoint",

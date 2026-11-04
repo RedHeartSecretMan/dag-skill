@@ -9,10 +9,9 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "skill" / "dag" / "scripts" / "verify_terminal_outcome.py"
-POLICY_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "record_tracker_policy.py"
-CHECKPOINT_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "record_tracker_checkpoint.py"
-PROMOTE_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "promote_local_transition.py"
+PUBLISH_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "publish.py"
+COMMIT_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "commit.py"
+PROMOTE_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "promote.py"
 
 
 class TerminalOutcomeTests(unittest.TestCase):
@@ -171,7 +170,6 @@ class TerminalOutcomeTests(unittest.TestCase):
             tracker_paths = [".scratch/issues/ticket-1.md"]
             scope = "per_ticket"
         policy_path = self.off_delivery / f"policy-{mode}-{suffix}.json"
-        record_path = self.off_delivery / f"policy-record-{mode}-{suffix}.json"
         policy_path.write_text(
             json.dumps(
                 {
@@ -201,21 +199,20 @@ class TerminalOutcomeTests(unittest.TestCase):
         res = subprocess.run(
             [
                 sys.executable,
-                str(POLICY_SCRIPT),
-                "--receipt",
-                str(self.receipt),
-                "--policy",
-                str(policy_path),
-                "--output",
-                str(record_path),
-                "--expected-generation",
-                str(generation),
-                "--expected-receipt-sha256",
-                self.digest(self.receipt),
+                str(COMMIT_SCRIPT),
+                "tracker-policy",
                 "--repository",
                 str(self.repo),
                 "--commit",
                 self.base_commit,
+                "--receipt",
+                str(self.receipt),
+                "--policy",
+                str(policy_path),
+                "--expected-generation",
+                str(generation),
+                "--expected-receipt-sha256",
+                self.digest(self.receipt),
             ],
             capture_output=True,
             text=True,
@@ -307,7 +304,7 @@ class TerminalOutcomeTests(unittest.TestCase):
                 str(self.repo),
                 "--transition",
                 str(transition),
-                "--sha256",
+                "--expected-transition-sha256",
                 self.digest(transition),
             ],
             capture_output=True,
@@ -317,7 +314,6 @@ class TerminalOutcomeTests(unittest.TestCase):
             "coordinator_generation"
         ]
         cp_file = self.off_delivery / f"cp-{suffix}.json"
-        cp_record = self.off_delivery / f"cp-record-{suffix}.json"
         cp_file.write_text(
             json.dumps(
                 {
@@ -360,15 +356,14 @@ class TerminalOutcomeTests(unittest.TestCase):
         subprocess.run(
             [
                 sys.executable,
-                str(CHECKPOINT_SCRIPT),
+                str(COMMIT_SCRIPT),
+                "tracker-checkpoint",
                 "--repository",
                 str(self.repo),
                 "--receipt",
                 str(self.receipt),
                 "--checkpoint",
                 str(cp_file),
-                "--output",
-                str(cp_record),
                 "--expected-generation",
                 str(generation),
                 "--expected-receipt-sha256",
@@ -460,7 +455,8 @@ class TerminalOutcomeTests(unittest.TestCase):
         return subprocess.run(
             [
                 sys.executable,
-                str(SCRIPT),
+                str(PUBLISH_SCRIPT),
+                "terminal-evidence",
                 "--receipt",
                 str(self.receipt),
                 "--audit",
@@ -623,10 +619,25 @@ class TerminalOutcomeTests(unittest.TestCase):
         )
         self.review_evidence.write_bytes(saved_review)
 
-        # Deleting the Tracker Checkpoint record file rejects Complete.
+        # Deleting the disposition evidence file rejects Complete.
+        saved_disp = self.disp_evidence.read_bytes()
+        self.disp_evidence.unlink()
+        self.assert_rejected(
+            self.invoke(
+                output=self.off_delivery / "terminal" / "missing-disp-ev.json",
+                tip_commit=tip_commit,
+                tip_tree=tip_tree,
+            ),
+            "could not be read",
+        )
+        self.disp_evidence.write_bytes(saved_disp)
+
+        # Legacy receipt checkpoint entry referencing a missing record_path also rejects Complete.
         receipt = json.loads(self.receipt.read_text(encoding="utf-8"))
-        cp_record_path = Path(receipt["tracker_checkpoints"][0]["record_path"])
-        cp_record_path.unlink()
+        missing_record = self.off_delivery / "missing-legacy-cp-record.json"
+        receipt["tracker_checkpoints"][0]["record_path"] = str(missing_record)
+        receipt["tracker_checkpoints"][0]["record_sha256"] = "0" * 64
+        self.receipt.write_text(json.dumps(receipt), encoding="utf-8")
         self.assert_rejected(
             self.invoke(
                 output=self.off_delivery / "terminal" / "missing-cp.json",
@@ -649,6 +660,12 @@ class TerminalOutcomeTests(unittest.TestCase):
         self.git("commit", "-q", "-m", "post-checkpoint code commit")
         later_commit = self.git("rev-parse", "HEAD")
         later_tree = self.git("rev-parse", "HEAD^{tree}")
+        receipt = json.loads(self.receipt.read_text(encoding="utf-8"))
+        receipt["accepted_integration_tip"] = {
+            "commit": later_commit,
+            "tree": later_tree,
+        }
+        self.receipt.write_text(json.dumps(receipt), encoding="utf-8")
         self.write_audit("Complete", tip_commit=later_commit, tip_tree=later_tree)
         self.assert_rejected(
             self.invoke(tip_commit=later_commit, tip_tree=later_tree),
@@ -656,6 +673,12 @@ class TerminalOutcomeTests(unittest.TestCase):
         )
 
         # Policy updated after Tracker Checkpoint without a new checkpoint -> stale policy!
+        receipt = json.loads(self.receipt.read_text(encoding="utf-8"))
+        receipt["accepted_integration_tip"] = {
+            "commit": tip_commit,
+            "tree": tip_tree,
+        }
+        self.receipt.write_text(json.dumps(receipt), encoding="utf-8")
         self.record_policy(
             "in_repo", suffix="stale-policy-v2", rationale="New policy rationale."
         )

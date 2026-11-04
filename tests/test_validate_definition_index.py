@@ -10,13 +10,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-SCRIPT = (
-    Path(__file__).resolve().parents[1]
-    / "skill"
-    / "dag"
-    / "scripts"
-    / "validate_definition_index.py"
-)
+SCRIPT = Path(__file__).resolve().parents[1] / "skill" / "dag" / "scripts" / "verify.py"
 
 
 def run_git(repository: Path, *arguments: str) -> str:
@@ -94,6 +88,7 @@ class DefinitionIndexValidatorTests(unittest.TestCase):
             [
                 sys.executable,
                 str(SCRIPT),
+                "definition-index",
                 "--repository",
                 str(repository),
                 "--commit",

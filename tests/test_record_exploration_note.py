@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "skill" / "dag" / "scripts" / "record_exploration_note.py"
+SCRIPT = ROOT / "skill" / "dag" / "scripts" / "publish.py"
 
 
 class ExplorationNoteTests(unittest.TestCase):
@@ -90,9 +90,13 @@ class ExplorationNoteTests(unittest.TestCase):
         context: Path | None = None,
         output: Path | None = None,
     ) -> subprocess.CompletedProcess[str]:
+        subcommand = (
+            "exploration-note" if context is None else "exploration-consumption"
+        )
         command = [
             sys.executable,
             str(SCRIPT),
+            subcommand,
             "--note",
             str(note or self.note),
             "--output",

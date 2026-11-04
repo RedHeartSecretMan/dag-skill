@@ -9,11 +9,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-CONTEXT_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "record_review_context.py"
-HANDLE_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "record_tool_artifact.py"
-RECORD_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "record_candidate_review.py"
-VERIFY_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "verify_candidate_review.py"
-PROMOTION_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "verify_promotion_package.py"
+PUBLISH_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "publish.py"
+VERIFY_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "verify.py"
 
 
 class CandidateReviewRecordTests(unittest.TestCase):
@@ -94,7 +91,8 @@ class CandidateReviewRecordTests(unittest.TestCase):
         result = subprocess.run(
             [
                 sys.executable,
-                str(CONTEXT_SCRIPT),
+                str(PUBLISH_SCRIPT),
+                "review-context",
                 "--context",
                 str(self.context),
                 "--output",
@@ -110,7 +108,8 @@ class CandidateReviewRecordTests(unittest.TestCase):
         result = subprocess.run(
             [
                 sys.executable,
-                str(HANDLE_SCRIPT),
+                str(PUBLISH_SCRIPT),
+                "artifact",
                 "--artifact",
                 str(self.review),
                 "--artifact-root",
@@ -142,7 +141,8 @@ class CandidateReviewRecordTests(unittest.TestCase):
         return subprocess.run(
             [
                 sys.executable,
-                str(RECORD_SCRIPT),
+                str(PUBLISH_SCRIPT),
+                "candidate-review",
                 "--context-capsule",
                 str(self.capsule),
                 "--review-handle",
@@ -174,12 +174,11 @@ class CandidateReviewRecordTests(unittest.TestCase):
             [
                 sys.executable,
                 str(VERIFY_SCRIPT),
+                "candidate-review",
                 "--record",
                 str(self.output),
                 "--context-capsule",
                 str(self.capsule),
-                "--review-handle",
-                str(self.handle),
                 "--artifact-root",
                 str(self.root),
                 "--expected-base-commit",
@@ -252,6 +251,10 @@ class CandidateReviewRecordTests(unittest.TestCase):
                     "kind": "Run Receipt",
                     "run_id": "run-1",
                     "coordinator_generation": 4,
+                    "accepted_integration_tip": {
+                        "commit": "a" * 40,
+                        "tree": "b" * 40,
+                    },
                     "claims": [
                         {
                             "schema_version": 1,
@@ -293,7 +296,8 @@ class CandidateReviewRecordTests(unittest.TestCase):
         output.parent.mkdir()
         command = [
             sys.executable,
-            str(PROMOTION_SCRIPT),
+            str(PUBLISH_SCRIPT),
+            "promotion-package",
             "--receipt",
             str(receipt),
             "--ticket-id",
@@ -302,8 +306,6 @@ class CandidateReviewRecordTests(unittest.TestCase):
             str(self.capsule),
             "--review-record",
             str(self.output),
-            "--review-handle",
-            str(self.handle),
             "--artifact-root",
             str(self.root),
             "--expected-tip-commit",

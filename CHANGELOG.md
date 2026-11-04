@@ -8,15 +8,20 @@
 
 ### Added
 
-- 新增 `record_tracker_policy.py` 与 `record_tracker_checkpoint.py`，在不解析 Markdown 或项目专属状态词的前提下，以 CAS 绑定运行级 `Tracker Policy`（`none` / `in_repo` / `external_snapshot`，默认拒绝 `definition_paths` 与 `tracker_paths` 重叠）和已完成的 `Tracker Checkpoint`（绑定处置、`policy_key`、`base`/`candidate` commit/tree、`changed_paths`、前后 Git blob 身份与证据 SHA-256）。
+- 新增运行级 `Tracker Policy`（`commit.py tracker-policy`，支持 `none` / `in_repo` / `external_snapshot`，默认拒绝 `definition_paths` 与 `tracker_paths` 重叠）和 `Tracker Checkpoint`（`verify.py` / `commit.py tracker-checkpoint`，绑定处置、`policy_key`、`base`/`candidate` commit/tree、`changed_paths`、前后 Git blob 身份与证据 SHA-256），在不解析 Markdown 或项目专属状态词的前提下通过 CAS 闭环 tracker 同步。
+- 新增 `commit.py receipt-init` 与 `commit.py transition`，补齐标准 `Run Receipt` 原子初始化及 `pending_transition` 冻结、取消与完成的 CAS 入口。
 
 ### Changed
 
+- 将 `skill/dag/scripts/` 收敛为 [`runtime.py`](./skill/dag/scripts/runtime.py)、[`verify.py`](./skill/dag/scripts/verify.py)、[`publish.py`](./skill/dag/scripts/publish.py)、[`commit.py`](./skill/dag/scripts/commit.py)、[`promote.py`](./skill/dag/scripts/promote.py) 5 个公开入口加内部 [`scripts/lib/`](./skill/dag/scripts/lib/)，并将 [`skill/dag/references/`](./skill/dag/references/) 收敛为 `definition-binding.md`、`scheduling.md`、`ticket-execution.md`、`execution-artifacts.md`、`integration-transitions.md`、`completion.md` 6 份主题参考文档。
 - Ticket 完成流程增加 Coordinator-owned `Tracker Policy`、Tracker Checkpoint、审查、Definition Checkpoint 和 readback 顺序；终态校验会交叉核对 Receipt dispositions、tracker 更新和最终 Accepted Integration Tip。
 
 ### Fixed
 
 - 修复代码与 Run Receipt 已完成但仓内 `.scratch` tracker 未同步仍可报告 `Complete` 的漏洞；legacy Run Receipt 必须升级 tracker policy 并补齐所需 checkpoint 后才能完成终态验收。
+- Admission claim 现在会回读并校验原始 request 的路径、SHA-256 与候选字段；过期或被篡改的 Promotion Evidence Package generation 会被拒绝。
+- `promote.py` 现在使用完整 Run Receipt/claim schema，并复验冻结的 Review Context、Candidate Review Record、review artifact 与当前 Accepted Integration Tip，防止手工拼出的最小 Receipt 或未冻结 package 推进集成 ref。
+- 修复 macOS `/var`、`/tmp` 系统路径别名被安全路径检查误判的问题，同时继续拒绝工作区内的不安全符号链接层级。
 
 ## [0.5.0] - 2026-10-27
 

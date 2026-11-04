@@ -8,7 +8,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "skill" / "dag" / "scripts" / "record_tool_artifact.py"
+PUBLISH_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "publish.py"
+VERIFY_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "verify.py"
 
 
 class ArtifactHandleTests(unittest.TestCase):
@@ -25,7 +26,8 @@ class ArtifactHandleTests(unittest.TestCase):
         return subprocess.run(
             [
                 sys.executable,
-                str(SCRIPT),
+                str(PUBLISH_SCRIPT),
+                "artifact",
                 "--artifact",
                 str(self.artifact),
                 "--artifact-root",
@@ -46,6 +48,24 @@ class ArtifactHandleTests(unittest.TestCase):
                 "2026-10-27T12:00:00Z",
                 "--environment-identity",
                 "host-1",
+                *extra,
+            ],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+
+    def verify(self, *extra: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run(
+            [
+                sys.executable,
+                str(VERIFY_SCRIPT),
+                "artifact",
+                "--handle",
+                str(self.output),
+                "--artifact-root",
+                str(self.root),
                 *extra,
             ],
             cwd=self.root,
@@ -75,8 +95,9 @@ class ArtifactHandleTests(unittest.TestCase):
         verified = subprocess.run(
             [
                 sys.executable,
-                str(SCRIPT),
-                "--verify",
+                str(VERIFY_SCRIPT),
+                "artifact",
+                "--handle",
                 str(self.output),
                 "--artifact-root",
                 str(self.root),
@@ -105,24 +126,11 @@ class ArtifactHandleTests(unittest.TestCase):
         self.assertEqual(self.invoke().returncode, 0)
         self.artifact.write_text("changed\n", encoding="utf-8")
 
-        verified = subprocess.run(
-            [
-                sys.executable,
-                str(SCRIPT),
-                "--verify",
-                str(self.output),
-                "--artifact-root",
-                str(self.root),
-            ],
-            cwd=self.root,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        verified = self.verify()
 
         self.assert_rejected(verified, "byte count does not match")
 
-    def test_rejects_symlink_artifact_and_invalid_combined_modes(self) -> None:
+    def test_rejects_symlink_artifact_and_unpaired_commit_tree(self) -> None:
         outside = self.root / "outside.txt"
         outside.write_text("outside\n", encoding="utf-8")
         self.artifact.unlink()
@@ -131,8 +139,8 @@ class ArtifactHandleTests(unittest.TestCase):
 
         self.artifact.unlink()
         self.artifact.write_text("tool output\n", encoding="utf-8")
-        combined = self.invoke("--verify", str(self.output))
-        self.assert_rejected(combined, "--verify cannot be combined")
+        unpaired = self.invoke("--commit", "a" * 40)
+        self.assert_rejected(unpaired, "commit and tree must be supplied together")
 
     def test_rejects_symlink_loop_without_traceback(self) -> None:
         loop = self.root / "loop"

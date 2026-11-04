@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "skill" / "dag" / "scripts" / "record_ticket_disposition.py"
+SCRIPT = ROOT / "skill" / "dag" / "scripts" / "commit.py"
 
 
 class TicketDispositionTests(unittest.TestCase):
@@ -20,6 +20,10 @@ class TicketDispositionTests(unittest.TestCase):
         self.receipt = self.root / "receipt.json"
         self.decision = self.root / "decision.json"
         self.promotion = self.root / "promotion.json"
+        self.review_context = self.root / "review-context.json"
+        self.review_record = self.root / "candidate-review.json"
+        self.review_context.write_text("review context\n", encoding="utf-8")
+        self.review_record.write_text("review record\n", encoding="utf-8")
         self.baseline = self.root / "baseline.json"
         self.evidence = self.root / "decision-evidence.txt"
         self.evidence.write_text("Coordinator decision evidence\n", encoding="utf-8")
@@ -118,6 +122,15 @@ class TicketDispositionTests(unittest.TestCase):
                     "review_context_key": "1" * 64,
                     "review_record_key": "2" * 64,
                     "review_artifact_sha256": "3" * 64,
+                    "review_context_ref": {
+                        "path": str(self.review_context),
+                        "sha256": self.digest(self.review_context),
+                    },
+                    "review_record_ref": {
+                        "path": str(self.review_record),
+                        "sha256": self.digest(self.review_record),
+                    },
+                    "artifact_root": str(self.root),
                     "fresh_review_required": True,
                     "promotion_allowed": True,
                 },
@@ -164,6 +177,7 @@ class TicketDispositionTests(unittest.TestCase):
         command = [
             sys.executable,
             str(SCRIPT),
+            "disposition",
             "--receipt",
             str(self.receipt),
             "--decision",
@@ -178,7 +192,7 @@ class TicketDispositionTests(unittest.TestCase):
                 [
                     "--promotion-evidence",
                     str(self.promotion),
-                    "--promotion-evidence-sha256",
+                    "--expected-promotion-sha256",
                     self.digest(self.promotion),
                 ]
             )
@@ -187,7 +201,7 @@ class TicketDispositionTests(unittest.TestCase):
                 [
                     "--baseline-evidence",
                     str(self.baseline),
-                    "--baseline-evidence-sha256",
+                    "--expected-baseline-sha256",
                     self.digest(self.baseline),
                 ]
             )
@@ -249,6 +263,19 @@ class TicketDispositionTests(unittest.TestCase):
         self.evidence.write_text("changed\n", encoding="utf-8")
 
         self.assert_rejected(self.invoke(), "SHA-256 does not match")
+
+    def test_rejects_stale_promotion_package_generation(self) -> None:
+        receipt = json.loads(self.receipt.read_text(encoding="utf-8"))
+        receipt["coordinator_generation"] = 5
+        self.receipt.write_text(json.dumps(receipt, sort_keys=True) + "\n")
+        decision = json.loads(self.decision.read_text(encoding="utf-8"))
+        decision["coordinator_generation"] = 5
+        self.decision.write_text(json.dumps(decision, sort_keys=True) + "\n")
+
+        self.assert_rejected(
+            self.invoke(generation=5, receipt_digest=self.digest(self.receipt)),
+            "receipt_generation does not match decision",
+        )
 
 
 if __name__ == "__main__":

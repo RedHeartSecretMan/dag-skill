@@ -12,12 +12,10 @@ from pathlib import Path
 from unittest import mock
 
 SCRIPT = (
-    Path(__file__).resolve().parents[1]
-    / "skill"
-    / "dag"
-    / "scripts"
-    / "promote_local_transition.py"
+    Path(__file__).resolve().parents[1] / "skill" / "dag" / "scripts" / "promote.py"
 )
+PUBLISH_SCRIPT = SCRIPT.parent / "publish.py"
+COMMIT_SCRIPT = SCRIPT.parent / "commit.py"
 INTEGRATION_REF = "refs/heads/integration"
 
 
@@ -107,7 +105,7 @@ class LocalPromotionTests(unittest.TestCase):
             str(self.repository),
             "--transition",
             str(self.transition),
-            "--sha256",
+            "--expected-transition-sha256",
             self.transition_digest if digest is None else digest,
         ]
         if promotion:
@@ -115,11 +113,11 @@ class LocalPromotionTests(unittest.TestCase):
                 [
                     "--promotion-evidence",
                     str(self.promotion_evidence),
-                    "--promotion-evidence-sha256",
+                    "--expected-promotion-sha256",
                     self.digest(self.promotion_evidence),
-                    "--promotion-receipt",
+                    "--receipt",
                     str(self.promotion_receipt),
-                    "--promotion-receipt-sha256",
+                    "--expected-receipt-sha256",
                     self.digest(self.promotion_receipt),
                 ]
             )
@@ -133,13 +131,47 @@ class LocalPromotionTests(unittest.TestCase):
 
     def write_promotion_evidence(self, *, candidate: str | None = None) -> None:
         candidate = candidate or self.candidate
-        self.promotion_evidence.write_text(
+        handle = self.record_directory / "review-handle.json"
+        context = self.record_directory / "review-context.json"
+        capsule = self.record_directory / "review-context-capsule.json"
+        review_record = self.record_directory / "candidate-review.json"
+        artifact_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLISH_SCRIPT),
+                "artifact",
+                "--artifact",
+                str(self.evidence),
+                "--artifact-root",
+                str(self.record_directory),
+                "--output",
+                str(handle),
+                "--artifact-kind",
+                "review-report",
+                "--command",
+                "code-review",
+                "--cwd",
+                str(self.repository),
+                "--exit-code",
+                "0",
+                "--duration-ms",
+                "10",
+                "--observed-at",
+                "2026-11-04T00:00:00Z",
+                "--environment-identity",
+                "test-host",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(artifact_result.returncode, 0, artifact_result.stderr)
+        context.write_text(
             json.dumps(
                 {
                     "schema_version": 1,
-                    "kind": "Promotion Evidence Package",
+                    "kind": "Review Context",
                     "run_id": "run-1",
-                    "receipt_generation": 4,
                     "ticket_id": "ticket-1",
                     "owner_id": "agent-1",
                     "claim_generation": 1,
@@ -150,36 +182,156 @@ class LocalPromotionTests(unittest.TestCase):
                         ),
                     },
                     "candidate": {
-                        "commit": candidate,
+                        "commit": self.candidate,
                         "tree": self.tree,
                         "range": "base..candidate",
-                        "commits": [candidate],
+                        "commits": [self.candidate],
                     },
-                    "review_context_key": "1" * 64,
-                    "review_record_key": "2" * 64,
-                    "review_artifact_sha256": "3" * 64,
-                    "fresh_review_required": True,
-                    "promotion_allowed": True,
-                },
-                sort_keys=True,
+                    "definition_identity": "sha256:" + "1" * 64,
+                    "changed_paths": ["product.txt"],
+                    "acceptance_obligations": [
+                        {
+                            "id": "obligation-1",
+                            "source": "ticket.md",
+                            "identity": "sha256:" + "2" * 64,
+                        }
+                    ],
+                    "required_gates": [],
+                    "evidence_refs": [],
+                    "exploration_refs": [],
+                }
             )
             + "\n",
             encoding="utf-8",
         )
+        for command in (
+            [
+                "review-context",
+                "--context",
+                str(context),
+                "--output",
+                str(capsule),
+            ],
+            [
+                "candidate-review",
+                "--context-capsule",
+                str(capsule),
+                "--review-handle",
+                str(handle),
+                "--artifact-root",
+                str(self.record_directory),
+                "--output",
+                str(review_record),
+            ],
+        ):
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    str(PUBLISH_SCRIPT),
+                    *command,
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+
         self.promotion_receipt.write_text(
             json.dumps(
                 {
                     "schema_version": 1,
                     "kind": "Run Receipt",
                     "run_id": "run-1",
-                    "coordinator_generation": 4,
-                    "claims": [{"ticket_id": "ticket-1", "claim_generation": 1}],
+                    "coordinator_generation": 1,
+                    "accepted_integration_tip": {
+                        "commit": self.base,
+                        "tree": git(
+                            self.repository, "rev-parse", f"{self.base}^{{tree}}"
+                        ),
+                    },
+                    "claims": [
+                        {
+                            "schema_version": 1,
+                            "kind": "Execution Claim",
+                            "ticket_id": "ticket-1",
+                            "owner_id": "agent-1",
+                            "claim_generation": 1,
+                            "workspace": str(self.root / "workspace"),
+                            "branch": "refs/heads/codex/ticket-1",
+                            "phase": "promotion",
+                            "ticket_base": {
+                                "commit": self.base,
+                                "tree": git(
+                                    self.repository,
+                                    "rev-parse",
+                                    f"{self.base}^{{tree}}",
+                                ),
+                            },
+                            "changed_paths": ["product.txt"],
+                            "shared_interfaces": [],
+                            "resources": [
+                                {
+                                    "resource": "agent_slots",
+                                    "quantity": 1,
+                                    "mode": "exclusive",
+                                }
+                            ],
+                            "lane": "promotion",
+                            "request_sha256": "3" * 64,
+                            "decision_sha256": "4" * 64,
+                        }
+                    ],
+                    "execution_records": [],
                 },
                 sort_keys=True,
             )
             + "\n",
             encoding="utf-8",
         )
+        package_result = subprocess.run(
+            [
+                sys.executable,
+                str(PUBLISH_SCRIPT),
+                "promotion-package",
+                "--receipt",
+                str(self.promotion_receipt),
+                "--ticket-id",
+                "ticket-1",
+                "--context-capsule",
+                str(capsule),
+                "--review-record",
+                str(review_record),
+                "--artifact-root",
+                str(self.record_directory),
+                "--expected-tip-commit",
+                self.base,
+                "--expected-tip-tree",
+                git(self.repository, "rev-parse", f"{self.base}^{{tree}}"),
+                "--output",
+                str(self.promotion_evidence),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(package_result.returncode, 0, package_result.stderr)
+        if candidate != self.candidate:
+            package = json.loads(self.promotion_evidence.read_text(encoding="utf-8"))
+            package["candidate"]["commit"] = candidate
+            package["candidate"]["commits"] = [candidate]
+            self.promotion_evidence.write_text(
+                json.dumps(package, sort_keys=True) + "\n", encoding="utf-8"
+            )
+        self.payload["evidence"] = [
+            {"path": path.name, "sha256": self.digest(path)}
+            for path in (
+                self.evidence,
+                capsule,
+                review_record,
+                self.promotion_evidence,
+            )
+        ]
+        self.freeze()
 
     def assert_rejected(
         self, result: subprocess.CompletedProcess[str], expected: str
@@ -258,6 +410,195 @@ class LocalPromotionTests(unittest.TestCase):
         )
 
         self.assertEqual(git(self.repository, "rev-parse", INTEGRATION_REF), before)
+
+    def test_rejects_tampered_receipt_claim_before_cas(self) -> None:
+        self.write_promotion_evidence()
+        receipt = json.loads(self.promotion_receipt.read_text(encoding="utf-8"))
+        receipt["claims"][0]["owner_id"] = "other-agent"
+        self.promotion_receipt.write_text(
+            json.dumps(receipt, sort_keys=True) + "\n", encoding="utf-8"
+        )
+
+        self.assert_rejected(
+            self.promote(promotion=True),
+            "promotion receipt claim owner does not match package",
+        )
+
+    def test_rejects_coherently_replaced_owner_outside_frozen_review(self) -> None:
+        self.write_promotion_evidence()
+        package = json.loads(self.promotion_evidence.read_text(encoding="utf-8"))
+        package["owner_id"] = "other-agent"
+        self.promotion_evidence.write_text(
+            json.dumps(package, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        receipt = json.loads(self.promotion_receipt.read_text(encoding="utf-8"))
+        receipt["claims"][0]["owner_id"] = "other-agent"
+        self.promotion_receipt.write_text(
+            json.dumps(receipt, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        package_evidence = next(
+            item
+            for item in self.payload["evidence"]
+            if item["path"] == self.promotion_evidence.name
+        )
+        package_evidence["sha256"] = self.digest(self.promotion_evidence)
+        self.freeze()
+
+        self.assert_rejected(
+            self.promote(promotion=True),
+            "promotion evidence review owner_id does not match",
+        )
+
+    def test_rejects_promotion_package_outside_frozen_evidence(self) -> None:
+        self.write_promotion_evidence()
+        self.payload["evidence"] = [
+            item
+            for item in self.payload["evidence"]
+            if item["path"] != self.promotion_evidence.name
+        ]
+        self.freeze()
+
+        self.assert_rejected(
+            self.promote(promotion=True),
+            "must be part of the frozen Transition evidence",
+        )
+
+    def test_rejects_stale_receipt_tip_and_tampered_review_ref(self) -> None:
+        self.write_promotion_evidence()
+        receipt = json.loads(self.promotion_receipt.read_text(encoding="utf-8"))
+        receipt["accepted_integration_tip"]["commit"] = "9" * len(self.base)
+        self.promotion_receipt.write_text(
+            json.dumps(receipt, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        self.assert_rejected(
+            self.promote(promotion=True),
+            "Accepted Integration Tip does not match package",
+        )
+
+        self.write_promotion_evidence()
+        package = json.loads(self.promotion_evidence.read_text(encoding="utf-8"))
+        package["review_record_ref"]["sha256"] = "0" * 64
+        self.promotion_evidence.write_text(
+            json.dumps(package, sort_keys=True) + "\n", encoding="utf-8"
+        )
+        package_evidence = next(
+            item
+            for item in self.payload["evidence"]
+            if item["path"] == self.promotion_evidence.name
+        )
+        package_evidence["sha256"] = self.digest(self.promotion_evidence)
+        self.freeze()
+        self.assert_rejected(
+            self.promote(promotion=True),
+            "review_record_ref SHA-256 does not match",
+        )
+
+    def test_full_transition_freeze_promote_complete_and_disposition_chain(
+        self,
+    ) -> None:
+        self.write_promotion_evidence()
+        freeze_res = subprocess.run(
+            [
+                sys.executable,
+                str(COMMIT_SCRIPT),
+                "transition",
+                "--receipt",
+                str(self.promotion_receipt),
+                "--action",
+                "freeze",
+                "--transition",
+                str(self.transition),
+                "--expected-transition-sha256",
+                self.transition_digest,
+                "--expected-generation",
+                "1",
+                "--expected-receipt-sha256",
+                self.digest(self.promotion_receipt),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(freeze_res.returncode, 0, freeze_res.stderr)
+
+        promoted = self.promote(promotion=True)
+        self.assertEqual(promoted.returncode, 0, promoted.stderr)
+
+        complete_res = subprocess.run(
+            [
+                sys.executable,
+                str(COMMIT_SCRIPT),
+                "transition",
+                "--receipt",
+                str(self.promotion_receipt),
+                "--action",
+                "complete",
+                "--transition",
+                str(self.transition),
+                "--expected-transition-sha256",
+                self.transition_digest,
+                "--expected-generation",
+                "2",
+                "--expected-receipt-sha256",
+                self.digest(self.promotion_receipt),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(complete_res.returncode, 0, complete_res.stderr)
+
+        decision = self.record_directory / "disposition-decision.json"
+        decision.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "kind": "Ticket Disposition Decision",
+                    "run_id": "run-1",
+                    "coordinator_generation": 3,
+                    "ticket_id": "ticket-1",
+                    "claim_generation": 1,
+                    "disposition": "Accepted",
+                    "rule_identity": "rule:acceptance-v1",
+                    "decided_by": "coordinator-1",
+                    "decided_at": "2026-11-04T00:05:00Z",
+                    "rationale": "Promoted and accepted Ticket-1.",
+                    "evidence_refs": [
+                        {
+                            "id": "review-evidence",
+                            "path": str(self.evidence),
+                            "sha256": self.digest(self.evidence),
+                        }
+                    ],
+                },
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        disp_res = subprocess.run(
+            [
+                sys.executable,
+                str(COMMIT_SCRIPT),
+                "disposition",
+                "--receipt",
+                str(self.promotion_receipt),
+                "--decision",
+                str(decision),
+                "--promotion-evidence",
+                str(self.promotion_evidence),
+                "--expected-promotion-sha256",
+                self.digest(self.promotion_evidence),
+                "--expected-generation",
+                "3",
+                "--expected-receipt-sha256",
+                self.digest(self.promotion_receipt),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(disp_res.returncode, 0, disp_res.stderr)
 
     def test_recovers_the_same_frozen_transition_after_promotion(self) -> None:
         self.assertEqual(self.promote().returncode, 0)

@@ -1,15 +1,15 @@
-"""Validate the canonical DAG Definition Index at one Git commit."""
+"""Isolated Git execution, Definition Index validation, and local ref inspection."""
 
 from __future__ import annotations
 
-import argparse
 import json
 import os
 import re
 import subprocess
-import sys
 import unicodedata
 from pathlib import Path, PurePosixPath
+
+from lib.common import MAX_JSON_INTEGER_DIGITS
 
 INDEX_PATH = ".dag/definition-index.json"
 REGULAR_BLOB_MODES = {"100644", "100755"}
@@ -36,7 +36,7 @@ SAFE_GIT_ENVIRONMENT = {
 
 
 class ValidationError(RuntimeError):
-    """A deterministic, user-actionable Definition Index failure."""
+    """A deterministic, user-actionable Git or Definition Index validation failure."""
 
 
 def is_normalized_safe_path(path: object) -> bool:
@@ -71,6 +71,12 @@ def unique_json_object(pairs: list[tuple[str, object]]) -> dict[str, object]:
             raise ValidationError(f"duplicate JSON field: {name}")
         result[name] = value
     return result
+
+
+def parse_git_integer(value: str) -> int:
+    if len(value.lstrip("-")) > MAX_JSON_INTEGER_DIGITS:
+        raise ValueError("JSON integer is oversized")
+    return int(value)
 
 
 def is_git_lfs_pointer(content: bytes) -> bool:
@@ -150,6 +156,33 @@ def run_git(repository: Path, arguments: list[str]) -> bytes:
     return result.stdout
 
 
+def git_probe(
+    repository: Path, arguments: list[str]
+) -> subprocess.CompletedProcess[bytes]:
+    return subprocess.run(
+        ["git", *arguments],
+        cwd=repository,
+        capture_output=True,
+        check=False,
+        env=isolated_git_environment(),
+    )
+
+
+def read_direct_ref(repository: Path, integration_ref: str) -> str:
+    symbolic = git_probe(repository, ["symbolic-ref", "--quiet", integration_ref])
+    if symbolic.returncode == 0:
+        raise ValidationError("integration_ref must not be symbolic")
+    if symbolic.returncode != 1:
+        raise ValidationError(
+            "could not inspect integration_ref for symbolic indirection"
+        )
+    return (
+        run_git(repository, ["show-ref", "--verify", "--hash", integration_ref])
+        .decode("ascii")
+        .strip()
+    )
+
+
 def tree_entries_for_paths(
     repository: Path, commit_oid: str, paths: list[str]
 ) -> dict[str, tuple[str, str, str]]:
@@ -203,7 +236,11 @@ def validate_definition_index(repository: Path, commit: str) -> dict[str, object
     except UnicodeDecodeError as error:
         raise ValidationError("index must be UTF-8 JSON") from error
     try:
-        payload = json.loads(index_text, object_pairs_hook=unique_json_object)
+        payload = json.loads(
+            index_text,
+            object_pairs_hook=unique_json_object,
+            parse_int=parse_git_integer,
+        )
     except (ValueError, RecursionError) as error:
         raise ValidationError(f"index JSON could not be decoded: {error}") from error
     if not isinstance(payload, dict):
@@ -262,31 +299,3 @@ def validate_definition_index(repository: Path, commit: str) -> dict[str, object
         "inputs": inputs,
         "schema_version": payload["schema_version"],
     }
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="Validate .dag/definition-index.json at one exact Git commit."
-    )
-    parser.add_argument("--repository", required=True, type=Path)
-    parser.add_argument("--commit", required=True)
-    arguments = parser.parse_args()
-
-    try:
-        result = validate_definition_index(arguments.repository, arguments.commit)
-    except (
-        OSError,
-        ValidationError,
-        UnicodeDecodeError,
-        KeyError,
-        TypeError,
-    ) as error:
-        print(f"error: {error}", file=sys.stderr)
-        return 1
-
-    print(json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(",", ":")))
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

@@ -9,8 +9,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-PLANNER = ROOT / "skill" / "dag" / "scripts" / "plan_execution_admission.py"
-CLAIM_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "record_execution_claim.py"
+PUBLISH_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "publish.py"
+COMMIT_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "commit.py"
 
 
 def digest(path: Path) -> str:
@@ -30,7 +30,8 @@ class ExecutionClaimTests(unittest.TestCase):
         planner = subprocess.run(
             [
                 sys.executable,
-                str(PLANNER),
+                str(PUBLISH_SCRIPT),
+                "admission-decision",
                 "--request",
                 str(self.request),
                 "--output",
@@ -136,11 +137,10 @@ class ExecutionClaimTests(unittest.TestCase):
         return subprocess.run(
             [
                 sys.executable,
-                str(CLAIM_SCRIPT),
+                str(COMMIT_SCRIPT),
+                "claim",
                 "--receipt",
                 str(self.receipt),
-                "--request",
-                str(self.request),
                 "--decision",
                 str(self.decision),
                 "--claim",
@@ -199,13 +199,26 @@ class ExecutionClaimTests(unittest.TestCase):
         self.assert_rejected(self.invoke(), "changed_paths do not match")
         self.assertEqual(self.receipt.read_bytes(), before)
 
-    def test_rejects_decision_from_different_request(self) -> None:
-        self.request.write_text(
-            self.request.read_text(encoding="utf-8").replace("src/a.py", "src/b.py"),
+    def test_rejects_unselected_ticket_in_decision(self) -> None:
+        claim = json.loads(self.claim.read_text(encoding="utf-8"))
+        claim["ticket_id"] = "ticket-unselected"
+        self.claim.write_text(
+            json.dumps(claim),
             encoding="utf-8",
         )
 
-        self.assert_rejected(self.invoke(), "not produced from this request")
+        self.assert_rejected(
+            self.invoke(), "was not accepted by the admission decision"
+        )
+
+    def test_rejects_tampered_decision_against_bound_request(self) -> None:
+        decision = json.loads(self.decision.read_text(encoding="utf-8"))
+        decision["selected"][0]["changed_paths"] = ["src/tampered.py"]
+        self.decision.write_text(json.dumps(decision), encoding="utf-8")
+
+        self.assert_rejected(
+            self.invoke(), "changed_paths do not match its source request"
+        )
 
     def test_rejects_invalid_ticket_base(self) -> None:
         self.write_claim()

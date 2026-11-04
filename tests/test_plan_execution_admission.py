@@ -8,7 +8,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-SCRIPT = ROOT / "skill" / "dag" / "scripts" / "plan_execution_admission.py"
+SCRIPT = ROOT / "skill" / "dag" / "scripts" / "publish.py"
 
 
 class AdmissionPlannerTests(unittest.TestCase):
@@ -90,6 +90,7 @@ class AdmissionPlannerTests(unittest.TestCase):
             [
                 sys.executable,
                 str(SCRIPT),
+                "admission-decision",
                 "--request",
                 str(self.request),
                 "--output",

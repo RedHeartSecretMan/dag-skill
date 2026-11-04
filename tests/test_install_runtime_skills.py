@@ -13,11 +13,7 @@ from pathlib import Path, PurePosixPath, PureWindowsPath
 from unittest import mock
 
 SCRIPT = (
-    Path(__file__).resolve().parents[1]
-    / "skill"
-    / "dag"
-    / "scripts"
-    / "install_runtime_skills.py"
+    Path(__file__).resolve().parents[1] / "skill" / "dag" / "scripts" / "runtime.py"
 )
 SPEC = importlib.util.spec_from_file_location("dag_install_runtime_skills", SCRIPT)
 assert SPEC is not None and SPEC.loader is not None

@@ -9,11 +9,10 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-POLICY_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "record_tracker_policy.py"
-CHECKPOINT_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "record_tracker_checkpoint.py"
-PROMOTE_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "promote_local_transition.py"
-PLANNER = ROOT / "skill" / "dag" / "scripts" / "plan_execution_admission.py"
-CLAIM_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "record_execution_claim.py"
+COMMIT_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "commit.py"
+VERIFY_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "verify.py"
+PROMOTE_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "promote.py"
+PUBLISH_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "publish.py"
 
 
 def digest(path: Path) -> str:
@@ -31,9 +30,7 @@ class TrackerCheckpointTests(unittest.TestCase):
         self.off_delivery.mkdir()
         self.receipt = self.off_delivery / "run-receipt.json"
         self.policy_file = self.off_delivery / "tracker-policy.json"
-        self.policy_record = self.off_delivery / "tracker-policy-record.json"
         self.checkpoint_file = self.off_delivery / "tracker-checkpoint.json"
-        self.checkpoint_record = self.off_delivery / "tracker-checkpoint-record.json"
         self.review_artifact = self.off_delivery / "tracker-review.md"
         self.review_artifact.write_text(
             "Independent Standards/Spec review: no blocking finding.\n",
@@ -103,7 +100,6 @@ class TrackerCheckpointTests(unittest.TestCase):
         *,
         tracker_paths: list[str] | None = None,
         stateful_decision: dict[str, object] | None = None,
-        policy_out: Path | None = None,
     ) -> str:
         self.receipt.write_text(
             json.dumps(
@@ -189,25 +185,23 @@ class TrackerCheckpointTests(unittest.TestCase):
         self.policy_file.write_text(
             json.dumps(policy_payload, sort_keys=True) + "\n", encoding="utf-8"
         )
-        target_out = policy_out or self.policy_record
         res = subprocess.run(
             [
                 sys.executable,
-                str(POLICY_SCRIPT),
-                "--receipt",
-                str(self.receipt),
-                "--policy",
-                str(self.policy_file),
-                "--output",
-                str(target_out),
-                "--expected-generation",
-                "1",
-                "--expected-receipt-sha256",
-                digest(self.receipt),
+                str(COMMIT_SCRIPT),
+                "tracker-policy",
                 "--repository",
                 str(self.repo),
                 "--commit",
                 self.base_commit,
+                "--receipt",
+                str(self.receipt),
+                "--policy",
+                str(self.policy_file),
+                "--expected-generation",
+                "1",
+                "--expected-receipt-sha256",
+                digest(self.receipt),
             ],
             capture_output=True,
             text=True,
@@ -264,7 +258,7 @@ class TrackerCheckpointTests(unittest.TestCase):
                     str(self.repo),
                     "--transition",
                     str(transition),
-                    "--sha256",
+                    "--expected-transition-sha256",
                     digest(transition),
                 ],
                 capture_output=True,
@@ -318,37 +312,41 @@ class TrackerCheckpointTests(unittest.TestCase):
         *,
         generation: int | None = 2,
         receipt_digest: str | None = None,
-        output: Path | None = None,
         preflight: bool = False,
     ) -> subprocess.CompletedProcess[str]:
         if payload is not None:
             self.checkpoint_file.write_text(
                 json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8"
             )
-        command = [
-            sys.executable,
-            str(CHECKPOINT_SCRIPT),
-            "--repository",
-            str(self.repo),
-            "--receipt",
-            str(self.receipt),
-            "--checkpoint",
-            str(self.checkpoint_file),
-            "--output",
-            str(output or self.checkpoint_record),
-        ]
         if preflight:
-            command.append("--preflight")
+            command = [
+                sys.executable,
+                str(VERIFY_SCRIPT),
+                "tracker-checkpoint",
+                "--repository",
+                str(self.repo),
+                "--receipt",
+                str(self.receipt),
+                "--checkpoint",
+                str(self.checkpoint_file),
+            ]
         else:
             assert generation is not None
-            command.extend(
-                [
-                    "--expected-generation",
-                    str(generation),
-                    "--expected-receipt-sha256",
-                    receipt_digest or digest(self.receipt),
-                ]
-            )
+            command = [
+                sys.executable,
+                str(COMMIT_SCRIPT),
+                "tracker-checkpoint",
+                "--repository",
+                str(self.repo),
+                "--receipt",
+                str(self.receipt),
+                "--checkpoint",
+                str(self.checkpoint_file),
+                "--expected-generation",
+                str(generation),
+                "--expected-receipt-sha256",
+                receipt_digest or digest(self.receipt),
+            ]
         return subprocess.run(
             command,
             cwd=self.root,
@@ -396,9 +394,9 @@ class TrackerCheckpointTests(unittest.TestCase):
                 }
             ],
         )
-        preflight_out = self.off_delivery / "preflight.json"
-        pre = self.invoke(payload, output=preflight_out, preflight=True)
+        pre = self.invoke(payload, preflight=True)
         self.assertEqual(pre.returncode, 0, pre.stderr)
+        self.assertEqual(json.loads(pre.stdout)["status"], "verified")
         self.assert_rejected(self.invoke(payload), "integration_ref")
 
         # Promote Definition Checkpoint + readback, then record Tracker Checkpoint.
@@ -413,10 +411,6 @@ class TrackerCheckpointTests(unittest.TestCase):
                     "candidate": commit,
                     "candidate_tree": tree,
                     "evidence": [
-                        {
-                            "path": preflight_out.name,
-                            "sha256": digest(preflight_out),
-                        },
                         {
                             "path": self.review_artifact.name,
                             "sha256": digest(self.review_artifact),
@@ -435,7 +429,7 @@ class TrackerCheckpointTests(unittest.TestCase):
                 str(self.repo),
                 "--transition",
                 str(transition),
-                "--sha256",
+                "--expected-transition-sha256",
                 digest(transition),
             ],
             capture_output=True,
@@ -450,6 +444,10 @@ class TrackerCheckpointTests(unittest.TestCase):
         self.assertEqual(receipt_after["coordinator_generation"], 3)
         self.assertEqual(receipt_after["pending_tracker_updates"], [])
         self.assertEqual(len(receipt_after["tracker_checkpoints"]), 1)
+        self.assertEqual(
+            receipt_after["accepted_integration_tip"],
+            {"commit": commit, "tree": tree},
+        )
 
         # Idempotent retry does not increment generation or duplicate checkpoints.
         second = self.invoke(generation=3, receipt_digest=digest(self.receipt))
@@ -506,7 +504,8 @@ class TrackerCheckpointTests(unittest.TestCase):
         subprocess.run(
             [
                 sys.executable,
-                str(PLANNER),
+                str(PUBLISH_SCRIPT),
+                "admission-decision",
                 "--request",
                 str(req),
                 "--output",
@@ -543,11 +542,10 @@ class TrackerCheckpointTests(unittest.TestCase):
         claim_res = subprocess.run(
             [
                 sys.executable,
-                str(CLAIM_SCRIPT),
+                str(COMMIT_SCRIPT),
+                "claim",
                 "--receipt",
                 str(self.receipt),
-                "--request",
-                str(req),
                 "--decision",
                 str(dec),
                 "--claim",
@@ -566,7 +564,6 @@ class TrackerCheckpointTests(unittest.TestCase):
     def test_accepts_external_snapshot_and_enforces_exact_blob_identities(self) -> None:
         policy_key = self.init_receipt_and_policy(
             "external_snapshot",
-            policy_out=self.off_delivery / "ext-policy-record.json",
         )
         commit, tree, after_oids = self.create_candidate_commit(
             {
@@ -607,10 +604,7 @@ class TrackerCheckpointTests(unittest.TestCase):
                 }
             ],
         )
-        ok = self.invoke(
-            exact_blob,
-            output=self.off_delivery / "ext-checkpoint-record.json",
-        )
+        ok = self.invoke(exact_blob)
         self.assertEqual(ok.returncode, 0, ok.stderr)
 
     def test_rejects_stale_policy_stale_checkpoint_and_stale_generation(self) -> None:
@@ -626,25 +620,23 @@ class TrackerCheckpointTests(unittest.TestCase):
         self.policy_file.write_text(
             json.dumps(updated_policy, sort_keys=True) + "\n", encoding="utf-8"
         )
-        new_policy_out = self.off_delivery / "policy-record-v2.json"
         pol_res = subprocess.run(
             [
                 sys.executable,
-                str(POLICY_SCRIPT),
-                "--receipt",
-                str(self.receipt),
-                "--policy",
-                str(self.policy_file),
-                "--output",
-                str(new_policy_out),
-                "--expected-generation",
-                "2",
-                "--expected-receipt-sha256",
-                digest(self.receipt),
+                str(COMMIT_SCRIPT),
+                "tracker-policy",
                 "--repository",
                 str(self.repo),
                 "--commit",
                 self.base_commit,
+                "--receipt",
+                str(self.receipt),
+                "--policy",
+                str(self.policy_file),
+                "--expected-generation",
+                "2",
+                "--expected-receipt-sha256",
+                digest(self.receipt),
             ],
             capture_output=True,
             text=True,
@@ -715,7 +707,6 @@ class TrackerCheckpointTests(unittest.TestCase):
                 "overlapping_paths": ["specs/tickets/01.md"],
                 "rationale": "Project mixes definition and status in specs/tickets/01.md.",
             },
-            policy_out=self.off_delivery / "stateful-policy-record.json",
         )
         # Modifying specs/tickets/01.md WITHOUT updating .dag/definition-index.json fails.
         bad_commit, bad_tree, bad_oids = self.create_candidate_commit(
@@ -784,10 +775,7 @@ class TrackerCheckpointTests(unittest.TestCase):
                 },
             ],
         )
-        ok = self.invoke(
-            good_payload,
-            output=self.off_delivery / "stateful-checkpoint-record.json",
-        )
+        ok = self.invoke(good_payload)
         self.assertEqual(ok.returncode, 0, ok.stderr)
 
 

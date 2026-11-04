@@ -9,8 +9,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-RECORD_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "record_execution_checkpoint.py"
-INDEX_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "index_execution_record.py"
+PUBLISH_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "publish.py"
+COMMIT_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "commit.py"
 
 
 def digest(path: Path) -> str:
@@ -158,7 +158,8 @@ class RunReceiptIndexTests(unittest.TestCase):
         result = subprocess.run(
             [
                 sys.executable,
-                str(RECORD_SCRIPT),
+                str(PUBLISH_SCRIPT),
+                "execution-record",
                 "--capsule",
                 str(self.capsule),
                 "--checkpoint",
@@ -187,7 +188,8 @@ class RunReceiptIndexTests(unittest.TestCase):
         return subprocess.run(
             [
                 sys.executable,
-                str(INDEX_SCRIPT),
+                str(COMMIT_SCRIPT),
+                "execution-record",
                 "--receipt",
                 str(receipt),
                 "--record",
@@ -287,6 +289,141 @@ class RunReceiptIndexTests(unittest.TestCase):
         self.receipt.symlink_to(real_receipt)
 
         self.assert_rejected(self.invoke(), "regular non-symlink")
+
+    def test_receipt_init_and_transition_lifecycle_subcommands(self) -> None:
+        init_input = self.root / "receipt-init.json"
+        new_receipt = self.root / "initialized-receipt.json"
+        init_input.write_text(
+            json.dumps(
+                {
+                    "run_id": "run-init",
+                    "integration_ref": "refs/heads/codex/integration",
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        init_res = subprocess.run(
+            [
+                sys.executable,
+                str(COMMIT_SCRIPT),
+                "receipt-init",
+                "--receipt",
+                str(new_receipt),
+                "--init",
+                str(init_input),
+            ],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(init_res.returncode, 0, init_res.stderr)
+        init_body = json.loads(init_res.stdout)
+        self.assertEqual(init_body["status"], "initialized")
+        self.assertEqual(init_body["coordinator_generation"], 0)
+
+        second_init = subprocess.run(
+            [
+                sys.executable,
+                str(COMMIT_SCRIPT),
+                "receipt-init",
+                "--receipt",
+                str(new_receipt),
+                "--init",
+                str(init_input),
+            ],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(second_init.returncode, 0, second_init.stderr)
+        self.assertEqual(
+            json.loads(second_init.stdout)["status"], "already-initialized"
+        )
+
+        transition_file = self.root / "pending-transition.json"
+        transition_file.write_text(
+            json.dumps(
+                {
+                    "schema_version": 1,
+                    "candidate_kind": "Promotion Candidate",
+                    "integration_ref": "refs/heads/codex/integration",
+                    "base": "a" * 40,
+                    "candidate": "c" * 40,
+                    "candidate_tree": "d" * 40,
+                    "evidence": [
+                        {
+                            "path": str(self.evidence),
+                            "sha256": digest(self.evidence),
+                        }
+                    ],
+                }
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        freeze_res = subprocess.run(
+            [
+                sys.executable,
+                str(COMMIT_SCRIPT),
+                "transition",
+                "--receipt",
+                str(new_receipt),
+                "--action",
+                "freeze",
+                "--transition",
+                str(transition_file),
+                "--expected-transition-sha256",
+                digest(transition_file),
+                "--expected-generation",
+                "0",
+                "--expected-receipt-sha256",
+                init_body["receipt_sha256"],
+            ],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(freeze_res.returncode, 0, freeze_res.stderr)
+        frozen_body = json.loads(freeze_res.stdout)
+        self.assertEqual(frozen_body["status"], "frozen")
+
+        complete_res = subprocess.run(
+            [
+                sys.executable,
+                str(COMMIT_SCRIPT),
+                "transition",
+                "--receipt",
+                str(new_receipt),
+                "--action",
+                "complete",
+                "--transition",
+                str(transition_file),
+                "--expected-transition-sha256",
+                digest(transition_file),
+                "--synchronized-commit",
+                "c" * 40,
+                "--expected-generation",
+                str(frozen_body["coordinator_generation"]),
+                "--expected-receipt-sha256",
+                frozen_body["receipt_sha256"],
+            ],
+            cwd=self.root,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(complete_res.returncode, 0, complete_res.stderr)
+        completed_receipt = json.loads(new_receipt.read_text(encoding="utf-8"))
+        self.assertIsNone(completed_receipt["pending_transition"])
+        self.assertEqual(
+            completed_receipt["accepted_integration_tip"],
+            {"commit": "c" * 40, "tree": "d" * 40},
+        )
+        self.assertEqual(completed_receipt["last_synchronized_commit"], "c" * 40)
 
 
 if __name__ == "__main__":

@@ -27,11 +27,19 @@ Use the Target Project's tracker as the recovery store only when it remains off-
 | --- | --- |
 | Integration | Starting Base; Accepted Integration Tip once established; local integration ref; publication mode; selected remote/ref and last synchronized commit when applicable |
 | Definition | Index identity and validated result; selected input identities; binding commit/tree and latest completed Definition checkpoint |
-| Tracker | Recorded `Tracker Policy` (`policy_key`, `mode`, `definition_paths`, `tracker_paths`, `update_scope`, optional `stateful_tracker_decision`), `pending_tracker_updates`, and completed `Tracker Checkpoint` records |
+| Tracker | Recorded `Tracker Policy` (`policy_key`, `mode`, `definition_paths`, `tracker_paths`, `update_scope`, optional `stateful_tracker_decision`), `pending_tracker_updates`, and completed `Tracker Checkpoint` entries |
 | Capability | Verified Agent Host, Python 3.12+ executable, stable Skills root, Runtime Skill source commits and content identities |
 | Ticket ownership | Claims, Agent liveness, Ticket Base, candidate, branch/worktree and WIP pointers; Execution Outcomes and their evidence |
 | Outstanding work | Pending tracker update or typed Integration Transition; authorized external operation request and native lookup/idempotency identities, result/readback pointers and unresolved conditions; decisions and external closing conditions with owners and next actions |
 | Resources | Run-owned resources, ownership, retained evidence and recovery pointers, and disposition |
+
+Initialize a new Run Receipt at `coordinator_generation: 0` with:
+
+```bash
+python3 <this-skill-root>/scripts/commit.py receipt-init \
+  --receipt <off-delivery>/run-receipt.json \
+  --init <off-delivery>/receipt-init.json
+```
 
 Link complete reports instead of copying them into the receipt. The receipt indexes the tracked Definition binding; it never replaces it or enters delivery history. Target Project-required stable tracker or acceptance evidence enters history through an authorized Definition checkpoint, whose own completion record remains off-delivery.
 
@@ -53,6 +61,36 @@ Select Starting Base only from a Target Project rule, explicit user instruction,
 Any missing ref, other SHA, or incomplete receipt is drift. Preserve refs and evidence and obtain explicit reconciliation.
 
 Frozen evidence is immutable within one pending Transition. On a Base match, changed or invalid review, gate, disposition, audit, Base, or candidate identity requires the Coordinator Agent to cancel the pending Integration Transition before local promotion, preserve its record as superseded evidence, and create and freeze a new Integration Transition. On a candidate match, evidence replacement is impossible.
+
+Use `scripts/commit.py transition` to freeze, cancel, or complete `pending_transition` in the Run Receipt through locked CAS:
+
+```bash
+python3 <this-skill-root>/scripts/commit.py transition \
+  --receipt <off-delivery>/run-receipt.json \
+  --action freeze \
+  --transition <off-delivery>/pending-transition.json \
+  --expected-transition-sha256 <verified-transition-sha256> \
+  --expected-generation <current-coordinator-generation> \
+  --expected-receipt-sha256 <current-receipt-sha256>
+```
+
+## Publish the Promotion Evidence Package
+
+Immediately before a `Promotion Candidate` enters the serialized Integration Transition, run `scripts/publish.py promotion-package` to bind the current Run Receipt claim, current Accepted Integration Tip, `Review Context Capsule`, `Candidate Review Record`, and embedded review `Artifact Handle`:
+
+```bash
+python3 <this-skill-root>/scripts/publish.py promotion-package \
+  --receipt <off-delivery>/run-receipt.json \
+  --ticket-id <ticket-id> \
+  --context-capsule <off-delivery>/review/review-context-capsule.json \
+  --review-record <off-delivery>/review/candidate-review-record.json \
+  --artifact-root <off-delivery-or-workspace> \
+  --expected-tip-commit <accepted-tip-commit> \
+  --expected-tip-tree <accepted-tip-tree> \
+  --output <off-delivery>/promotion/promotion-evidence.json
+```
+
+The helper requires exactly one live claim for the Ticket, verifies the claim owner, generation, Base, context Capsule, candidate identities, fresh review flag, `review_context_key`, `review_record_key`, and review artifact digest, and requires the claim Base and `receipt.accepted_integration_tip` to equal the expected current Accepted Integration Tip. On success it publishes a `Promotion Evidence Package` with `promotion_allowed: true`, digest-bound `review_context_ref` and `review_record_ref`, and the review `artifact_root` as a mechanical preflight.
 
 ## Initialize Remote-mirrored
 
@@ -86,11 +124,17 @@ Complete preparation, persistence/readback, local compare-and-swap, and ref read
 Use the bundled helper for the local compare-and-swap and readback:
 
 ```bash
-python3 <this-skill-root>/scripts/promote_local_transition.py \
+python3 <this-skill-root>/scripts/promote.py \
   --repository <target-project-root> \
   --transition <off-delivery-pending-record.json> \
-  --sha256 <verified-record-sha256>
+  --expected-transition-sha256 <verified-record-sha256> \
+  --promotion-evidence <off-delivery>/promotion/promotion-evidence.json \
+  --expected-promotion-sha256 <promotion-evidence-sha256> \
+  --receipt <off-delivery>/run-receipt.json \
+  --expected-receipt-sha256 <current-receipt-sha256>
 ```
+
+Omit `--promotion-evidence`, `--expected-promotion-sha256`, `--receipt`, and `--expected-receipt-sha256` when promoting a `DAG Definition Checkpoint`. When supplied for a `Promotion Candidate`, the Promotion Evidence Package, Review Context Capsule, and Candidate Review Record must all appear in the frozen Transition evidence. The helper revalidates their digests and Candidate Review body, then requires the full Run Receipt, exact live claim, owner, Ticket Base, accepted tip, receipt generation, and candidate to agree before local CAS.
 
 Run the helper from an existing non-bare Target Project checkout. It advances only the exact un-checked-out local branch from Base to candidate and reads back its commit/tree, with Git hooks disabled for that ref update. The reviewed bytes are promoted directly: no merge, recreation, amendment, or evidence substitution. The Coordinator retains responsibility for the semantic checks above, publication authority, and eventual acceptance.
 
@@ -137,6 +181,6 @@ After publication agrees, complete exactly one candidate kind:
 - **Promotion Candidate**: record an Accepted Ticket, make the candidate the DAG Milestone and Accepted Integration Tip, record last synchronization when applicable, and close the claim.
 - **DAG Definition Checkpoint**: record the same frozen index result, selected inputs, acceptance-impact dispositions, audit identities, and any completed Target Project-required stable tracker/evidence update; make the candidate the Accepted Integration Tip and downstream Ticket Base; accept no Ticket and apply the dispositions.
 
-This completes and clears the typed pending Integration Transition. Only after that completion, apply the Target Project-required tracker/evidence rule in [`SKILL.md`](../SKILL.md#persist-target-project-required-stable-tracker-evidence). If it requires another DAG Definition Checkpoint, start it as the next serialized Integration Transition; do not nest it inside the completed Transition. Recompute the graph and Runnable Frontier, unlock successors, or claim another Ticket only after any required per-Ticket update completes.
+Complete and clear the typed pending Integration Transition in the Run Receipt (`scripts/commit.py transition --action complete`, adding `--synchronized-commit` in Remote-mirrored mode). Only after that completion, apply the Target Project-required tracker/evidence rule in [`SKILL.md`](../SKILL.md#persist-target-project-required-stable-tracker-evidence) and [`completion.md`](completion.md). If it requires another DAG Definition Checkpoint, start it as the next serialized Integration Transition; do not nest it inside the completed Transition. Recompute the graph and Runnable Frontier, unlock successors, or claim another Ticket only after any required per-Ticket update completes.
 
 Until the current Transition completes, do not accept the Ticket, unlock successors, claim the next Ticket, or start another Integration Transition.

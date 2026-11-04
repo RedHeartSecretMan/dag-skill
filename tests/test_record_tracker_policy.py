@@ -9,10 +9,8 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-POLICY_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "record_tracker_policy.py"
-PLANNER = ROOT / "skill" / "dag" / "scripts" / "plan_execution_admission.py"
-CLAIM_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "record_execution_claim.py"
-DISPOSITION_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "record_ticket_disposition.py"
+COMMIT_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "commit.py"
+PUBLISH_SCRIPT = ROOT / "skill" / "dag" / "scripts" / "publish.py"
 
 
 def digest(path: Path) -> str:
@@ -30,7 +28,6 @@ class TrackerPolicyTests(unittest.TestCase):
         self.off_delivery.mkdir()
         self.receipt = self.off_delivery / "run-receipt.json"
         self.policy = self.off_delivery / "tracker-policy.json"
-        self.output = self.off_delivery / "tracker-policy-record.json"
         self.init_repo()
         self.write_receipt()
 
@@ -166,36 +163,30 @@ class TrackerPolicyTests(unittest.TestCase):
         *,
         generation: int = 1,
         receipt_digest: str | None = None,
-        output: Path | None = None,
-        with_repo: bool = True,
+        policy_path: Path | None = None,
     ) -> subprocess.CompletedProcess[str]:
+        target_policy = policy_path or self.policy
         if payload is not None:
-            self.policy.write_text(
+            target_policy.write_text(
                 json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8"
             )
         command = [
             sys.executable,
-            str(POLICY_SCRIPT),
+            str(COMMIT_SCRIPT),
+            "tracker-policy",
+            "--repository",
+            str(self.repo),
+            "--commit",
+            self.base_commit,
             "--receipt",
             str(self.receipt),
             "--policy",
-            str(self.policy),
-            "--output",
-            str(output or self.output),
+            str(target_policy),
             "--expected-generation",
             str(generation),
             "--expected-receipt-sha256",
             receipt_digest or digest(self.receipt),
         ]
-        if with_repo:
-            command.extend(
-                [
-                    "--repository",
-                    str(self.repo),
-                    "--commit",
-                    self.base_commit,
-                ]
-            )
         return subprocess.run(
             command,
             cwd=self.root,
@@ -216,14 +207,12 @@ class TrackerPolicyTests(unittest.TestCase):
     def test_records_none_in_repo_and_external_snapshot_modes_idempotently(
         self,
     ) -> None:
-        for index, mode in enumerate(("none", "in_repo", "external_snapshot")):
+        for mode in ("none", "in_repo", "external_snapshot"):
             with self.subTest(mode=mode):
                 self.write_receipt(generation=10)
-                out = self.off_delivery / f"policy-{index}.json"
                 first = self.invoke(
                     self.policy_payload(mode),
                     generation=10,
-                    output=out,
                 )
                 self.assertEqual(first.returncode, 0, first.stderr)
                 body = json.loads(first.stdout)
@@ -240,7 +229,6 @@ class TrackerPolicyTests(unittest.TestCase):
                 second = self.invoke(
                     generation=11,
                     receipt_digest=digest(self.receipt),
-                    output=out,
                 )
                 self.assertEqual(second.returncode, 0, second.stderr)
                 self.assertEqual(
@@ -320,13 +308,12 @@ class TrackerPolicyTests(unittest.TestCase):
         self.assertEqual(self.receipt.read_bytes(), before)
 
     def test_policy_records_must_stay_off_delivery(self) -> None:
-        in_repo_output = self.repo / "tracker-policy-record.json"
+        in_repo_policy = self.repo / "tracker-policy.json"
         result = self.invoke(
             self.policy_payload("in_repo"),
-            output=in_repo_output,
+            policy_path=in_repo_policy,
         )
         self.assert_rejected(result, "off-delivery")
-        self.assertFalse(in_repo_output.exists())
 
     def test_blocks_execution_agent_from_claiming_tracker_paths_and_records_pending_disposition(
         self,
@@ -376,7 +363,8 @@ class TrackerPolicyTests(unittest.TestCase):
         subprocess.run(
             [
                 sys.executable,
-                str(PLANNER),
+                str(PUBLISH_SCRIPT),
+                "admission-decision",
                 "--request",
                 str(bad_request),
                 "--output",
@@ -413,11 +401,10 @@ class TrackerPolicyTests(unittest.TestCase):
         claim_res = subprocess.run(
             [
                 sys.executable,
-                str(CLAIM_SCRIPT),
+                str(COMMIT_SCRIPT),
+                "claim",
                 "--receipt",
                 str(self.receipt),
-                "--request",
-                str(bad_request),
                 "--decision",
                 str(bad_decision),
                 "--claim",
@@ -447,7 +434,8 @@ class TrackerPolicyTests(unittest.TestCase):
         subprocess.run(
             [
                 sys.executable,
-                str(PLANNER),
+                str(PUBLISH_SCRIPT),
+                "admission-decision",
                 "--request",
                 str(good_request),
                 "--output",
@@ -465,11 +453,10 @@ class TrackerPolicyTests(unittest.TestCase):
         good_res = subprocess.run(
             [
                 sys.executable,
-                str(CLAIM_SCRIPT),
+                str(COMMIT_SCRIPT),
+                "claim",
                 "--receipt",
                 str(self.receipt),
-                "--request",
-                str(good_request),
                 "--decision",
                 str(good_decision),
                 "--claim",
@@ -512,7 +499,8 @@ class TrackerPolicyTests(unittest.TestCase):
         disp_res = subprocess.run(
             [
                 sys.executable,
-                str(DISPOSITION_SCRIPT),
+                str(COMMIT_SCRIPT),
+                "disposition",
                 "--receipt",
                 str(self.receipt),
                 "--decision",
@@ -544,7 +532,8 @@ class TrackerPolicyTests(unittest.TestCase):
         subprocess.run(
             [
                 sys.executable,
-                str(PLANNER),
+                str(PUBLISH_SCRIPT),
+                "admission-decision",
                 "--request",
                 str(next_request),
                 "--output",
@@ -562,11 +551,10 @@ class TrackerPolicyTests(unittest.TestCase):
         blocked_res = subprocess.run(
             [
                 sys.executable,
-                str(CLAIM_SCRIPT),
+                str(COMMIT_SCRIPT),
+                "claim",
                 "--receipt",
                 str(self.receipt),
-                "--request",
-                str(next_request),
                 "--decision",
                 str(next_decision),
                 "--claim",

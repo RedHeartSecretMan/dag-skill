@@ -6,23 +6,19 @@
 
 可复制的 Skill 位于 [`skill/dag/`](./skill/dag/)：
 
-- [`SKILL.md`](./skill/dag/SKILL.md) 是运行规范；
-- [`references/ticket-execution.md`](./skill/dag/references/ticket-execution.md) 是每个 `Execution Agent` 接收的单票执行协议；
-- [`definition-binding.md`](./skill/dag/references/definition-binding.md) 和 [`integration-transitions.md`](./skill/dag/references/integration-transitions.md) 定义 Definition 绑定和集成恢复契约；
-- [`execution-records.md`](./skill/dag/references/execution-records.md)、[`exploration-cache.md`](./skill/dag/references/exploration-cache.md) 和 [`artifact-handles.md`](./skill/dag/references/artifact-handles.md) 定义紧凑执行上下文和证据引用；
-- [`admission.md`](./skill/dag/references/admission.md)、[`claims.md`](./skill/dag/references/claims.md) 和 [`recovery.md`](./skill/dag/references/recovery.md) 定义并行 admission、claim CAS 和写入者恢复；
-- [`review-context.md`](./skill/dag/references/review-context.md)、[`candidate-review.md`](./skill/dag/references/candidate-review.md) 和 [`promotion.md`](./skill/dag/references/promotion.md) 定义 fresh candidate review 和 Promotion 前置校验；
-- [`dispositions.md`](./skill/dag/references/dispositions.md)、[`tracker-checkpoints.md`](./skill/dag/references/tracker-checkpoints.md) 和 [`terminal-outcome.md`](./skill/dag/references/terminal-outcome.md) 定义 Ticket disposition、Tracker Policy/Checkpoint 与 Complete/Stalled 审计；
-- [`scripts/validate_definition_index.py`](./skill/dag/scripts/validate_definition_index.py) 验证 `DAG Definition Index`；
-- [`scripts/promote_local_transition.py`](./skill/dag/scripts/promote_local_transition.py) 核验冻结证据并推进本地集成 ref；
-- [`scripts/record_execution_checkpoint.py`](./skill/dag/scripts/record_execution_checkpoint.py) 和 [`scripts/index_execution_record.py`](./skill/dag/scripts/index_execution_record.py) 发布并索引紧凑执行记录；
-- [`scripts/record_exploration_note.py`](./skill/dag/scripts/record_exploration_note.py) 和 [`scripts/record_tool_artifact.py`](./skill/dag/scripts/record_tool_artifact.py) 发布可复用笔记与带 digest 校验的工具 artifact；
-- [`scripts/plan_execution_admission.py`](./skill/dag/scripts/plan_execution_admission.py) 和 [`scripts/record_execution_claim.py`](./skill/dag/scripts/record_execution_claim.py) 规划并通过 CAS 记录并行 claim；
-- [`scripts/record_review_context.py`](./skill/dag/scripts/record_review_context.py)、[`scripts/record_candidate_review.py`](./skill/dag/scripts/record_candidate_review.py) 和 [`scripts/verify_candidate_review.py`](./skill/dag/scripts/verify_candidate_review.py) 绑定并核验候选审查输入；
-- [`scripts/reconcile_execution_claim.py`](./skill/dag/scripts/reconcile_execution_claim.py)、[`scripts/verify_promotion_package.py`](./skill/dag/scripts/verify_promotion_package.py) 和 [`scripts/record_ticket_disposition.py`](./skill/dag/scripts/record_ticket_disposition.py) 处理恢复、推广前置校验和 Ticket 关闭；
-- [`scripts/record_tracker_policy.py`](./skill/dag/scripts/record_tracker_policy.py) 和 [`scripts/record_tracker_checkpoint.py`](./skill/dag/scripts/record_tracker_checkpoint.py) 在不解析自然语言内容的前提下通过 CAS 记录 `Tracker Policy` 与已完成的 `Tracker Checkpoint`；
-- [`scripts/verify_terminal_outcome.py`](./skill/dag/scripts/verify_terminal_outcome.py) 验证最终机械条件；
-- [`scripts/install_runtime_skills.py`](./skill/dag/scripts/install_runtime_skills.py) 安装 `Runtime Skill Bundle`。
+- [`SKILL.md`](./skill/dag/SKILL.md) 定义 `Coordinator Agent` 的运行规范；
+- [`references/ticket-execution.md`](./skill/dag/references/ticket-execution.md) 是独立派发给每个 `Execution Agent` 的单票执行协议；
+- [`definition-binding.md`](./skill/dag/references/definition-binding.md)、[`scheduling.md`](./skill/dag/references/scheduling.md)、[`execution-artifacts.md`](./skill/dag/references/execution-artifacts.md)、[`integration-transitions.md`](./skill/dag/references/integration-transitions.md) 和 [`completion.md`](./skill/dag/references/completion.md) 按生命周期阶段定义 Definition 绑定、并行调度与恢复、执行上下文与审查证据、集成推进以及 Tracker 与终态审计契约。
+
+[`skill/dag/scripts/`](./skill/dag/scripts/) 下的 5 个公开脚本按副作用边界与角色权限严格收敛。除 `runtime.py` 为避免宿主引导依赖循环而保持独立外，其余 4 个生命周期入口共享 [`scripts/lib/`](./skill/dag/scripts/lib/)：
+
+| 脚本入口 | 副作用边界 | 允许角色 | 子命令 / 参数接口 |
+| --- | --- | --- | --- |
+| [`scripts/runtime.py`](./skill/dag/scripts/runtime.py) | 在宿主 Skills 根目录校验或补齐 `Runtime Skill Bundle` | Coordinator | `--skills-root ... [--include-setup-helper]` |
+| [`scripts/verify.py`](./skill/dag/scripts/verify.py) | 纯只读确定性校验（无文件、无 Receipt、无 Git 写入） | Coordinator / Execution | `definition-index`、`artifact`、`candidate-review`、`tracker-checkpoint` |
+| [`scripts/publish.py`](./skill/dag/scripts/publish.py) | 一次性原子写出不可变证据文件（`--output`） | Coordinator / Execution | `artifact`、`exploration-note`、`exploration-consumption`、`execution-record`、`admission-decision`、`resume-capsule`、`review-context`、`candidate-review`、`promotion-package`、`terminal-evidence` |
+| [`scripts/commit.py`](./skill/dag/scripts/commit.py) | 对交付之外的 `Run Receipt` 执行加锁 CAS 更新 | Coordinator | `receipt-init`、`tracker-policy`、`claim`、`execution-record`、`transition`、`disposition`、`tracker-checkpoint` |
+| [`scripts/promote.py`](./skill/dag/scripts/promote.py) | 对本地 `integration_ref` 执行 `git update-ref` CAS 推进与回读 | Coordinator | `--repository ... --transition ... --expected-transition-sha256 ...` |
 
 它只执行已经批准的 `Approved DAG`，不替代 `Target Project` 编写 Spec 或 Ticket。
 
@@ -38,7 +34,7 @@
 2. 验证 `Agent Host` 能解析由 `tdd`、`codebase-design` 和 `code-review` 组成的 `Runtime Skill Bundle`。锚定 commit 是最低版本：接受该版本，以及通过 Git 祖先关系和完整内容核验的后代版本。无法解析、缺失或尚未确认满足最低版本时运行安装器：
 
    ```bash
-   python3 <this-skill-root>/scripts/install_runtime_skills.py \
+   python3 <this-skill-root>/scripts/runtime.py \
      --skills-root /path/to/agent-host/skills
    ```
 
@@ -48,8 +44,8 @@
 
    `setup-matt-pocock-skills` 是可选配置辅助技能。用户明确要求安装，或使用它完成已授权的项目配置需要先安装时，`Coordinator Agent` 才通过 `--include-setup-helper` 补齐缺失副本，并沿用已有授权。仅要求安装不授权执行项目配置。
 3. 创建或恢复 `DAG Integration Branch`。新运行从 `Target Project` 授权的 `Starting Base` 创建；恢复时用 `Run Receipt` 对账该分支的本地 ref、`Starting Base`、`Accepted Integration Tip` 和 pending `Integration Transition`。
-4. 用内置 validator 对指定 commit 的 `.dag/definition-index.json`、输入 blob 和对象类型做确定性验证并绑定完整 `DAG Definition`。外部 tracker 必须先形成包含完整计划和来源身份的规范化快照；如果 `Starting Base` 或当前 `Accepted Integration Tip` 尚未包含精确输入与等价 index，创建并审查一个 `DAG Definition Checkpoint`。
-5. 满足 `Integration Publication Mode` 并计算 `Runnable Frontier`。
+4. 用 `scripts/verify.py definition-index` 对指定 commit 的 `.dag/definition-index.json`、输入 blob 和对象类型做确定性验证并绑定完整 `DAG Definition`。外部 tracker 必须先形成包含完整计划和来源身份的规范化快照；如果 `Starting Base` 或当前 `Accepted Integration Tip` 尚未包含精确输入与等价 index，创建并审查一个 `DAG Definition Checkpoint`。
+5. 满足 `Integration Publication Mode`，初始化或对账 `Run Receipt`（`scripts/commit.py receipt-init`），通过 CAS 记录运行级 `Tracker Policy`（`scripts/commit.py tracker-policy`），再计算 `Runnable Frontier`。
 
 ### 逐票推进
 
@@ -73,11 +69,11 @@ Coordinator 以零历史或最小相关历史派发固定 Ticket contract、[单
 
 流程将大上下文和运行状态放在 Agent prompt 之外，同时保留精确身份：
 
-- `Ticket Capsule` 和 `Execution Checkpoint` 携带最小派发与恢复状态；交付之外的 shadow record 和 `Run Receipt` 使用 digest、CAS 与 generation 校验进行索引。
-- `Artifact Handle` 和 `Exploration Cache` 携带带 digest 校验的工具输出与可复用调查事实。缓存或 artifact 不匹配时回到权威输入。
-- 只读 admission planner 同时比较 live claims、Accepted direct inputs、Hard Dependencies、路径、接口、资源、容量和唯一 Promotion lane；Coordinator 回读 live frontier 后再通过 CAS 记录 claim。
-- `Review Context Capsule` 绑定固定 Base、candidate range、commit list、changed paths、obligations、gates 和证据引用。每个 candidate 都必须 fresh `$code-review`；`Candidate Review Record` 绑定完整 review artifact，但不解释 verdict。
-- `Promotion Evidence Package` 在本地 CAS promotion 前后校验。随后由显式 Ticket disposition 关闭 claim，终态审计验证 `Complete` 或 `Stalled` 条件。
+- `Ticket Capsule` 和 `Execution Checkpoint` 携带最小派发与恢复状态（`publish.py execution-record` 与 `commit.py execution-record`）。
+- `Artifact Handle`（`publish.py` / `verify.py artifact`）和 `Exploration Cache`（`publish.py exploration-note` / `exploration-consumption`）携带带 digest 校验的工具输出与可复用调查事实。缓存或 artifact 不匹配时回到权威输入。
+- 只读 admission planner（`publish.py admission-decision`）同时比较 live claims、Accepted direct inputs、Hard Dependencies、路径、接口、资源、容量和唯一 Promotion lane；Coordinator 回读 live frontier 后再通过 `commit.py claim` 记录 claim。
+- `Review Context Capsule`（`publish.py review-context`）绑定固定 Base、candidate range、commit list、changed paths、obligations、gates 和证据引用。每个 candidate 都必须 fresh `$code-review`；`Candidate Review Record`（`publish.py` / `verify.py candidate-review`）绑定完整 review artifact，但不解释 verdict。
+- `Promotion Evidence Package`（`publish.py promotion-package`）在本地 CAS promotion（`commit.py transition` 与 `promote.py`）前后校验。随后由 `commit.py disposition` 关闭 claim，`commit.py tracker-checkpoint` 落盘必需的 tracker 更新，`publish.py terminal-evidence` 验证 `Complete` 或 `Stalled` 条件。
 
 这些记录都保存在交付之外，保留现有 Coordinator/Execution Agent 的职责分工。它们减少重复上下文传递，不引入 scheduler service 或第二验收权威。
 
@@ -130,11 +126,12 @@ sequenceDiagram
         M-->>C: 回读精确 candidate SHA
     end
 
-    C->>C: 记录 Accepted Ticket、关闭 claim；完成 Integration Transition
+    C->>C: 完成 Integration Transition 并记录 Accepted Ticket disposition
 
-    opt 项目规定每张 Ticket 稳定验收后更新 Git-tracked tracker
-        C->>C: 记录 pending required tracker update
-        C->>C: 以 DAG Definition Checkpoint 完成下一次 Integration Transition
+    opt Tracker Policy 为 in_repo 或 external_snapshot
+        C->>C: 编写 tracker 更新、运行 verify.py tracker-checkpoint 并取得 fresh $code-review
+        C->>I: 推进 DAG Definition Checkpoint 并回读 candidate
+        C->>C: 运行 commit.py tracker-checkpoint 清理 pending_tracker_updates
     end
 
     C->>C: 解锁后继并重算 Runnable Frontier
@@ -163,7 +160,7 @@ sequenceDiagram
 
 `Remote-mirrored` 只同步一个专用的 `DAG Integration Branch`。写默认或受保护分支、改用 PR、同步 Ticket 分支、force-push 或切换 ref 都不属于该模式的默认权限。
 
-[集成契约](./skill/dag/references/integration-transitions.md)集中定义交付历史之外的 `Run Receipt`、pending 冻结证据、compare-and-swap，以及本地和远端恢复。[`scripts/promote_local_transition.py`](./skill/dag/scripts/promote_local_transition.py) 只核验并推进本地 ref；发布与验收仍由 Coordinator 负责。`Remote-mirrored` 必须精确回读远端 SHA 后才能验收 Ticket、解锁后继或启动下一次 `Integration Transition`。恢复沿用该模式，发布授权仍与集成镜像分开。
+[集成契约](./skill/dag/references/integration-transitions.md)集中定义交付历史之外的 `Run Receipt`、pending 冻结证据、compare-and-swap，以及本地和远端恢复。[`scripts/promote.py`](./skill/dag/scripts/promote.py) 只核验并推进本地 ref；发布与验收仍由 Coordinator 负责。`Remote-mirrored` 必须精确回读远端 SHA 后才能验收 Ticket、解锁后继或启动下一次 `Integration Transition`。恢复沿用该模式，发布授权仍与集成镜像分开。
 
 ## 授权与终态
 

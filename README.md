@@ -6,23 +6,19 @@ English | [简体中文](./README_ZH.md)
 
 The Skill is packaged in [`skill/dag/`](./skill/dag/):
 
-- [`SKILL.md`](./skill/dag/SKILL.md) defines the operating rules;
-- [`references/ticket-execution.md`](./skill/dag/references/ticket-execution.md) is the single-Ticket protocol supplied to each `Execution Agent`;
-- [`definition-binding.md`](./skill/dag/references/definition-binding.md) and [`integration-transitions.md`](./skill/dag/references/integration-transitions.md) define Definition binding and integration recovery;
-- [`execution-records.md`](./skill/dag/references/execution-records.md), [`exploration-cache.md`](./skill/dag/references/exploration-cache.md), and [`artifact-handles.md`](./skill/dag/references/artifact-handles.md) define compact execution context and evidence references;
-- [`admission.md`](./skill/dag/references/admission.md), [`claims.md`](./skill/dag/references/claims.md), and [`recovery.md`](./skill/dag/references/recovery.md) define parallel admission, claim CAS, and writer recovery;
-- [`review-context.md`](./skill/dag/references/review-context.md), [`candidate-review.md`](./skill/dag/references/candidate-review.md), and [`promotion.md`](./skill/dag/references/promotion.md) define fresh candidate review and Promotion preflight;
-- [`dispositions.md`](./skill/dag/references/dispositions.md), [`tracker-checkpoints.md`](./skill/dag/references/tracker-checkpoints.md), and [`terminal-outcome.md`](./skill/dag/references/terminal-outcome.md) define Ticket disposition, Tracker Policy/Checkpoints, and Complete/Stalled audit;
-- [`scripts/validate_definition_index.py`](./skill/dag/scripts/validate_definition_index.py) validates the `DAG Definition Index`;
-- [`scripts/promote_local_transition.py`](./skill/dag/scripts/promote_local_transition.py) verifies frozen evidence and advances a local integration ref;
-- [`scripts/record_execution_checkpoint.py`](./skill/dag/scripts/record_execution_checkpoint.py) and [`scripts/index_execution_record.py`](./skill/dag/scripts/index_execution_record.py) publish and index compact execution records;
-- [`scripts/record_exploration_note.py`](./skill/dag/scripts/record_exploration_note.py) and [`scripts/record_tool_artifact.py`](./skill/dag/scripts/record_tool_artifact.py) publish reusable notes and digest-checked tool artifacts;
-- [`scripts/plan_execution_admission.py`](./skill/dag/scripts/plan_execution_admission.py) and [`scripts/record_execution_claim.py`](./skill/dag/scripts/record_execution_claim.py) plan and CAS-record parallel claims;
-- [`scripts/record_review_context.py`](./skill/dag/scripts/record_review_context.py), [`scripts/record_candidate_review.py`](./skill/dag/scripts/record_candidate_review.py), and [`scripts/verify_candidate_review.py`](./skill/dag/scripts/verify_candidate_review.py) bind and verify candidate review inputs;
-- [`scripts/reconcile_execution_claim.py`](./skill/dag/scripts/reconcile_execution_claim.py), [`scripts/verify_promotion_package.py`](./skill/dag/scripts/verify_promotion_package.py), and [`scripts/record_ticket_disposition.py`](./skill/dag/scripts/record_ticket_disposition.py) handle recovery, promotion preflight, and Ticket closure;
-- [`scripts/record_tracker_policy.py`](./skill/dag/scripts/record_tracker_policy.py) and [`scripts/record_tracker_checkpoint.py`](./skill/dag/scripts/record_tracker_checkpoint.py) CAS-record the run's `Tracker Policy` and completed `Tracker Checkpoint` transitions without parsing tracker prose;
-- [`scripts/verify_terminal_outcome.py`](./skill/dag/scripts/verify_terminal_outcome.py) verifies the final mechanical conditions;
-- [`scripts/install_runtime_skills.py`](./skill/dag/scripts/install_runtime_skills.py) installs the `Runtime Skill Bundle`.
+- [`SKILL.md`](./skill/dag/SKILL.md) defines the `Coordinator Agent` operating rules;
+- [`references/ticket-execution.md`](./skill/dag/references/ticket-execution.md) is the standalone single-Ticket protocol supplied to each `Execution Agent`;
+- [`definition-binding.md`](./skill/dag/references/definition-binding.md), [`scheduling.md`](./skill/dag/references/scheduling.md), [`execution-artifacts.md`](./skill/dag/references/execution-artifacts.md), [`integration-transitions.md`](./skill/dag/references/integration-transitions.md), and [`completion.md`](./skill/dag/references/completion.md) define the lifecycle contracts for Definition binding, admission/claim recovery, execution artifacts, integration transitions, and tracker/terminal closure.
+
+Five public executables in [`skill/dag/scripts/`](./skill/dag/scripts/) separate read-only verification, immutable evidence publication, `Run Receipt` CAS, and Git ref promotion. The four lifecycle wrappers share [`scripts/lib/`](./skill/dag/scripts/lib/); `runtime.py` remains standalone so the installer can bootstrap a host before the rest of the bundle is trusted.
+
+| Script | Side-effect boundary | Allowed role | Subcommands / interface |
+| --- | --- | --- | --- |
+| [`scripts/runtime.py`](./skill/dag/scripts/runtime.py) | Verify or install the `Runtime Skill Bundle` in the host Skills root | Coordinator | `--skills-root ... [--include-setup-helper]` |
+| [`scripts/verify.py`](./skill/dag/scripts/verify.py) | Read-only deterministic verification (no file, Receipt, or Git writes) | Coordinator / Execution | `definition-index`, `artifact`, `candidate-review`, `tracker-checkpoint` |
+| [`scripts/publish.py`](./skill/dag/scripts/publish.py) | Create-once atomic `--output` publication of immutable off-delivery evidence | Coordinator / Execution | `artifact`, `exploration-note`, `exploration-consumption`, `execution-record`, `admission-decision`, `resume-capsule`, `review-context`, `candidate-review`, `promotion-package`, `terminal-evidence` |
+| [`scripts/commit.py`](./skill/dag/scripts/commit.py) | Locked generation + SHA-256 CAS update to the off-delivery `Run Receipt` | Coordinator | `receipt-init`, `tracker-policy`, `claim`, `execution-record`, `transition`, `disposition`, `tracker-checkpoint` |
+| [`scripts/promote.py`](./skill/dag/scripts/promote.py) | Local `git update-ref` CAS and commit/tree readback on `integration_ref` | Coordinator | `--repository ... --transition ... --expected-transition-sha256 ...` |
 
 It executes only an `Approved DAG`. The `Target Project` remains responsible for authoring Specs and Tickets.
 
@@ -38,7 +34,7 @@ Before scheduling Tickets from the `Runnable Frontier`, the `Coordinator Agent` 
 2. Verify that the `Agent Host` can resolve all three Skills in the `Runtime Skill Bundle`: `tdd`, `codebase-design`, and `code-review`. The anchored commit is the minimum version: accept that version and descendant versions verified through Git ancestry and complete content checks. If any Skill cannot be resolved, is missing, or has not been verified against this version floor, run the installer:
 
    ```bash
-   python3 <this-skill-root>/scripts/install_runtime_skills.py \
+   python3 <this-skill-root>/scripts/runtime.py \
      --skills-root /path/to/agent-host/skills
    ```
 
@@ -48,8 +44,8 @@ Before scheduling Tickets from the `Runnable Frontier`, the `Coordinator Agent` 
 
    `setup-matt-pocock-skills` is an optional configuration helper. The `Coordinator Agent` installs a missing copy with `--include-setup-helper` only when the user explicitly requests installation or when it is needed for project configuration already authorized through the helper. Existing authorization applies within its scope; an installation-only request does not authorize project configuration.
 3. Create or restore the `DAG Integration Branch`. For a new run, create it from the `Starting Base` authorized by the `Target Project`. When resuming, use the `Run Receipt` to reconcile the branch's local ref, `Starting Base`, `Accepted Integration Tip`, and any pending `Integration Transition`.
-4. Use the bundled validator to deterministically verify `.dag/definition-index.json`, input blobs, and object types at the specified commit, and bind the complete `DAG Definition`. For an external tracker, first create a normalized snapshot containing the complete plan and its source identities. If the `Starting Base` or current `Accepted Integration Tip` does not yet contain the exact inputs and an equivalent index, create and review a `DAG Definition Checkpoint`.
-5. Meet the requirements of the `Integration Publication Mode` and compute the `Runnable Frontier`.
+4. Use `scripts/verify.py definition-index` to deterministically verify `.dag/definition-index.json`, input blobs, and object types at the specified commit, and bind the complete `DAG Definition`. For an external tracker, first create a normalized snapshot containing the complete plan and its source identities. If the `Starting Base` or current `Accepted Integration Tip` does not yet contain the exact inputs and an equivalent index, create and review a `DAG Definition Checkpoint`.
+5. Meet the requirements of the `Integration Publication Mode`, initialize or reconcile the `Run Receipt` (`scripts/commit.py receipt-init`), CAS-record the run's `Tracker Policy` (`scripts/commit.py tracker-policy`), and compute the `Runnable Frontier`.
 
 ### Advance each Ticket
 
@@ -73,11 +69,11 @@ These `Execution Outcome` values are handoff results from the `Execution Agent`,
 
 The flow keeps large context and run state outside Agent prompts while preserving exact identities:
 
-- A `Ticket Capsule` and `Execution Checkpoint` carry the smallest dispatch and resume state. An off-delivery shadow record and the `Run Receipt` index them with digest, CAS, and generation checks.
-- `Artifact Handle` and `Exploration Cache` references carry digest-checked tool output and reusable investigation facts. A cache or artifact mismatch returns to authoritative inputs.
-- The read-only admission planner compares live claims, Accepted direct inputs, Hard Dependencies, paths, interfaces, resources, capacity, and the single Promotion lane. The Coordinator then records a claim through CAS after rereading the live frontier.
-- A `Review Context Capsule` binds the fixed Base, candidate range, commit list, changed paths, obligations, gates, and evidence references. Every candidate requires a fresh `$code-review`; a `Candidate Review Record` binds the complete review artifact without interpreting its verdict.
-- `Promotion Evidence Package` is checked before and during local CAS promotion. An explicit Ticket disposition then closes the claim, and the terminal audit verifies `Complete` or `Stalled` conditions.
+- A `Ticket Capsule` and `Execution Checkpoint` carry the smallest dispatch and resume state (`publish.py execution-record` and `commit.py execution-record`).
+- `Artifact Handle` (`publish.py` / `verify.py artifact`) and `Exploration Cache` (`publish.py exploration-note` / `exploration-consumption`) references carry digest-checked tool output and reusable investigation facts. A cache or artifact mismatch returns to authoritative inputs.
+- The read-only admission planner (`publish.py admission-decision`) compares live claims, Accepted direct inputs, Hard Dependencies, paths, interfaces, resources, capacity, and the single Promotion lane. The Coordinator then records a claim through `commit.py claim` after rereading the live frontier.
+- A `Review Context Capsule` (`publish.py review-context`) binds the fixed Base, candidate range, commit list, changed paths, obligations, gates, and evidence references. Every candidate requires a fresh `$code-review`; a `Candidate Review Record` (`publish.py` / `verify.py candidate-review`) binds the complete review artifact without interpreting its verdict.
+- `Promotion Evidence Package` (`publish.py promotion-package`) is checked before and during local CAS promotion (`commit.py transition` and `promote.py`). An explicit Ticket disposition (`commit.py disposition`) closes the claim, `commit.py tracker-checkpoint` records any required tracker checkpoint, and `publish.py terminal-evidence` verifies `Complete` or `Stalled` conditions.
 
 These records remain off-delivery and preserve the existing Coordinator/Execution Agent ownership split. They reduce repeated context transfer without introducing a scheduler service or a second acceptance authority.
 
@@ -130,11 +126,12 @@ sequenceDiagram
         M-->>C: Read back exact candidate SHA
     end
 
-    C->>C: Record Accepted Ticket, close claim, and complete Integration Transition
+    C->>C: Complete Integration Transition and record Accepted Ticket disposition
 
-    opt Project requires a Git-tracked tracker update after each Ticket is accepted
-        C->>C: Record pending required tracker update
-        C->>C: Complete the next Integration Transition with a DAG Definition Checkpoint
+    opt Tracker Policy is in_repo or external_snapshot
+        C->>C: Author tracker update, verify.py tracker-checkpoint, and obtain fresh $code-review
+        C->>I: Promote DAG Definition Checkpoint and read back candidate
+        C->>C: commit.py tracker-checkpoint to clear pending_tracker_updates
     end
 
     C->>C: Unlock successors and recompute Runnable Frontier
@@ -163,7 +160,7 @@ Choose an `Integration Publication Mode` once per run:
 
 `Remote-mirrored` synchronizes only one dedicated `DAG Integration Branch`. The mode does not by itself authorize writing to default or protected branches, switching to a PR workflow, synchronizing Ticket branches, force-pushing, or changing refs.
 
-The [integration reference](./skill/dag/references/integration-transitions.md) defines the off-delivery `Run Receipt`, frozen pending evidence, compare-and-swap, and local or remote recovery. The narrow [`scripts/promote_local_transition.py`](./skill/dag/scripts/promote_local_transition.py) helper verifies and advances only the local ref; publication and acceptance remain Coordinator responsibilities. `Remote-mirrored` requires exact remote SHA readback before accepting a Ticket, unlocking successors, or starting another `Integration Transition`. Recovery preserves that mode, and release authority remains separate from integration mirroring.
+The [integration reference](./skill/dag/references/integration-transitions.md) defines the off-delivery `Run Receipt`, frozen pending evidence, compare-and-swap, and local or remote recovery. The narrow [`scripts/promote.py`](./skill/dag/scripts/promote.py) helper verifies and advances only the local ref; publication and acceptance remain Coordinator responsibilities. `Remote-mirrored` requires exact remote SHA readback before accepting a Ticket, unlocking successors, or starting another `Integration Transition`. Recovery preserves that mode, and release authority remains separate from integration mirroring.
 
 ## Authorization and terminal outcomes
 

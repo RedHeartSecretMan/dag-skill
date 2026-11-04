@@ -15,25 +15,41 @@ from urllib.parse import unquote, urlsplit
 ROOT = Path(__file__).resolve().parents[1]
 SKILL = ROOT / "skill" / "dag"
 PUBLIC_HELPERS = (
-    "install_runtime_skills.py",
-    "record_execution_checkpoint.py",
-    "index_execution_record.py",
-    "record_exploration_note.py",
-    "record_tool_artifact.py",
-    "plan_execution_admission.py",
-    "record_execution_claim.py",
-    "record_review_context.py",
-    "record_candidate_review.py",
-    "verify_candidate_review.py",
-    "reconcile_execution_claim.py",
-    "verify_promotion_package.py",
-    "record_ticket_disposition.py",
-    "record_tracker_policy.py",
-    "record_tracker_checkpoint.py",
-    "verify_terminal_outcome.py",
-    "validate_definition_index.py",
-    "promote_local_transition.py",
+    "runtime.py",
+    "verify.py",
+    "publish.py",
+    "commit.py",
+    "promote.py",
 )
+SUBCOMMANDS = {
+    "verify.py": (
+        "definition-index",
+        "artifact",
+        "candidate-review",
+        "tracker-checkpoint",
+    ),
+    "publish.py": (
+        "artifact",
+        "exploration-note",
+        "exploration-consumption",
+        "execution-record",
+        "admission-decision",
+        "resume-capsule",
+        "review-context",
+        "candidate-review",
+        "promotion-package",
+        "terminal-evidence",
+    ),
+    "commit.py": (
+        "receipt-init",
+        "tracker-policy",
+        "claim",
+        "execution-record",
+        "transition",
+        "disposition",
+        "tracker-checkpoint",
+    ),
+}
 
 
 def local_targets(document: Path) -> list[Path]:
@@ -102,6 +118,24 @@ class SkillPackageTests(unittest.TestCase):
                     self.assertEqual(result.returncode, 0, result.stderr)
                     self.assertIn("usage:", result.stdout)
                     self.assertEqual(result.stderr, "")
+                for subcommand in SUBCOMMANDS.get(name, ()):
+                    with self.subTest(helper=name, subcommand=subcommand):
+                        sub_result = subprocess.run(
+                            [
+                                sys.executable,
+                                str(copied / "scripts" / name),
+                                subcommand,
+                                "--help",
+                            ],
+                            cwd=caller,
+                            env=environment,
+                            capture_output=True,
+                            text=True,
+                            check=False,
+                        )
+                        self.assertEqual(sub_result.returncode, 0, sub_result.stderr)
+                        self.assertIn("usage:", sub_result.stdout)
+                        self.assertEqual(sub_result.stderr, "")
 
     def test_active_documents_keep_public_names_and_host_neutral_protocol(self) -> None:
         documents = [

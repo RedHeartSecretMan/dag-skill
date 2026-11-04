@@ -7,7 +7,7 @@ Read this reference before accepting an existing DAG Definition, creating a DAG 
 Run the bundled validator against the Starting Base, current Accepted Integration Tip, or exact DAG Definition Checkpoint commit under review:
 
 ```bash
-python3 <this-skill-root>/scripts/validate_definition_index.py \
+python3 <this-skill-root>/scripts/verify.py definition-index \
   --repository <target-project-root> \
   --commit <exact-commit>
 ```
@@ -32,20 +32,20 @@ If the Target Project forbids the canonical selector, record a Coordinator-owned
 - In-repository governing Specs and Tickets are Definition inputs.
 - Represent an external tracker with a tracked normalized snapshot containing the complete governing Spec and Ticket content, Hard Dependencies, Acceptance Obligations, source system and project, source item identities, and available version or update identities. Copy authoritative fields without semantic summarization; a pointer, digest, manifest, symlink, or LFS pointer is insufficient.
 - Claims, Agents, workspaces, liveness, pending synchronization, acceptance results, and the Run Receipt are transient run state and stay off-delivery.
-- Stable tracker or acceptance evidence joins a DAG Definition Checkpoint when the Run Receipt's `Tracker Policy` (`in_repo` or `external_snapshot`) requires it under [`tracker-checkpoints.md`](tracker-checkpoints.md).
+- Stable tracker or acceptance evidence joins a DAG Definition Checkpoint when the Run Receipt's `Tracker Policy` (`in_repo` or `external_snapshot`) requires it under [`completion.md`](completion.md#tracker-policy).
 
 `definition_paths` and `tracker_paths` in the `Tracker Policy` must not overlap by default. When a source mixes Definition obligations with mutable Ticket status or checklists, split it into stateless Definition inputs and separate tracker files before binding. Record an explicit `stateful_tracker_decision` in the `Tracker Policy` only when an authorized Target Project or user decision requires mixed stateful files; `mode: none` never allows overlap. If Target Project rules are ambiguous or no safe rule preserves the approved plan without persisting sensitive or unauthorized content, record `Needs Decision` as a Coordinator-owned unresolved decision in the Run Receipt and stop binding.
 
 ## Persist required stable tracker state
 
-Follow the fixed sequence `Accepted/Superseded → Tracker Policy → Tracker Checkpoint → review → Definition Checkpoint → readback → successor unlock` in [`tracker-checkpoints.md`](tracker-checkpoints.md). When `Tracker Policy` uses `in_repo` or `external_snapshot`, freeze the affected Tickets' `Accepted`, `Superseded`, or reopened dispositions, active `policy_key`, changed tracker paths, before/after Git blob identities, and evidence digests before promotion. Record a reopen disposition only with no active Integration Transition, preserving historical acceptance and evidence. Classify every changed path against the currently validated DAG Definition Index:
+Follow the fixed sequence `Accepted/Superseded → Tracker Policy → Tracker Checkpoint → review → Definition Checkpoint → readback → successor unlock` in [`completion.md`](completion.md#tracker-checkpoints). When `Tracker Policy` uses `in_repo` or `external_snapshot`, freeze the affected Tickets' `Accepted`, `Superseded`, or reopened dispositions, active `policy_key`, changed tracker paths, before/after Git blob identities, and evidence digests before promotion. Record a reopen disposition only with no active Integration Transition, preserving historical acceptance and evidence. Classify every changed path against the currently validated DAG Definition Index:
 
 - With disjoint `definition_paths` and `tracker_paths`, a tracker checkpoint changes only `tracker_paths` unselected by the index, preserving the validated index, selected path set, and every selected blob identity.
 - When an authorized `stateful_tracker_decision` covers overlapping paths, any edit to a selected Definition path is a full DAG Definition change: update `.dag/definition-index.json` to the new blob identities in the same checkpoint and perform the complete Definition and acceptance-impact audit.
 
 If one tracked path mixes Definition with run state, use the split or normalized snapshot rule above before either path. Every checkpoint excludes the Run Receipt and all transient run state.
 
-Apply the Target Project's exact rules for status, checklist, verdict, comments, and evidence, including reopening. Helpers never parse Markdown or project status prose. If those rules do not determine a field from the frozen acceptance disposition, PASS, FAIL, or BLOCKED result, record a Coordinator-owned unresolved decision (`Needs Decision`) instead of inferring status or checklist changes. Run the applicable tracker integrity, scope, sensitive-data, documentation, review, and publication gates on the exact candidate, complete the [DAG Definition Checkpoint](#complete-a-dag-definition-checkpoint) and [Integration Transition](integration-transitions.md#start-one-serialized-transition) with readback, and then CAS-record completion with `scripts/record_tracker_checkpoint.py` before unlocking successors.
+Apply the Target Project's exact rules for status, checklist, verdict, comments, and evidence, including reopening. Helpers never parse Markdown or project status prose. If those rules do not determine a field from the frozen acceptance disposition, PASS, FAIL, or BLOCKED result, record a Coordinator-owned unresolved decision (`Needs Decision`) instead of inferring status or checklist changes. Run the applicable tracker integrity, scope, sensitive-data, documentation, review, and publication gates on the exact candidate, complete the [DAG Definition Checkpoint](#complete-a-dag-definition-checkpoint) and [Integration Transition](integration-transitions.md#start-one-serialized-transition) with readback, and then CAS-record completion with `scripts/commit.py tracker-checkpoint` before unlocking successors.
 
 Complete a required per-Ticket reopen update before restoring its claim or resuming affected work; then assign the current Accepted Integration Tip as Ticket Base. An explicitly batched rule permits only the independent work it allows while the update is pending, under the [required tracker update lifecycle](../SKILL.md#persist-target-project-required-stable-tracker-evidence).
 
