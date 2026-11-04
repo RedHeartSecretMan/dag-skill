@@ -8,11 +8,11 @@ The Skill is packaged in [`skill/dag/`](./skill/dag/):
 
 - [`SKILL.md`](./skill/dag/SKILL.md) defines the `Coordinator Agent` operating rules;
 - [`references/ticket-execution.md`](./skill/dag/references/ticket-execution.md) is the standalone single-Ticket protocol supplied to each `Execution Agent`;
-- [`definition-binding.md`](./skill/dag/references/definition-binding.md), [`scheduling.md`](./skill/dag/references/scheduling.md), [`execution-artifacts.md`](./skill/dag/references/execution-artifacts.md), [`integration-transitions.md`](./skill/dag/references/integration-transitions.md), and [`completion.md`](./skill/dag/references/completion.md) define the lifecycle contracts for Definition binding, admission/claim recovery, execution artifacts, integration transitions, and tracker/terminal closure.
+- [`definition-binding.md`](./skill/dag/references/definition-binding.md), [`runnable-scheduling.md`](./skill/dag/references/runnable-scheduling.md), [`execution-artifacts.md`](./skill/dag/references/execution-artifacts.md), [`integration-transitions.md`](./skill/dag/references/integration-transitions.md), and [`outcome-closure.md`](./skill/dag/references/outcome-closure.md) define the lifecycle contracts for Definition binding, frontier scheduling, execution artifacts, integration transitions, and outcome closure.
 
 Five public executables in [`skill/dag/scripts/`](./skill/dag/scripts/) separate read-only verification, immutable evidence publication, `Run Receipt` CAS, and Git ref promotion. The four lifecycle wrappers share [`scripts/lib/`](./skill/dag/scripts/lib/); `runtime.py` remains standalone so the installer can bootstrap a host before the rest of the bundle is trusted.
 
-| Script | Side-effect boundary | Allowed role | Subcommands / interface |
+| Script | Side-effect boundary | Allowed role | Subcommands / options |
 | --- | --- | --- | --- |
 | [`scripts/runtime.py`](./skill/dag/scripts/runtime.py) | Verify or install the `Runtime Skill Bundle` in the host Skills root | Coordinator | `--skills-root ... [--include-setup-helper]` |
 | [`scripts/verify.py`](./skill/dag/scripts/verify.py) | Read-only deterministic verification (no file, Receipt, or Git writes) | Coordinator / Execution | `definition-index`, `artifact`, `candidate-review`, `tracker-checkpoint` |

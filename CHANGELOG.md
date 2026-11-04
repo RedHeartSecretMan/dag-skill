@@ -13,7 +13,7 @@
 
 ### Changed
 
-- 将 `skill/dag/scripts/` 收敛为 [`runtime.py`](./skill/dag/scripts/runtime.py)、[`verify.py`](./skill/dag/scripts/verify.py)、[`publish.py`](./skill/dag/scripts/publish.py)、[`commit.py`](./skill/dag/scripts/commit.py)、[`promote.py`](./skill/dag/scripts/promote.py) 5 个公开入口加内部 [`scripts/lib/`](./skill/dag/scripts/lib/)，并将 [`skill/dag/references/`](./skill/dag/references/) 收敛为 `definition-binding.md`、`scheduling.md`、`ticket-execution.md`、`execution-artifacts.md`、`integration-transitions.md`、`completion.md` 6 份主题参考文档。
+- 将 `skill/dag/scripts/` 收敛为 [`runtime.py`](./skill/dag/scripts/runtime.py)、[`verify.py`](./skill/dag/scripts/verify.py)、[`publish.py`](./skill/dag/scripts/publish.py)、[`commit.py`](./skill/dag/scripts/commit.py)、[`promote.py`](./skill/dag/scripts/promote.py) 5 个公开入口加内部 [`scripts/lib/`](./skill/dag/scripts/lib/)，并将 [`skill/dag/references/`](./skill/dag/references/) 收敛为 `definition-binding.md`、`runnable-scheduling.md`、`ticket-execution.md`、`execution-artifacts.md`、`integration-transitions.md`、`outcome-closure.md` 6 份两段式主题参考文档。
 - Ticket 完成流程增加 Coordinator-owned `Tracker Policy`、Tracker Checkpoint、审查、Definition Checkpoint 和 readback 顺序；终态校验会交叉核对 Receipt dispositions、tracker 更新和最终 Accepted Integration Tip。
 
 ### Fixed

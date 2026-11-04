@@ -36,13 +36,13 @@ Before scheduling:
 5. Resolve the active Agent Host and prepare the Runtime Skill Bundle under the rules below. Complete this Agent Host check before changing Git refs.
 6. Before creating or resuming the DAG Integration Branch, read [`references/integration-transitions.md`](references/integration-transitions.md) completely. Apply its local ref, frozen-evidence, publication-mode, and remote-recovery contract from an exact Target Project-authorized **Starting Base**. Each claimed Ticket receives its own branch and worktree.
 7. Bind the effective DAG Definition from Starting Base on a new run or from the current Accepted Integration Tip later, then satisfy the selected Integration Publication Mode. The result must be an Accepted Integration Tip before the first claim.
-8. Resolve and CAS-record the run's **Tracker Policy** (`mode`: `none`, `in_repo`, or `external_snapshot`) before the first claim using [`references/completion.md`](references/completion.md#tracker-policy) and `scripts/commit.py tracker-policy`. Keep `definition_paths` and `tracker_paths` disjoint by default: split files that mix Definition obligations with mutable Ticket status before binding, or record an explicit `stateful_tracker_decision` when an authorized Target Project rule requires mixed files. When Target Project tracker rules, path roles, or write authority are ambiguous, record `Needs Decision` as a Coordinator-owned unresolved decision in the Run Receipt and hold claims instead of defaulting to `mode: none`.
+8. Resolve and CAS-record the run's **Tracker Policy** (`mode`: `none`, `in_repo`, or `external_snapshot`) before the first claim using [`references/outcome-closure.md`](references/outcome-closure.md#tracker-policy) and `scripts/commit.py tracker-policy`. Keep `definition_paths` and `tracker_paths` disjoint by default: split files that mix Definition obligations with mutable Ticket status before binding, or record an explicit `stateful_tracker_decision` when an authorized Target Project rule requires mixed files. When Target Project tracker rules, path roles, or write authority are ambiguous, record `Needs Decision` as a Coordinator-owned unresolved decision in the Run Receipt and hold claims instead of defaulting to `mode: none`.
 
 Tracker updates are strictly Coordinator-owned. Execution Agents never modify `tracker_paths`.
 
 Maintain the off-delivery Run Receipt under [Run Receipt and frozen evidence](references/integration-transitions.md#run-receipt-and-frozen-evidence). Bundled helpers enforce deterministic schemas, Git object/blob identities, SHA-256 digests, and CAS boundaries across five entrypoints. `runtime.py` stays standalone for host bootstrap; the four lifecycle wrappers share `scripts/lib/`:
 
-| Script entrypoint | Side-effect boundary | Allowed role | Subcommands |
+| Script entrypoint | Side-effect boundary | Allowed role | Subcommands / options |
 | --- | --- | --- | --- |
 | [`scripts/runtime.py`](scripts/runtime.py) | Verify or install missing Runtime Skill Bundle members in the host Skills root | Coordinator | `--skills-root ... [--include-setup-helper]` |
 | [`scripts/verify.py`](scripts/verify.py) | 100% read-only verification; never writes files, Receipt state, or Git refs | Coordinator / Execution | `definition-index`, `artifact`, `candidate-review`, `tracker-checkpoint` |
@@ -53,11 +53,11 @@ Maintain the off-delivery Run Receipt under [Run Receipt and frozen evidence](re
 Read the corresponding lifecycle reference before invoking its helpers:
 
 - [`references/definition-binding.md`](references/definition-binding.md): `verify.py definition-index`, source classification, equivalence, and `DAG Definition Checkpoint` rules;
-- [`references/scheduling.md`](references/scheduling.md): `publish.py admission-decision`, `commit.py claim`, and `publish.py resume-capsule` writer-liveness reconciliation;
+- [`references/runnable-scheduling.md`](references/runnable-scheduling.md): `publish.py admission-decision`, `commit.py claim`, and `publish.py resume-capsule` writer-liveness reconciliation;
 - [`references/ticket-execution.md`](references/ticket-execution.md): the standalone single-Ticket protocol supplied to each `Execution Agent`;
 - [`references/execution-artifacts.md`](references/execution-artifacts.md): `Artifact Handle`, `Exploration Cache`, `Execution Checkpoint Record`, `Review Context Capsule`, and `Candidate Review Record` helpers;
 - [`references/integration-transitions.md`](references/integration-transitions.md): `commit.py receipt-init`, `commit.py transition`, `publish.py promotion-package`, `promote.py`, and local/remote recovery;
-- [`references/completion.md`](references/completion.md): `commit.py tracker-policy`, `commit.py disposition`, `verify.py` / `commit.py tracker-checkpoint`, and `publish.py terminal-evidence`.
+- [`references/outcome-closure.md`](references/outcome-closure.md): `commit.py tracker-policy`, `commit.py disposition`, `verify.py` / `commit.py tracker-checkpoint`, and `publish.py terminal-evidence`.
 
 ## Bootstrap the Runtime Skill Bundle
 
@@ -167,7 +167,7 @@ Every Ticket completion follows one fixed sequence:
 
 `Accepted/Superseded → Tracker Policy → Tracker Checkpoint → review → Definition Checkpoint → readback → successor unlock`
 
-After an `Accepted`, `Superseded`, or reopened Ticket disposition is recorded, consult the Run Receipt's bound `Tracker Policy` ([`references/completion.md`](references/completion.md#tracker-checkpoints)) with no active Integration Transition. When `mode` is `none`, no tracker commit is created and eligible successors may unlock immediately. When `mode` is `in_repo` or `external_snapshot`, the Coordinator authors the tracker update in an isolated checkpoint worktree on top of the current Accepted Integration Tip according to the Target Project's exact rules; when those rules do not determine a field, record `Needs Decision` as a Coordinator-owned unresolved decision and leave that field unchanged.
+After an `Accepted`, `Superseded`, or reopened Ticket disposition is recorded, consult the Run Receipt's bound `Tracker Policy` ([`references/outcome-closure.md`](references/outcome-closure.md#tracker-checkpoints)) with no active Integration Transition. When `mode` is `none`, no tracker commit is created and eligible successors may unlock immediately. When `mode` is `in_repo` or `external_snapshot`, the Coordinator authors the tracker update in an isolated checkpoint worktree on top of the current Accepted Integration Tip according to the Target Project's exact rules; when those rules do not determine a field, record `Needs Decision` as a Coordinator-owned unresolved decision and leave that field unchanged.
 
 Preflight the `Tracker Checkpoint` candidate with `scripts/verify.py tracker-checkpoint`, obtain fresh `$code-review`, promote it through the `DAG Definition Checkpoint` rules in [`references/definition-binding.md`](references/definition-binding.md), verify exact local and applicable remote readback, and then CAS-record completion with `scripts/commit.py tracker-checkpoint`. Never unlock a successor or report `Complete` while required tracker updates remain incomplete. Under `per_ticket` scope, complete the checkpoint before any new claim; under `batched` scope, only graph-independent non-successor work may proceed while an update is pending, and all pending updates must complete before a DAG Revision, before another checkpoint consumes live tracker state, and before `Complete`. A failed or drifted tracker update preserves the recorded Ticket disposition and `pending_tracker_updates`; tracker failure alone neither changes acceptance nor reruns delivery work.
 

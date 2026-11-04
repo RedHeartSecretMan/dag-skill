@@ -8,11 +8,11 @@
 
 - [`SKILL.md`](./skill/dag/SKILL.md) 定义 `Coordinator Agent` 的运行规范；
 - [`references/ticket-execution.md`](./skill/dag/references/ticket-execution.md) 是独立派发给每个 `Execution Agent` 的单票执行协议；
-- [`definition-binding.md`](./skill/dag/references/definition-binding.md)、[`scheduling.md`](./skill/dag/references/scheduling.md)、[`execution-artifacts.md`](./skill/dag/references/execution-artifacts.md)、[`integration-transitions.md`](./skill/dag/references/integration-transitions.md) 和 [`completion.md`](./skill/dag/references/completion.md) 按生命周期阶段定义 Definition 绑定、并行调度与恢复、执行上下文与审查证据、集成推进以及 Tracker 与终态审计契约。
+- [`definition-binding.md`](./skill/dag/references/definition-binding.md)、[`runnable-scheduling.md`](./skill/dag/references/runnable-scheduling.md)、[`execution-artifacts.md`](./skill/dag/references/execution-artifacts.md)、[`integration-transitions.md`](./skill/dag/references/integration-transitions.md) 和 [`outcome-closure.md`](./skill/dag/references/outcome-closure.md) 按生命周期阶段定义 Definition 绑定、前沿调度与恢复、执行上下文与审查证据、集成推进以及结果闭环与终态审计契约。
 
 [`skill/dag/scripts/`](./skill/dag/scripts/) 下的 5 个公开脚本按副作用边界与角色权限严格收敛。除 `runtime.py` 为避免宿主引导依赖循环而保持独立外，其余 4 个生命周期入口共享 [`scripts/lib/`](./skill/dag/scripts/lib/)：
 
-| 脚本入口 | 副作用边界 | 允许角色 | 子命令 / 参数接口 |
+| 脚本入口 | 副作用边界 | 允许角色 | 子命令 / 参数 |
 | --- | --- | --- | --- |
 | [`scripts/runtime.py`](./skill/dag/scripts/runtime.py) | 在宿主 Skills 根目录校验或补齐 `Runtime Skill Bundle` | Coordinator | `--skills-root ... [--include-setup-helper]` |
 | [`scripts/verify.py`](./skill/dag/scripts/verify.py) | 纯只读确定性校验（无文件、无 Receipt、无 Git 写入） | Coordinator / Execution | `definition-index`、`artifact`、`candidate-review`、`tracker-checkpoint` |

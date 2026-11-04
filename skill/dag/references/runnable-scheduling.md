@@ -45,7 +45,7 @@ Before writing, the helper verifies:
 - the claim's Ticket Base, workspace, branch, paths, and resources satisfy the claim schema;
 - no different live claim already owns the Ticket.
 
-When the Run Receipt contains a `Tracker Policy` ([`completion.md`](completion.md#tracker-policy)), the helper also verifies that `changed_paths` and `shared_interfaces` do not overlap `tracker_paths`, rejects new claims while `pending_tracker_updates` remain under `per_ticket` scope, and rejects dependent claims whose prerequisites remain in `pending_tracker_updates` under `batched` scope.
+When the Run Receipt contains a `Tracker Policy` ([`outcome-closure.md`](outcome-closure.md#tracker-policy)), the helper also verifies that `changed_paths` and `shared_interfaces` do not overlap `tracker_paths`, rejects new claims while `pending_tracker_updates` remain under `per_ticket` scope, and rejects dependent claims whose prerequisites remain in `pending_tracker_updates` under `batched` scope.
 
 The helper appends the claim and increments `coordinator_generation` through the locked Receipt CAS writer, returning the new `coordinator_generation` and `receipt_sha256`. Repeating the same claim with the updated Receipt generation is idempotent. A stale decision, old generation, conflicting owner, or changed claim fails before Receipt mutation.
 

@@ -47,11 +47,11 @@ jobs:
           rumdl check --disable MD013
           README.md README_ZH.md CHANGELOG.md CONTEXT.md docs
           skill/dag/SKILL.md
-          skill/dag/references/completion.md
           skill/dag/references/definition-binding.md
           skill/dag/references/execution-artifacts.md
+          skill/dag/references/frontier-scheduling.md
           skill/dag/references/integration-transitions.md
-          skill/dag/references/scheduling.md
+          skill/dag/references/outcome-closure.md
           skill/dag/references/ticket-execution.md
 
       - name: Check command interfaces
