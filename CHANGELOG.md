@@ -25,6 +25,8 @@
 
 ## [0.5.0] - 2026-10-27
 
+> 本条目于 v0.5.1 补记；`v0.5.0` 标签上的 CHANGELOG 当时仍为 `[Unreleased]`。
+
 ### Added
 
 - 新增 `record_execution_checkpoint.py` 与 `index_execution_record.py`，以固定 schema 校验 `Ticket Capsule`、`Execution Checkpoint`、`Evidence Index` 和 metrics，并通过 artifact SHA-256、路径边界、claim generation、Ticket Base、Run Receipt generation 与 CAS 校验发布和索引 off-delivery shadow record；该记录不改变 claim、Git ref、Integration Transition 或 acceptance。
