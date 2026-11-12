@@ -140,7 +140,7 @@ class SkillPackageTests(unittest.TestCase):
     def test_active_documents_keep_public_names_and_host_neutral_protocol(self) -> None:
         documents = [
             ROOT / "README.md",
-            ROOT / "README_ZH.md",
+            ROOT / "README.zh-CN.md",
             ROOT / "CONTEXT.md",
             ROOT / "docs" / "DESIGN.md",
             *SKILL.rglob("*.md"),
