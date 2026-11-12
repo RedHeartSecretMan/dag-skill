@@ -91,7 +91,7 @@
 - 纯稳定审计检查点以 Definition 身份不变证明收敛 fresh review 范围；元数据变化后的产品门禁复用保留原候选身份，并补充等价性与影响核对。
 - 同一验收责任反复出现成立的 finding 时，执行 Agent 在本票范围内检查有因果关联的相邻路径，再提交复审。
 - Runtime Skills 的锚定 commit 改为最低版本要求：复用完整内容对应锚点或其 Git 后代提交的副本，包括中间版本；缺失项仍从锚点补齐，无法核验或有本地修改的目标保留现场。
-- 默认 [`README.md`](./README.md) 改为英文，中文版移至 [`README_ZH.md`](./README_ZH.md)，语言切换文字使用“简体中文”。
+- 默认 [`README.md`](./README.md) 改为英文，中文版移至 [`README.zh-CN.md`](./README.zh-CN.md)，语言切换文字使用“简体中文”。
 - 派发契约携带适用于当前及下游 Agent 的用户与项目约束，以及已有批准的指针；Runtime Skill 调用和后续派发继续遵守这些约束。
 - Runtime Skill 调用优先使用 Target Project 已有的权威 Ticket、Spec 和 tracker 流程；仅缺少依赖约定的文档路径不要求项目配置，已有测试 seam 批准在原范围内复用。
 - `setup-matt-pocock-skills` 仅由明确的安装请求或使用它完成已授权项目配置的需要触发安装；Coordinator 沿用已有授权补齐缺失副本，仅安装不授权执行配置。
